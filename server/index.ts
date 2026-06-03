@@ -35,6 +35,7 @@ interface RoomState {
   exam: ExamManifest;
   status: RoomPublic["status"];
   timeLimitSec: number;
+  freezeBeforeSec: number;
   itemEnabled: boolean;
   startedAt: number | null;
   endsAt: number | null;
@@ -83,10 +84,7 @@ const toExamSummary = (exam: ExamManifest): ExamSummary => ({
 
 const toExamPublic = (exam: ExamManifest): ExamPublic => ({
   ...toExamSummary(exam),
-  fonts: exam.fonts?.map((font) => ({
-    ...font,
-    url: `/exams/${exam.id}/fonts/${font.file}`
-  })),
+  captureSummary: exam.captureSummary,
   problems: exam.problems.map((problem) => ({
     id: problem.id,
     number: problem.number,
@@ -95,12 +93,11 @@ const toExamPublic = (exam: ExamManifest): ExamPublic => ({
     difficulty: problem.difficulty,
     imageUrl: `/exams/${exam.id}/problems/${problem.image}`,
     text: problem.text,
+    sourceNumber: problem.sourceNumber,
     sourcePage: problem.sourcePage,
     bbox: problem.bbox,
     section: problem.section,
-    content: problem.content,
-    math: problem.math,
-    renderBlocks: problem.renderBlocks
+    captureQuality: problem.captureQuality
   }))
 });
 
@@ -121,6 +118,14 @@ const makeId = () => Math.random().toString(36).slice(2, 10);
 const addLog = (room: RoomState, kind: ArenaLog["kind"], message: string) => {
   room.logs.unshift({ id: makeId(), kind, message, createdAt: Date.now() });
   room.logs = room.logs.slice(0, 24);
+};
+
+const clampNumber = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+
+const readPositiveSeconds = (value: unknown, fallback: number, min: number, max: number) => {
+  const numeric = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(numeric)) return Math.round(clampNumber(fallback, min, max));
+  return Math.round(clampNumber(numeric, min, max));
 };
 
 const makeStandings = (room: RoomState, players: PlayerPublic[] = [...room.players.values()]): StandingPublic[] =>
@@ -146,7 +151,7 @@ const isScoreboardFrozen = (room: RoomState) =>
 const maybeFreezeScoreboard = (room: RoomState) => {
   if (!isScoreboardFrozen(room) || room.frozenStandings.length > 0) return;
   room.frozenStandings = makeStandings(room);
-  addLog(room, "system", "종료 10분 전. 순위표가 프리즈되었습니다.");
+  addLog(room, "system", `종료 ${Math.round(room.freezeBeforeSec / 60)}분 전. 순위표가 비공개 처리되었습니다.`);
 };
 
 const publicRoom = (room: RoomState): RoomPublic => ({
@@ -155,6 +160,7 @@ const publicRoom = (room: RoomState): RoomPublic => ({
   exam: toExamPublic(room.exam),
   status: room.status,
   timeLimitSec: room.timeLimitSec,
+  freezeBeforeSec: room.freezeBeforeSec,
   itemEnabled: room.itemEnabled,
   startedAt: room.startedAt,
   endsAt: room.endsAt,
@@ -185,6 +191,8 @@ const randomItem = (): ItemId => {
   return ids[Math.floor(Math.random() * ids.length)];
 };
 
+const maybeAwardItem = (): ItemId | null => (Math.random() < 0.45 ? randomItem() : null);
+
 const randomWeakDebuff = (): ActiveEffect => {
   const now = Date.now();
   const pool: ActiveEffect[] = [
@@ -198,10 +206,11 @@ const randomWeakDebuff = (): ActiveEffect => {
 const isFinished = (room: RoomState) =>
   room.status === "playing" && room.endsAt !== null && Date.now() >= room.endsAt;
 
-const finishRoom = (room: RoomState) => {
+const finishRoom = (room: RoomState, reason = "시험 종료. 답안지를 걷습니다.") => {
   if (room.status !== "playing") return;
   room.status = "finished";
-  addLog(room, "system", "시험 종료. 답안지를 걷습니다.");
+  addLog(room, "system", "채점 완료. 성적통지표를 배부합니다.");
+  addLog(room, "system", reason);
   emitRoom(room);
 };
 
@@ -245,7 +254,29 @@ if (process.env.NODE_ENV === "production") {
 }
 
 io.on("connection", (socket) => {
-  socket.on("room:create", (payload: { examId: string; nickname: string; timeLimitSec?: number; itemEnabled: boolean }, reply: (response: ServerResponse<RoomPublic>) => void) => {
+  socket.on("room:rejoin", (payload: { code: string; playerId: string }, reply: (response: ServerResponse<RoomPublic>) => void) => {
+    const code = payload.code.trim().toUpperCase();
+    const room = rooms.get(code);
+    const player = room?.players.get(payload.playerId);
+    if (!room || !player) {
+      reply({ ok: false, error: "이전에 입실했던 방을 찾을 수 없습니다." });
+      return;
+    }
+
+    const previousSocketId = player.socketId;
+    player.socketId = socket.id;
+    player.connected = true;
+    io.sockets.sockets.get(previousSocketId)?.leave(code);
+    socket.join(code);
+    socketToPlayer.delete(previousSocketId);
+    socketToPlayer.set(socket.id, { roomCode: code, playerId: player.id });
+    socket.emit("player:you", player.id);
+    addLog(room, "system", `${player.nickname} 재입실. 기존 수험번호를 복구했습니다.`);
+    reply({ ok: true, data: publicRoom(room) });
+    emitRoom(room);
+  });
+
+  socket.on("room:create", (payload: { examId: string; nickname: string; timeLimitSec?: number; freezeBeforeSec?: number; itemEnabled: boolean }, reply: (response: ServerResponse<RoomPublic>) => void) => {
     const exam = examById.get(payload.examId);
     if (!exam) {
       reply({ ok: false, error: "등록된 시험을 찾을 수 없습니다." });
@@ -258,6 +289,8 @@ io.on("connection", (socket) => {
       return;
     }
 
+    const timeLimitSec = readPositiveSeconds(payload.timeLimitSec, exam.timeLimitSec, 60, 4 * 60 * 60);
+    const freezeBeforeSec = readPositiveSeconds(payload.freezeBeforeSec, 10 * 60, 0, timeLimitSec);
     const code = makeCode();
     const playerId = makeId();
     const firstProblemId = exam.problems[0]?.id ?? "";
@@ -280,7 +313,8 @@ io.on("connection", (socket) => {
       hostId: playerId,
       exam,
       status: "lobby",
-      timeLimitSec: payload.timeLimitSec ?? exam.timeLimitSec,
+      timeLimitSec,
+      freezeBeforeSec,
       itemEnabled: payload.itemEnabled,
       startedAt: null,
       endsAt: null,
@@ -359,11 +393,49 @@ io.on("connection", (socket) => {
     room.status = "playing";
     room.startedAt = Date.now();
     room.endsAt = room.startedAt + room.timeLimitSec * 1000;
-    room.scoreboardFrozenAt = Math.max(room.startedAt, room.endsAt - 10 * 60 * 1000);
+    room.scoreboardFrozenAt = room.freezeBeforeSec === 0 ? null : Math.max(room.startedAt, room.endsAt - room.freezeBeforeSec * 1000);
     room.frozenStandings = [];
     for (const player of room.players.values()) player.ready = true;
     addLog(room, "system", "타종. 1교시 수학 영역을 시작합니다.");
     emitRoom(room);
+  });
+
+  socket.on("room:end", (_payload: unknown, reply?: (response: ServerResponse<RoomPublic>) => void) => {
+    const ref = socketToPlayer.get(socket.id);
+    if (!ref) {
+      reply?.({ ok: false, error: "참가자 정보를 찾을 수 없습니다." });
+      return;
+    }
+    const room = rooms.get(ref.roomCode);
+    if (!room || room.hostId !== ref.playerId) {
+      reply?.({ ok: false, error: "방장만 시험을 종료할 수 있습니다." });
+      return;
+    }
+    if (room.status !== "playing") {
+      reply?.({ ok: false, error: "진행 중인 시험이 아닙니다." });
+      return;
+    }
+
+    finishRoom(room, "방장이 시험을 조기 종료했습니다. 답안지를 걷습니다.");
+    reply?.({ ok: true, data: publicRoom(room) });
+  });
+
+  socket.on("room:leave", (_payload: unknown, reply?: (response: ServerResponse) => void) => {
+    const ref = socketToPlayer.get(socket.id);
+    if (!ref) {
+      reply?.({ ok: true });
+      return;
+    }
+    const room = rooms.get(ref.roomCode);
+    const player = room?.players.get(ref.playerId);
+    if (room && player) {
+      player.connected = false;
+      addLog(room, "system", `${player.nickname} 퇴실.`);
+      socket.leave(room.code);
+      emitRoom(room);
+    }
+    socketToPlayer.delete(socket.id);
+    reply?.({ ok: true });
   });
 
   socket.on("problem:set", (payload: { problemId: string }) => {
@@ -379,7 +451,7 @@ io.on("connection", (socket) => {
     emitRoom(room);
   });
 
-  socket.on("answer:submit", (payload: { problemId: string; answer: string }, reply: (response: ServerResponse<{ correct: boolean }>) => void) => {
+  socket.on("answer:submit", (payload: { problemId: string; answer: string }, reply: (response: ServerResponse<{ correct: boolean; itemAwarded: ItemId | null }>) => void) => {
     const ref = socketToPlayer.get(socket.id);
     if (!ref) {
       reply({ ok: false, error: "참가자 정보를 찾을 수 없습니다." });
@@ -433,8 +505,16 @@ io.on("connection", (socket) => {
         player.scoreBreakdown.timeBonus += Math.max(0, scoreAwarded - 100 - difficultyBonus);
       }
       player.consecutiveWrong = 0;
-      if (room.itemEnabled) player.inventory.push(randomItem());
-      addLog(room, "submit", `${player.nickname} ${problem.number}번 정답 +${scoreAwarded}점. ${room.itemEnabled ? "아이템 박스 획득." : ""}`);
+      const itemAwarded = room.itemEnabled ? maybeAwardItem() : null;
+      if (itemAwarded) player.inventory.push(itemAwarded);
+      addLog(
+        room,
+        "submit",
+        `${player.nickname} ${problem.number}번 정답 +${scoreAwarded}점.${itemAwarded ? ` ${ITEM_DEFINITIONS[itemAwarded].name} 획득.` : ""}`
+      );
+      reply({ ok: true, data: { correct, itemAwarded } });
+      emitRoom(room);
+      return;
     } else {
       player.consecutiveWrong += 1;
       addLog(room, "submit", `${player.nickname} ${problem.number}번 오답. 연속 ${player.consecutiveWrong}회.`);
@@ -446,7 +526,7 @@ io.on("connection", (socket) => {
       }
     }
 
-    reply({ ok: true, data: { correct } });
+    reply({ ok: true, data: { correct, itemAwarded: null } });
     emitRoom(room);
   });
 

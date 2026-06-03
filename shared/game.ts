@@ -12,12 +12,11 @@ export interface ProblemManifest {
   difficulty: 1 | 2 | 3 | 4 | 5;
   image: string;
   text?: string;
+  sourceNumber?: number;
   sourcePage?: number;
   bbox?: [number, number, number, number];
   section?: string;
-  content?: ProblemContent;
-  math?: MathBlock[];
-  renderBlocks?: ProblemRenderBlock[];
+  captureQuality?: CaptureQuality;
 }
 
 export interface ExamManifest {
@@ -25,7 +24,7 @@ export interface ExamManifest {
   title: string;
   subtitle: string;
   timeLimitSec: number;
-  fonts?: ExamFontAsset[];
+  captureSummary?: CaptureSummary;
   problems: ProblemManifest[];
 }
 
@@ -45,63 +44,30 @@ export interface ProblemPublic {
   difficulty: 1 | 2 | 3 | 4 | 5;
   imageUrl: string;
   text?: string;
+  sourceNumber?: number;
   sourcePage?: number;
   bbox?: [number, number, number, number];
   section?: string;
-  content?: ProblemContent;
-  math?: MathBlock[];
-  renderBlocks?: ProblemRenderBlock[];
+  captureQuality?: CaptureQuality;
 }
 
 export interface ExamPublic extends ExamSummary {
-  fonts?: ExamFontAssetPublic[];
+  captureSummary?: CaptureSummary;
   problems: ProblemPublic[];
 }
 
-export interface ExamFontAsset {
-  family: string;
-  file: string;
+export interface CaptureQuality {
+  score: number;
+  usable: boolean;
+  warnings: string[];
 }
 
-export interface ExamFontAssetPublic extends ExamFontAsset {
-  url: string;
-}
-
-export interface ProblemSpan {
-  text: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  font: string;
-  size: number;
-  flags: number;
-}
-
-export interface ProblemLine {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  spans: ProblemSpan[];
-}
-
-export interface ProblemContent {
-  width: number;
-  height: number;
-  lines: ProblemLine[];
-}
-
-export interface MathBlock {
-  source: string;
-  latex: string;
-}
-
-export interface ProblemRenderBlock {
-  kind: "text" | "math" | "choices";
-  text?: string;
-  latex?: string;
-  choices?: Array<{ label: string; text: string; latex?: string }>;
+export interface CaptureSummary {
+  mode: string;
+  problemCount: number;
+  averageScore: number;
+  warningCount: number;
+  unusableProblems: number[];
 }
 
 export interface ItemDefinition {
@@ -122,24 +88,24 @@ export const ITEM_DEFINITIONS: Record<ItemId, ItemDefinition> = {
   },
   cover: {
     id: "cover",
-    name: "문제 가리기",
-    shortName: "가리기",
+    name: "눈가리기",
+    shortName: "눈가림",
     durationMs: 10000,
-    description: "문제 위에 시험지 조각 오버레이를 띄웁니다."
+    description: "대상의 문제 위에 시험지 조각 오버레이를 띄웁니다."
   },
   hardFirst: {
     id: "hardFirst",
-    name: "어려운 문제부터 풀어라",
+    name: "어려운 문제부터 풀어랏",
     shortName: "고난도",
     durationMs: 15000,
     description: "쉬운 문제 이동을 잠시 막고 고난도 문제를 추천합니다."
   },
   meme: {
     id: "meme",
-    name: "현우진 웃긴 짤",
-    shortName: "짤폭탄",
+    name: "현우진 짤 투척",
+    shortName: "현우진짤",
     durationMs: 8000,
-    description: "서버에 등록된 방해 이미지를 잠시 표시합니다."
+    description: "대상 화면에 서버에 등록된 방해 이미지를 잠시 표시합니다."
   },
   penLock: {
     id: "penLock",
@@ -207,6 +173,7 @@ export interface RoomPublic {
   exam: ExamPublic;
   status: RoomStatus;
   timeLimitSec: number;
+  freezeBeforeSec: number;
   itemEnabled: boolean;
   startedAt: number | null;
   endsAt: number | null;
