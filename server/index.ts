@@ -11,12 +11,15 @@ import {
   type ExamPublic,
   type ExamSummary,
   ITEM_DEFINITIONS,
+  type ItemAward,
   type ItemId,
   type PlayerPublic,
   type ProblemManifest,
   type RoomPublic,
   type ServerResponse,
   type StandingPublic,
+  WRONG_ANSWER_PENALTY_MS,
+  getProblemPointValue,
   normalizeAnswer
 } from "../shared/game.js";
 
@@ -41,6 +44,7 @@ interface RoomState {
   endsAt: number | null;
   scoreboardFrozenAt: number | null;
   frozenStandings: StandingPublic[];
+  scoreboardRevealCount: number;
   players: Map<string, PlayerState>;
   logs: ArenaLog[];
 }
@@ -91,6 +95,7 @@ const toExamPublic = (exam: ExamManifest): ExamPublic => ({
     title: problem.title,
     answerKind: problem.answerKind,
     difficulty: problem.difficulty,
+    pointValue: getProblemPointValue(problem),
     imageUrl: `/exams/${exam.id}/problems/${problem.image}`,
     text: problem.text,
     sourceNumber: problem.sourceNumber,
@@ -139,11 +144,18 @@ const makeStandings = (room: RoomState, players: PlayerPublic[] = [...room.playe
         playerId: player.id,
         nickname: player.nickname,
         score: player.score,
+        penaltyMs: player.penaltyMs,
         solved: player.scoreBreakdown.solved,
         lastAcceptedAt
       };
     })
-    .sort((a, b) => b.score - a.score || b.solved - a.solved || (a.lastAcceptedAt ?? Number.MAX_SAFE_INTEGER) - (b.lastAcceptedAt ?? Number.MAX_SAFE_INTEGER));
+    .sort(compareStandings);
+
+const compareStandings = (a: StandingPublic, b: StandingPublic) =>
+  b.score - a.score ||
+  a.penaltyMs - b.penaltyMs ||
+  b.solved - a.solved ||
+  (a.lastAcceptedAt ?? Number.MAX_SAFE_INTEGER) - (b.lastAcceptedAt ?? Number.MAX_SAFE_INTEGER);
 
 const isScoreboardFrozen = (room: RoomState) =>
   room.status === "playing" && room.scoreboardFrozenAt !== null && Date.now() >= room.scoreboardFrozenAt;
@@ -167,6 +179,7 @@ const publicRoom = (room: RoomState): RoomPublic => ({
   scoreboardFrozen: isScoreboardFrozen(room),
   scoreboardFrozenAt: room.scoreboardFrozenAt,
   frozenStandings: room.frozenStandings,
+  scoreboardRevealCount: room.scoreboardRevealCount,
   players: [...room.players.values()].map(({ socketId: _socketId, ...player }) => ({
     ...player,
     effects: player.effects.filter((effect) => effect.expiresAt > Date.now())
@@ -191,7 +204,28 @@ const randomItem = (): ItemId => {
   return ids[Math.floor(Math.random() * ids.length)];
 };
 
-const maybeAwardItem = (): ItemId | null => (Math.random() < 0.45 ? randomItem() : null);
+const leadingScore = (room: RoomState) => Math.max(0, ...[...room.players.values()].map((player) => player.score));
+
+const maybeAwardItems = (room: RoomState, player: PlayerState, problem: ProblemManifest, attempts: number): ItemAward[] => {
+  if (!room.itemEnabled) return [];
+
+  const firstTry = attempts === 1;
+  const scoreGap = Math.max(0, leadingScore(room) - player.score);
+  const comebackBoost = scoreGap >= 240 ? 0.14 : scoreGap >= 120 ? 0.08 : 0;
+  const difficultyBoost = problem.difficulty * 0.055;
+  const firstTryBoost = firstTry ? 0.1 : 0;
+  const chance = Math.min(0.82, 0.2 + difficultyBoost + firstTryBoost + comebackBoost);
+  const awards: ItemAward[] = [];
+
+  if (Math.random() < chance) {
+    awards.push({ itemId: randomItem(), reason: comebackBoost > 0.1 ? "comeback" : problem.difficulty >= 4 ? "difficulty" : "lucky" });
+  }
+  if (firstTry && problem.difficulty >= 5 && Math.random() < 0.35) {
+    awards.push({ itemId: randomItem(), reason: "firstTry" });
+  }
+
+  return awards;
+};
 
 const randomWeakDebuff = (): ActiveEffect => {
   const now = Date.now();
@@ -208,8 +242,11 @@ const isFinished = (room: RoomState) =>
 
 const finishRoom = (room: RoomState, reason = "시험 종료. 답안지를 걷습니다.") => {
   if (room.status !== "playing") return;
+  maybeFreezeScoreboard(room);
+  if (room.frozenStandings.length === 0) room.frozenStandings = makeStandings(room);
+  room.scoreboardRevealCount = 0;
   room.status = "finished";
-  addLog(room, "system", "채점 완료. 성적통지표를 배부합니다.");
+  addLog(room, "system", "채점 완료. 승부 영향 문항 공개를 시작합니다.");
   addLog(room, "system", reason);
   emitRoom(room);
 };
@@ -222,13 +259,48 @@ setInterval(() => {
   }
 }, 1000);
 
-const scoreForAccepted = (room: RoomState, problem: ProblemManifest, acceptedAt: number) => {
-  const startedAt = room.startedAt ?? acceptedAt;
-  const elapsedSec = Math.max(0, Math.floor((acceptedAt - startedAt) / 1000));
-  const remainingRatio = Math.max(0, Math.min(1, (room.timeLimitSec - elapsedSec) / room.timeLimitSec));
-  const difficultyBonus = problem.difficulty * 20;
-  const timeBonus = Math.round(80 * remainingRatio);
-  return 100 + difficultyBonus + timeBonus;
+const scoreForAccepted = (problem: ProblemManifest) => getProblemPointValue(problem);
+
+const wasCorrectAt = (player: PlayerPublic, problemId: string, visibleUntil: number | null) =>
+  player.submissions.some((submission) => submission.problemId === problemId && submission.correct && (visibleUntil === null || submission.submittedAt <= visibleUntil));
+
+const makeRevealFocusProblemIds = (room: RoomState) => {
+  const frozenAt = room.scoreboardFrozenAt;
+  const frozenRows = room.frozenStandings.length > 0 ? room.frozenStandings : makeStandings(room);
+  const finalRows = makeStandings(room);
+  const finalWinnerId = finalRows[0]?.playerId ?? null;
+  const frozenWinnerId = frozenRows[0]?.playerId ?? null;
+  const contenderIds = new Set([finalWinnerId, frozenWinnerId, finalRows[1]?.playerId, frozenRows[1]?.playerId].filter(Boolean));
+  const players = [...room.players.values()];
+
+  const focusProblems = room.exam.problems
+    .map((problem) => {
+      const playerChanged = players.filter((player) => wasCorrectAt(player, problem.id, null) !== wasCorrectAt(player, problem.id, frozenAt));
+      const contenderChanged = playerChanged.some((player) => contenderIds.has(player.id));
+      const afterFreezeAccepted = playerChanged.filter((player) => wasCorrectAt(player, problem.id, null)).length;
+      return {
+        problemId: problem.id,
+        number: problem.number,
+        pointValue: getProblemPointValue(problem),
+        contenderChanged,
+        changedCount: playerChanged.length,
+        afterFreezeAccepted
+      };
+    })
+    .filter((problem) => problem.changedCount > 0)
+    .sort(
+      (a, b) =>
+        Number(b.contenderChanged) - Number(a.contenderChanged) ||
+        b.pointValue - a.pointValue ||
+        b.afterFreezeAccepted - a.afterFreezeAccepted ||
+        b.changedCount - a.changedCount ||
+        a.number - b.number
+    )
+    .map((problem) => problem.problemId);
+
+  return focusProblems.length > 0
+    ? focusProblems
+    : [...room.exam.problems].sort((a, b) => getProblemPointValue(b) - getProblemPointValue(a) || a.number - b.number).map((problem) => problem.id);
 };
 
 app.use("/exams", express.static(examsDir));
@@ -299,6 +371,7 @@ io.on("connection", (socket) => {
       socketId: socket.id,
       nickname,
       score: 0,
+      penaltyMs: 0,
       scoreBreakdown: { solved: 0, timeBonus: 0, difficultyBonus: 0 },
       ready: true,
       currentProblemId: firstProblemId,
@@ -320,6 +393,7 @@ io.on("connection", (socket) => {
       endsAt: null,
       scoreboardFrozenAt: null,
       frozenStandings: [],
+      scoreboardRevealCount: 0,
       players: new Map([[playerId, host]]),
       logs: []
     };
@@ -356,6 +430,7 @@ io.on("connection", (socket) => {
       socketId: socket.id,
       nickname,
       score: 0,
+      penaltyMs: 0,
       scoreBreakdown: { solved: 0, timeBonus: 0, difficultyBonus: 0 },
       ready: false,
       currentProblemId: room.exam.problems[0]?.id ?? "",
@@ -395,6 +470,7 @@ io.on("connection", (socket) => {
     room.endsAt = room.startedAt + room.timeLimitSec * 1000;
     room.scoreboardFrozenAt = room.freezeBeforeSec === 0 ? null : Math.max(room.startedAt, room.endsAt - room.freezeBeforeSec * 1000);
     room.frozenStandings = [];
+    room.scoreboardRevealCount = 0;
     for (const player of room.players.values()) player.ready = true;
     addLog(room, "system", "타종. 1교시 수학 영역을 시작합니다.");
     emitRoom(room);
@@ -417,6 +493,31 @@ io.on("connection", (socket) => {
     }
 
     finishRoom(room, "방장이 시험을 조기 종료했습니다. 답안지를 걷습니다.");
+    reply?.({ ok: true, data: publicRoom(room) });
+  });
+
+  socket.on("room:reveal-next", (_payload: unknown, reply?: (response: ServerResponse<RoomPublic>) => void) => {
+    const ref = socketToPlayer.get(socket.id);
+    if (!ref) {
+      reply?.({ ok: false, error: "참가자 정보를 찾을 수 없습니다." });
+      return;
+    }
+    const room = rooms.get(ref.roomCode);
+    if (!room || room.hostId !== ref.playerId) {
+      reply?.({ ok: false, error: "방장만 순위표를 공개할 수 있습니다." });
+      return;
+    }
+    if (room.status !== "finished") {
+      reply?.({ ok: false, error: "시험 종료 후 공개할 수 있습니다." });
+      return;
+    }
+
+    const revealFocusProblemIds = makeRevealFocusProblemIds(room);
+    const total = revealFocusProblemIds.length;
+    room.scoreboardRevealCount = Math.min(total, room.scoreboardRevealCount + 1);
+    const revealedProblem = room.exam.problems.find((problem) => problem.id === revealFocusProblemIds[room.scoreboardRevealCount - 1]);
+    addLog(room, "system", revealedProblem ? `${revealedProblem.number}번 승부 문항의 정답 여부를 공개했습니다.` : "승부 문항 정답 여부를 공개했습니다.");
+    emitRoom(room);
     reply?.({ ok: true, data: publicRoom(room) });
   });
 
@@ -451,7 +552,7 @@ io.on("connection", (socket) => {
     emitRoom(room);
   });
 
-  socket.on("answer:submit", (payload: { problemId: string; answer: string }, reply: (response: ServerResponse<{ correct: boolean; itemAwarded: ItemId | null }>) => void) => {
+  socket.on("answer:submit", (payload: { problemId: string; answer: string }, reply: (response: ServerResponse<{ correct: boolean; itemAwarded: ItemId | null; itemAwards: ItemAward[] }>) => void) => {
     const ref = socketToPlayer.get(socket.id);
     if (!ref) {
       reply({ ok: false, error: "참가자 정보를 찾을 수 없습니다." });
@@ -491,33 +592,42 @@ io.on("connection", (socket) => {
       reply({ ok: false, error: "이미 맞힌 문항입니다." });
       return;
     }
+    if (problem.answerKind === "choice" && previousSubmission) {
+      reply({ ok: false, error: "5지선다 문항은 한 번만 제출할 수 있습니다." });
+      return;
+    }
     player.submissions = player.submissions.filter((submission) => submission.problemId !== problem.id);
     const attempts = (previousSubmission?.attempts ?? 0) + 1;
-    const scoreAwarded = correct && !previousCorrect ? scoreForAccepted(room, problem, acceptedAt) : 0;
-    player.submissions.push({ problemId: problem.id, answer, correct, submittedAt: acceptedAt, scoreAwarded, attempts });
+    const wrongPenaltyMs = Math.max(0, attempts - 1) * WRONG_ANSWER_PENALTY_MS;
+    const elapsedMs = Math.max(0, acceptedAt - (room.startedAt ?? acceptedAt));
+    const penaltyMs = correct ? elapsedMs + wrongPenaltyMs : attempts * WRONG_ANSWER_PENALTY_MS;
+    const scoreAwarded = correct && !previousCorrect ? scoreForAccepted(problem) : 0;
+    player.submissions.push({ problemId: problem.id, answer, correct, submittedAt: acceptedAt, scoreAwarded, penaltyMs, attempts });
 
     if (correct) {
       if (!previousCorrect) {
-        const difficultyBonus = problem.difficulty * 20;
         player.score += scoreAwarded;
+        player.penaltyMs += penaltyMs;
         player.scoreBreakdown.solved += 1;
-        player.scoreBreakdown.difficultyBonus += difficultyBonus;
-        player.scoreBreakdown.timeBonus += Math.max(0, scoreAwarded - 100 - difficultyBonus);
+        player.scoreBreakdown.difficultyBonus += 0;
+        player.scoreBreakdown.timeBonus += 0;
       }
       player.consecutiveWrong = 0;
-      const itemAwarded = room.itemEnabled ? maybeAwardItem() : null;
-      if (itemAwarded) player.inventory.push(itemAwarded);
+      const itemAwards = maybeAwardItems(room, player, problem, attempts);
+      for (const award of itemAwards) player.inventory.push(award.itemId);
+      const itemAwarded = itemAwards[0]?.itemId ?? null;
+      const itemAwardNames = itemAwards.map((award) => ITEM_DEFINITIONS[award.itemId].name).join(", ");
       addLog(
         room,
         "submit",
-        `${player.nickname} ${problem.number}번 정답 +${scoreAwarded}점.${itemAwarded ? ` ${ITEM_DEFINITIONS[itemAwarded].name} 획득.` : ""}`
+        `${player.nickname} ${problem.number}번 정답 +${scoreAwarded}점, 페널티 +${Math.round(penaltyMs / 60000)}분.${itemAwards.length > 0 ? ` ${itemAwardNames} 획득.` : ""}`
       );
-      reply({ ok: true, data: { correct, itemAwarded } });
+      reply({ ok: true, data: { correct, itemAwarded, itemAwards } });
       emitRoom(room);
       return;
     } else {
       player.consecutiveWrong += 1;
-      addLog(room, "submit", `${player.nickname} ${problem.number}번 오답. 연속 ${player.consecutiveWrong}회.`);
+      addLog(room, "submit", `${player.nickname} ${problem.number}번 오답. 이 문항 오답 페널티 +${Math.round(penaltyMs / 60000)}분, 연속 ${player.consecutiveWrong}회.`);
       if (player.consecutiveWrong >= 3) {
         const penalty = randomWeakDebuff();
         player.effects.push(penalty);
@@ -526,7 +636,7 @@ io.on("connection", (socket) => {
       }
     }
 
-    reply({ ok: true, data: { correct, itemAwarded: null } });
+    reply({ ok: true, data: { correct, itemAwarded: null, itemAwards: [] } });
     emitRoom(room);
   });
 

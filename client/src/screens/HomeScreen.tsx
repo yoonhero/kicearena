@@ -1,0 +1,172 @@
+import { useState } from "react";
+import { ChevronDown, Gamepad2, LogIn, SlidersHorizontal } from "lucide-react";
+import type { ExamSummary } from "../../../shared/game";
+import { formatReportDate } from "../lib/format";
+
+export function HomeScreen(props: {
+  exams: ExamSummary[];
+  selectedExamId: string;
+  setSelectedExamId: (id: string) => void;
+  timeLimitMin: number;
+  setTimeLimitMin: (value: number) => void;
+  freezeBeforeMin: number;
+  setFreezeBeforeMin: (value: number) => void;
+  nickname: string;
+  setNickname: (value: string) => void;
+  roomCode: string;
+  setRoomCode: (value: string) => void;
+  createRoom: () => void;
+  joinRoom: () => void;
+  joinInviteRoom: () => void;
+  inviteMode: boolean;
+  inviteRoomCode: string;
+  joiningInvite: boolean;
+  error: string;
+}) {
+  const [showOptions, setShowOptions] = useState(false);
+  const nameSlots = 4;
+  const nameInitials = ["ㄱ", "ㅇ", "ㅈ", "ㅅ", "ㅂ", "ㅎ", "ㄴ"];
+  const trimmedNickname = props.nickname.trim();
+  const setNicknameSlot = (slot: number, initial: string) => {
+    const chars = Array.from(props.nickname).slice(0, nameSlots);
+    while (chars.length < nameSlots) chars.push("");
+    chars[slot] = initial;
+    props.setNickname(chars.join(""));
+  };
+  const nicknameLength = Array.from(trimmedNickname).length;
+
+  return (
+    <main className={`home-layout ${props.inviteMode ? "invite-home-layout" : ""}`}>
+      <section className="exam-sheet intro-sheet omr-entry-sheet">
+        {!props.inviteMode && (
+          <>
+            <div className="exam-head cover-head">
+              <span>{formatReportDate()} 시행 모의평가</span>
+              <strong>1</strong>
+            </div>
+            <div className="subject-badge">제 2 교시</div>
+            <div className="intro-title kice-cover">
+              <h1>수학 영역</h1>
+              <strong>소수형</strong>
+            </div>
+          </>
+        )}
+        <div className="omr-entry">
+          <div className="identity-card">
+            <div className="omr-name-maker" aria-label="성명 OMR 입력">
+              <div className="omr-maker-head">
+                <strong>성명</strong>
+                <span>{props.inviteMode ? `초대 방 ${props.inviteRoomCode}` : "(초성 1~4칸 선택)"}</span>
+              </div>
+              <div className="omr-maker-cells" aria-hidden="true">
+                {Array.from({ length: nameSlots }, (_, index) => (
+                  <span key={index}>{props.nickname[index] ?? ""}</span>
+                ))}
+              </div>
+              {nameInitials.map((initial) => (
+                <div className="omr-syllable-row" key={initial}>
+                  {Array.from({ length: nameSlots }, (_, slot) => (
+                    <button
+                      key={`${initial}-${slot}`}
+                      type="button"
+                      className={props.nickname[slot] === initial ? "marked" : ""}
+                      onClick={() => setNicknameSlot(slot, initial)}
+                      aria-label={`${slot + 1}번째 초성 ${initial}`}
+                    >
+                      <span>{initial}</span>
+                    </button>
+                  ))}
+                </div>
+              ))}
+            </div>
+            <label className="nickname-direct-field">
+              성명
+              <input value={props.nickname} maxLength={nameSlots} onChange={(event) => props.setNickname(event.target.value.slice(0, nameSlots))} placeholder="이름" />
+            </label>
+            {props.inviteMode && (
+              <>
+                <div className="invite-entry-status" aria-live="polite">
+                  <span>{props.joiningInvite ? "입실 처리 중" : nicknameLength > 0 ? `${nicknameLength}글자` : "1글자 이상 선택"}</span>
+                </div>
+                <button className="omr-action invite-enter-action" type="button" disabled={!trimmedNickname || props.joiningInvite} onClick={props.joinInviteRoom}>
+                  <LogIn size={18} />
+                  입장
+                </button>
+              </>
+            )}
+          </div>
+          {!props.inviteMode && (
+            <div className="entry-flow-stack">
+              <div className="entry-action-panel creator-panel">
+                <div className="entry-panel-title">
+                  <span>방 생성</span>
+                  <strong>시험지를 고른 뒤 시작</strong>
+                </div>
+                <div className="omr-field exam-field">
+                  <span>시험지</span>
+                  <select value={props.selectedExamId} onChange={(event) => props.setSelectedExamId(event.target.value)}>
+                    {props.exams.map((exam) => (
+                      <option key={exam.id} value={exam.id}>
+                        {exam.title} · {exam.problemCount}문항
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className={`room-option-drawer ${showOptions ? "open" : ""}`}>
+                  <button className="option-toggle" type="button" onClick={() => setShowOptions((value) => !value)} aria-expanded={showOptions}>
+                    <SlidersHorizontal size={16} />
+                    세부 설정
+                    <ChevronDown size={16} />
+                  </button>
+                  {showOptions && (
+                    <div className="room-option-grid">
+                      <label className="omr-field">
+                        <span>시험 시간(분)</span>
+                        <input
+                          type="number"
+                          min={1}
+                          max={240}
+                          value={props.timeLimitMin}
+                          onChange={(event) => props.setTimeLimitMin(Number.isFinite(event.currentTarget.valueAsNumber) ? event.currentTarget.valueAsNumber : 1)}
+                        />
+                      </label>
+                      <label className="omr-field">
+                        <span>순위 비공개 시작(종료 전 분)</span>
+                        <input
+                          type="number"
+                          min={0}
+                          max={props.timeLimitMin}
+                          value={props.freezeBeforeMin}
+                          onChange={(event) => props.setFreezeBeforeMin(Number.isFinite(event.currentTarget.valueAsNumber) ? event.currentTarget.valueAsNumber : 0)}
+                        />
+                      </label>
+                    </div>
+                  )}
+                </div>
+                <button className="omr-action host-action" onClick={props.createRoom}>
+                  <Gamepad2 size={18} />
+                  방 열기
+                </button>
+              </div>
+              <div className="entry-action-panel join-panel">
+                <div className="entry-panel-title">
+                  <span>기존 방 입장</span>
+                  <strong>방 코드만 입력</strong>
+                </div>
+                <div className="omr-field code-field">
+                  <span>방 코드</span>
+                  <input value={props.roomCode} onChange={(event) => props.setRoomCode(event.target.value.toUpperCase())} placeholder="ABCDE" />
+                </div>
+                <button className="omr-action join-action" onClick={props.joinRoom}>
+                  <LogIn size={18} />
+                  입장
+                </button>
+              </div>
+            </div>
+          )}
+          {props.error && <p className="error-text">{props.error}</p>}
+        </div>
+      </section>
+    </main>
+  );
+}

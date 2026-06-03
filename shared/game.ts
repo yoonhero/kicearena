@@ -10,6 +10,7 @@ export interface ProblemManifest {
   answerKind: AnswerKind;
   answer: string;
   difficulty: 1 | 2 | 3 | 4 | 5;
+  pointValue?: number;
   image: string;
   text?: string;
   sourceNumber?: number;
@@ -42,6 +43,7 @@ export interface ProblemPublic {
   title: string;
   answerKind: AnswerKind;
   difficulty: 1 | 2 | 3 | 4 | 5;
+  pointValue: number;
   imageUrl: string;
   text?: string;
   sourceNumber?: number;
@@ -76,6 +78,11 @@ export interface ItemDefinition {
   shortName: string;
   durationMs: number;
   description: string;
+}
+
+export interface ItemAward {
+  itemId: ItemId;
+  reason: "lucky" | "difficulty" | "firstTry" | "comeback";
 }
 
 export const ITEM_DEFINITIONS: Record<ItemId, ItemDefinition> = {
@@ -129,6 +136,7 @@ export interface SubmissionPublic {
   correct: boolean;
   submittedAt: number;
   scoreAwarded: number;
+  penaltyMs: number;
   attempts: number;
 }
 
@@ -142,6 +150,7 @@ export interface StandingPublic {
   playerId: string;
   nickname: string;
   score: number;
+  penaltyMs: number;
   solved: number;
   lastAcceptedAt: number | null;
 }
@@ -150,6 +159,7 @@ export interface PlayerPublic {
   id: string;
   nickname: string;
   score: number;
+  penaltyMs: number;
   scoreBreakdown: ScoreBreakdown;
   ready: boolean;
   currentProblemId: string;
@@ -180,6 +190,7 @@ export interface RoomPublic {
   scoreboardFrozen: boolean;
   scoreboardFrozenAt: number | null;
   frozenStandings: StandingPublic[];
+  scoreboardRevealCount: number;
   players: PlayerPublic[];
   logs: ArenaLog[];
 }
@@ -191,3 +202,14 @@ export interface ServerResponse<T = unknown> {
 }
 
 export const normalizeAnswer = (value: string) => value.trim().replace(/\s+/g, "").toLowerCase();
+
+export const WRONG_ANSWER_PENALTY_MS = 10 * 60 * 1000;
+
+export const getProblemPointValue = (problem: Pick<ProblemManifest, "difficulty" | "pointValue" | "text">) => {
+  if (typeof problem.pointValue === "number" && Number.isFinite(problem.pointValue) && problem.pointValue > 0) {
+    return Math.round(problem.pointValue);
+  }
+  const fromText = problem.text?.match(/\[(\d+)점\]/)?.[1];
+  if (fromText) return Number(fromText);
+  return problem.difficulty >= 4 ? 4 : problem.difficulty >= 2 ? 3 : 2;
+};
