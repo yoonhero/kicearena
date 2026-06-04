@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 
 const apiPort = process.env.API_PORT ?? "3001";
@@ -25,5 +25,8 @@ export default defineConfig({
   build: {
     outDir: "../dist/client",
     emptyOutDir: true
+  },
+  test: {
+    include: ["../shared/**/*.test.ts", "src/**/*.test.ts", "src/**/*.spec.ts"]
   }
 });

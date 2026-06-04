@@ -12,6 +12,7 @@ import {
   type ExamPublic,
   type ExamSummary,
   ITEM_DEFINITIONS,
+  ITEM_IDS,
   type ItemAward,
   type ItemId,
   type PlayerPublic,
@@ -25,6 +26,7 @@ import {
   normalizeAnswer
 } from "../shared/game.js";
 import { makeScoreboardRevealState } from "../shared/reveal.js";
+import { summarizeRoomMetrics } from "../shared/runtimeMetrics.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..");
@@ -75,6 +77,7 @@ const rooms = new Map<string, RoomState>();
 const socketToPlayer = new Map<string, { roomCode: string; playerId: string }>();
 const socketEventTimestamps = new Map<string, Map<string, number>>();
 const metricsRegistry = new Registry();
+const EXPIRED_EFFECT_NOTICE_MS = 3000;
 
 collectDefaultMetrics({
   register: metricsRegistry,
@@ -250,67 +253,40 @@ const readString = (value: unknown, maxLength: number) => (typeof value === "str
 
 const activeRoomCount = () => [...rooms.values()].filter((room) => room.status !== "finished").length;
 
-const roomCleanupDeadline = (room: RoomState, now: number) => {
-  const hasConnectedPlayers = [...room.players.values()].some((player) => player.connected);
-  if (room.status === "playing" && room.endsAt !== null) return room.endsAt;
-  if (room.status === "finished") return room.lastActivityAt + ROOM_TTL.finishedMs;
-  if (room.status === "lobby" && room.players.size === 0) return room.createdAt + ROOM_TTL.emptyLobbyMs;
-  if (room.status === "lobby" && !hasConnectedPlayers) return room.lastActivityAt + ROOM_TTL.disconnectedLobbyMs;
-  return null;
-};
-
-const summarizeSeconds = (values: number[]) => ({
-  avg: values.length === 0 ? 0 : values.reduce((sum, value) => sum + value, 0) / values.length,
-  max: values.length === 0 ? 0 : Math.max(...values)
-});
-
 const updateRuntimeMetrics = () => {
   const now = Date.now();
-  const allRooms = [...rooms.values()];
-  const statusCounts = {
-    lobby: 0,
-    playing: 0,
-    finished: 0
-  };
-  let totalPlayers = 0;
-  let connectedPlayers = 0;
-  const expirySeconds: number[] = [];
-  const playingTimeRemainingSeconds: number[] = [];
+  const summary = summarizeRoomMetrics(
+    [...rooms.values()].map((room) => ({
+      status: room.status,
+      endsAt: room.endsAt,
+      createdAt: room.createdAt,
+      lastActivityAt: room.lastActivityAt,
+      playerCount: room.players.size,
+      connectedPlayerCount: [...room.players.values()].filter((player) => player.connected).length
+    })),
+    now,
+    ROOM_TTL
+  );
 
-  for (const room of allRooms) {
-    statusCounts[room.status] += 1;
-    totalPlayers += room.players.size;
-    connectedPlayers += [...room.players.values()].filter((player) => player.connected).length;
-
-    const deadline = roomCleanupDeadline(room, now);
-    if (deadline !== null) expirySeconds.push(Math.max(0, (deadline - now) / 1000));
-
-    if (room.status === "playing" && room.endsAt !== null) {
-      playingTimeRemainingSeconds.push(Math.max(0, (room.endsAt - now) / 1000));
-    }
-  }
-
-  roomsTotalGauge.set(allRooms.length);
-  activeRoomsGauge.set(activeRoomCount());
+  roomsTotalGauge.set(summary.roomCount);
+  activeRoomsGauge.set(summary.activeRoomCount);
   roomsByStatusGauge.reset();
-  roomsByStatusGauge.set({ status: "lobby" }, statusCounts.lobby);
-  roomsByStatusGauge.set({ status: "playing" }, statusCounts.playing);
-  roomsByStatusGauge.set({ status: "finished" }, statusCounts.finished);
+  roomsByStatusGauge.set({ status: "lobby" }, summary.statusCounts.lobby);
+  roomsByStatusGauge.set({ status: "playing" }, summary.statusCounts.playing);
+  roomsByStatusGauge.set({ status: "finished" }, summary.statusCounts.finished);
 
-  const expiry = summarizeSeconds(expirySeconds);
   roomExpirySecondsGauge.reset();
-  roomExpirySecondsGauge.set({ stat: "avg" }, expiry.avg);
-  roomExpirySecondsGauge.set({ stat: "max" }, expiry.max);
+  roomExpirySecondsGauge.set({ stat: "avg" }, summary.roomExpirySeconds.avg);
+  roomExpirySecondsGauge.set({ stat: "max" }, summary.roomExpirySeconds.max);
 
-  const remaining = summarizeSeconds(playingTimeRemainingSeconds);
   playingRoomTimeRemainingSecondsGauge.reset();
-  playingRoomTimeRemainingSecondsGauge.set({ stat: "avg" }, remaining.avg);
-  playingRoomTimeRemainingSecondsGauge.set({ stat: "max" }, remaining.max);
+  playingRoomTimeRemainingSecondsGauge.set({ stat: "avg" }, summary.playingRoomTimeRemainingSeconds.avg);
+  playingRoomTimeRemainingSecondsGauge.set({ stat: "max" }, summary.playingRoomTimeRemainingSeconds.max);
 
   playersGauge.reset();
-  playersGauge.set({ state: "total" }, totalPlayers);
-  playersGauge.set({ state: "connected" }, connectedPlayers);
-  playersGauge.set({ state: "disconnected" }, Math.max(0, totalPlayers - connectedPlayers));
+  playersGauge.set({ state: "total" }, summary.totalPlayers);
+  playersGauge.set({ state: "connected" }, summary.connectedPlayers);
+  playersGauge.set({ state: "disconnected" }, summary.disconnectedPlayers);
   socketConnectionsGauge.set(io.engine.clientsCount);
 };
 
@@ -426,7 +402,9 @@ const publicRoom = (room: RoomState): RoomPublic => ({
       },
       submissions: derived.normalizedSubmissions,
       submissionHistory: (player.submissionHistory ?? player.submissions).map((submission) => normalizeSubmissionPenalty(room, submission)),
-      effects: player.effects.filter((effect) => effect.expiresAt > Date.now())
+      itemCooldowns: player.itemCooldowns ?? {},
+      effects: player.effects.filter((effect) => effect.expiresAt > Date.now()),
+      expiredEffects: (player.expiredEffects ?? []).filter((effect) => Date.now() - effect.clearedAt <= EXPIRED_EFFECT_NOTICE_MS)
     };
   }),
   logs: room.logs
@@ -437,16 +415,42 @@ const emitRoom = (room: RoomState) => {
   io.to(room.code).emit("room:update", publicRoom(room));
 };
 
+const isItemId = (id: ActiveEffect["id"]): id is ItemId => id in ITEM_DEFINITIONS;
+
 const cleanupEffects = (room: RoomState) => {
   const now = Date.now();
+  let changed = false;
   for (const player of room.players.values()) {
-    player.effects = player.effects.filter((effect) => effect.expiresAt > now);
+    const activeEffects: ActiveEffect[] = [];
+    const expiredEffects = player.expiredEffects ?? [];
+    for (const effect of player.effects) {
+      if (effect.expiresAt > now) {
+        activeEffects.push(effect);
+      } else if (isItemId(effect.id)) {
+        expiredEffects.push({ ...effect, clearedAt: now });
+        changed = true;
+      } else {
+        changed = true;
+      }
+    }
+    const visibleExpiredEffects = expiredEffects.filter((effect) => now - effect.clearedAt <= EXPIRED_EFFECT_NOTICE_MS);
+    if (visibleExpiredEffects.length !== expiredEffects.length) changed = true;
+    player.effects = activeEffects;
+    player.expiredEffects = visibleExpiredEffects;
+    const cooldowns = player.itemCooldowns ?? {};
+    for (const [itemId, readyAt] of Object.entries(cooldowns) as Array<[ItemId, number]>) {
+      if (readyAt <= now) {
+        delete cooldowns[itemId];
+        changed = true;
+      }
+    }
+    player.itemCooldowns = cooldowns;
   }
+  return changed;
 };
 
 const randomItem = (): ItemId => {
-  const ids = Object.keys(ITEM_DEFINITIONS) as ItemId[];
-  return ids[Math.floor(Math.random() * ids.length)];
+  return ITEM_IDS[Math.floor(Math.random() * ITEM_IDS.length)];
 };
 
 const findAdviceNoteProblem = (room: RoomState, sender: PlayerState, target: PlayerState) => {
@@ -454,6 +458,27 @@ const findAdviceNoteProblem = (room: RoomState, sender: PlayerState, target: Pla
   const senderSolved = sender.submissionHistory.filter((submission) => submission.correct && !targetSolved.has(submission.problemId));
   const newest = senderSolved.sort((a, b) => b.submittedAt - a.submittedAt)[0];
   return newest ? getProblem(room, newest.problemId) : null;
+};
+
+const activeEffectForItem = (target: PlayerState, itemId: ItemId) => target.effects.find((effect) => effect.id === itemId && effect.expiresAt > Date.now());
+
+const validateItemTarget = (room: RoomState, itemId: ItemId, sender: PlayerState, target: PlayerState) => {
+  const item = ITEM_DEFINITIONS[itemId];
+  if (item.lifecycle.target === "opponent" && sender.id === target.id) {
+    return { ok: false, error: "상대에게만 사용할 수 있는 아이템입니다." } as const;
+  }
+  if (item.lifecycle.target === "eligibleUnsolved") {
+    if (sender.id === target.id) {
+      return { ok: false, error: "다른 참가자에게만 사용할 수 있는 아이템입니다." } as const;
+    }
+    if (!findAdviceNoteProblem(room, sender, target)) {
+      return { ok: false, error: "내가 맞혔고 대상이 아직 못 맞힌 문제가 필요합니다." } as const;
+    }
+  }
+  if (item.lifecycle.duplicate === "blockWhileActive" && activeEffectForItem(target, itemId)) {
+    return { ok: false, error: "대상에게 같은 아이템 효과가 이미 적용 중입니다." } as const;
+  }
+  return { ok: true } as const;
 };
 
 const leadingScore = (room: RoomState) => Math.max(0, ...[...room.players.values()].map((player) => player.score));
@@ -507,9 +532,10 @@ const finishRoom = (room: RoomState, reason = "시험 종료. 답안지를 걷�
 setInterval(() => {
   const now = Date.now();
   for (const room of rooms.values()) {
-    cleanupEffects(room);
+    const effectsChanged = cleanupEffects(room);
     if (isFinished(room)) finishRoom(room);
     else if (maybeFreezeScoreboard(room)) emitRoom(room);
+    else if (effectsChanged) emitRoom(room);
 
     const hasConnectedPlayers = [...room.players.values()].some((player) => player.connected);
     const shouldDelete =
@@ -632,7 +658,9 @@ io.on("connection", (socket) => {
       currentProblemId: firstProblemId,
       consecutiveWrong: 0,
       inventory: [],
+      itemCooldowns: {},
       effects: [],
+      expiredEffects: [],
       submissions: [],
       submissionHistory: [],
       connected: true
@@ -699,7 +727,9 @@ io.on("connection", (socket) => {
       currentProblemId: room.exam.problems[0]?.id ?? "",
       consecutiveWrong: 0,
       inventory: [],
+      itemCooldowns: {},
       effects: [],
+      expiredEffects: [],
       submissions: [],
       submissionHistory: [],
       connected: true
@@ -954,23 +984,50 @@ io.on("connection", (socket) => {
       reply({ ok: false, error: "보유하지 않은 아이템입니다." });
       return;
     }
-    const effect: ActiveEffect = {
+    const readyAt = player.itemCooldowns?.[itemId] ?? 0;
+    const now = Date.now();
+    if (readyAt > now) {
+      reply({ ok: false, error: `아이템 재사용 대기 ${Math.ceil((readyAt - now) / 1000)}초 남았습니다.` });
+      return;
+    }
+    const targetCheck = validateItemTarget(room, itemId, player, target);
+    if (!targetCheck.ok) {
+      reply({ ok: false, error: targetCheck.error });
+      return;
+    }
+    const existingEffect = activeEffectForItem(target, itemId);
+    const effect: ActiveEffect = existingEffect ?? {
       id: item.id,
       label: item.name,
       sourceName: player.nickname,
-      expiresAt: Date.now() + item.durationMs
+      expiresAt: now + item.lifecycle.durationMs
     };
-    if (itemId === "adviceNote") {
+    if (existingEffect) {
+      existingEffect.label = item.name;
+      existingEffect.sourceName = player.nickname;
+      existingEffect.expiresAt = now + item.lifecycle.durationMs;
+      delete existingEffect.message;
+      delete existingEffect.problemNumber;
+    }
+    if (item.effectKind === "adviceNote") {
       const problem = findAdviceNoteProblem(room, player, target);
       if (!problem) {
         reply({ ok: false, error: "내가 맞혔고 대상이 아직 못 맞힌 문제가 필요합니다." });
         return;
       }
       effect.problemNumber = problem.number;
-      effect.message = readString(payload?.message, 72) || `${problem.number}번은 생각보다 쉽던데?`;
+      const messageMeta = item.payload?.message;
+      effect.message = readString(payload?.message, messageMeta?.maxLength ?? 72) || `${problem.number}번은 생각보다 쉽던데?`;
     }
     player.inventory.splice(index, 1);
-    target.effects.push(effect);
+    if (item.lifecycle.cooldownMs > 0) {
+      player.itemCooldowns = {
+        ...(player.itemCooldowns ?? {}),
+        [itemId]: now + item.lifecycle.cooldownMs
+      };
+    }
+    target.expiredEffects = (target.expiredEffects ?? []).filter((expiredEffect) => expiredEffect.id !== itemId);
+    if (!existingEffect) target.effects.push(effect);
     addLog(room, "item", `${player.nickname} -> ${target.nickname}: ${item.name}`);
     reply({ ok: true });
     touchRoom(room);

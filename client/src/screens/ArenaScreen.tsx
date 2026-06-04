@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ITEM_DEFINITIONS, type ItemAward, type ItemId, type PlayerPublic, type RoomPublic } from "../../../shared/game";
+import { ITEM_DEFINITIONS, type ItemAward, type ItemDefinition, type ItemId, type PlayerPublic, type RoomPublic } from "../../../shared/game";
 import { useCountdown } from "../hooks/useCountdown";
 import { emitWithAck } from "../lib/socket";
 import { ArenaTopbar } from "../components/arena/ArenaTopbar";
@@ -18,6 +18,7 @@ export function ArenaScreen({ room, ownPlayer }: { room: RoomPublic; ownPlayer: 
   const hardLocked = hasEffect("hardFirst");
   const inputLocked = hasEffect("penLock") || hasEffect("slowInput");
   const covered = hasEffect("cover") || hasEffect("blur");
+  const problemRotated = hasEffect("rotateProblem");
   const solvedCount = ownPlayer.scoreBreakdown.solved;
 
   const submit = async (selectedAnswer = answer) => {
@@ -44,9 +45,10 @@ export function ArenaScreen({ room, ownPlayer }: { room: RoomPublic; ownPlayer: 
 
   const useItem = async (itemId: ItemId, targetPlayerId: string) => {
     const target = room.players.find((player) => player.id === targetPlayerId);
+    const item: ItemDefinition = ITEM_DEFINITIONS[itemId];
     let message = "";
-    if (itemId === "adviceNote") {
-      const draft = window.prompt("쪽지 내용", "이 문제 아직 못 풀었어?");
+    if (item.payload?.message) {
+      const draft = window.prompt(item.payload.message.prompt, item.payload.message.defaultText);
       if (draft === null) return;
       message = draft;
     }
@@ -56,7 +58,7 @@ export function ArenaScreen({ room, ownPlayer }: { room: RoomPublic; ownPlayer: 
       setFeedback(response.error ?? "아이템 사용 실패");
       return;
     }
-    setFeedback(`${ITEM_DEFINITIONS[itemId].name} -> ${target?.nickname ?? "대상"}`);
+    setFeedback(`${item.name} -> ${target?.nickname ?? "대상"}`);
   };
 
   const endExamEarly = async () => {
@@ -87,6 +89,7 @@ export function ArenaScreen({ room, ownPlayer }: { room: RoomPublic; ownPlayer: 
             ownPlayer={ownPlayer}
             currentProblem={currentProblem}
             covered={covered}
+            problemRotated={problemRotated}
             memeActive={hasEffect("meme")}
             inputLocked={inputLocked}
             hardLocked={hardLocked}

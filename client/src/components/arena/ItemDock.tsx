@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { X, Zap } from "lucide-react";
-import { ITEM_DEFINITIONS, type ItemId, type PlayerPublic, type RoomPublic } from "../../../../shared/game";
+import { ITEM_DEFINITIONS, ITEM_IDS, type ItemId, type PlayerPublic, type RoomPublic } from "../../../../shared/game";
 import { formatEffectSeconds } from "../../lib/format";
 import { compareStandings, makePlayerStandingRows } from "../../lib/report";
 import { ItemIcon } from "./ItemIcon";
@@ -25,7 +25,7 @@ export function ItemDock({
         if (group) group.count += 1;
         else groups.push({ itemId, count: 1 });
         return groups;
-      }, []),
+      }, []).sort((a, b) => ITEM_IDS.indexOf(a.itemId) - ITEM_IDS.indexOf(b.itemId)),
     [ownPlayer.inventory]
   );
   const selectedItemDefinition = selectedItem ? ITEM_DEFINITIONS[selectedItem] : null;
@@ -62,17 +62,20 @@ export function ItemDock({
         ) : (
           groupedInventory.map(({ itemId, count }) => {
             const item = ITEM_DEFINITIONS[itemId];
+            const cooldownReadyAt = ownPlayer.itemCooldowns[itemId] ?? 0;
+            const cooldownActive = cooldownReadyAt > Date.now();
             return (
               <button
                 key={itemId}
-                className={`item-token ${selectedItem === itemId ? "selected" : ""}`}
+                className={`item-token ${selectedItem === itemId ? "selected" : ""} ${cooldownActive ? "cooldown" : ""}`}
+                disabled={cooldownActive}
                 onClick={() => setSelectedItem(selectedItem === itemId ? null : itemId)}
-                title={`${item.name}: ${item.description} 클릭 후 대상을 선택합니다.`}
+                title={cooldownActive ? `${item.name}: 재사용 대기 ${formatEffectSeconds(cooldownReadyAt)}` : `${item.name}: ${item.description} 클릭 후 대상을 선택합니다.`}
                 aria-pressed={selectedItem === itemId}
               >
                 <ItemIcon itemId={itemId} size={20} />
                 <span>{item.shortName}</span>
-                {count > 1 && <em>x{count}</em>}
+                {(cooldownActive || count > 1) && <em>{cooldownActive ? formatEffectSeconds(cooldownReadyAt) : `x${count}`}</em>}
               </button>
             );
           })
@@ -93,18 +96,23 @@ export function ItemDock({
           {targets.map((player) => {
             const activeEffects = player.effects.filter((effect) => effect.expiresAt > Date.now());
             const sameEffect = activeEffects.find((effect) => effect.id === selectedItemDefinition.id);
-            const adviceUnavailable = selectedItemDefinition.id === "adviceNote" && !canReceiveAdviceNote(player);
+            const expiredEffect = player.expiredEffects.find((effect) => effect.id === selectedItemDefinition.id);
+            const selfBlocked = selectedItemDefinition.lifecycle.target === "opponent" && player.id === ownPlayer.id;
+            const adviceUnavailable = selectedItemDefinition.lifecycle.target === "eligibleUnsolved" && !canReceiveAdviceNote(player);
+            const duplicateBlocked = selectedItemDefinition.lifecycle.duplicate === "blockWhileActive" && Boolean(sameEffect);
+            const blocked = selfBlocked || adviceUnavailable || duplicateBlocked;
             const targetTags = [
-              player.id === ownPlayer.id ? "나" : "",
+              selfBlocked ? "상대 전용" : player.id === ownPlayer.id ? "나" : "",
               player.id === leaderId && room.players.length > 1 ? "선두" : "",
               adviceUnavailable ? "조건 없음" : "",
-              sameEffect ? `효과중 ${formatEffectSeconds(sameEffect.expiresAt)}` : ""
+              sameEffect ? `효과중 ${formatEffectSeconds(sameEffect.expiresAt)}` : "",
+              expiredEffect ? "만료" : ""
             ].filter(Boolean);
             return (
               <button
                 key={player.id}
                 className={`target-chip ${player.id === ownPlayer.id ? "self" : ""} ${player.id === suggestedTargetId ? "suggested" : ""}`}
-                disabled={adviceUnavailable}
+                disabled={blocked}
                 onClick={() => void useItem(selectedItemDefinition.id, player.id)}
                 title={`${selectedItemDefinition.name} 사용`}
               >

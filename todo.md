@@ -29,13 +29,13 @@ Phase 1
 Phase 2
 
 -   [ ] Add some nice items.
-    -   [ ] Define the common item lifecycle: acquire, activate, duration, cooldown, target, cancellation.
-    -   [ ] Add UI affordances for available item, active item, blocked item, and expired item.
-    -   [ ] Add server-side validation so item effects cannot be spoofed by the client.
-    -   [ ] 문제 rotating item
-        -   [ ] Define rotation angle, duration, and affected problem area.
-        -   [ ] Implement visual transform without breaking answer input layout.
-        -   [ ] Add recovery behavior when the item expires.
+    -   [x] Define the common item lifecycle: acquire, activate, duration, cooldown, target, cancellation.
+    -   [x] Add UI affordances for available item, active item, blocked item, and expired item.
+    -   [x] Add server-side validation so item effects cannot be spoofed by the client.
+    -   [x] 문제 rotating item
+        -   [x] Define rotation angle, duration, and affected problem area.
+        -   [x] Implement visual transform without breaking answer input layout.
+        -   [x] Add recovery behavior when the item expires.
     -   [ ] 문제 음성으로 정답 제출하기 item
         -   [ ] Choose browser speech-recognition support or fallback input.
         -   [ ] Define accepted spoken formats for numbers, choices, and short answers.

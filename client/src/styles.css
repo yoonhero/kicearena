@@ -1385,6 +1385,12 @@ select {
   transform: translateY(1px);
 }
 
+.item-token:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+  transform: none;
+}
+
 .item-token.selected {
   background: #111;
   color: var(--paper);
@@ -1415,6 +1421,11 @@ select {
 .item-token.selected em {
   background: var(--accent);
   color: #111;
+}
+
+.item-token.cooldown em {
+  min-width: 26px;
+  padding-inline: 4px;
 }
 
 .target-chip span {
@@ -1691,7 +1702,14 @@ select {
   mix-blend-mode: multiply;
 }
 
+.problem-image-wrap.rotated > img {
+  transform: rotate(-7deg) scale(0.96);
+  transform-origin: center;
+  transition: transform 180ms ease-out;
+}
+
 .cover-effect,
+.rotate-effect,
 .meme-effect {
   position: absolute;
   inset: auto 20px 20px auto;
@@ -1700,6 +1718,10 @@ select {
   border: 2px solid var(--line);
   padding: 12px 16px;
   font-weight: 900;
+}
+
+.rotate-effect {
+  inset: 20px auto auto 20px;
 }
 
 .meme-effect {
@@ -1766,49 +1788,115 @@ select {
   place-items: center;
   pointer-events: none;
   background:
-    linear-gradient(90deg, rgba(0, 0, 0, 0.24), transparent 28%, transparent 72%, rgba(0, 0, 0, 0.24)),
-    rgba(255, 255, 255, 0.08);
+    radial-gradient(circle at 50% 46%, rgba(255, 255, 255, 0.18) 0 12%, transparent 13%),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.44), transparent 22%, transparent 78%, rgba(0, 0, 0, 0.44)),
+    rgba(255, 255, 255, 0.1);
   animation: aura-shake 640ms steps(2, end) infinite;
+}
+
+.aura-scanline {
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0 1px, transparent 1px 8px),
+    repeating-linear-gradient(90deg, transparent 0 46px, rgba(255, 214, 0, 0.16) 46px 48px);
+  mix-blend-mode: overlay;
+  animation: aura-scan 520ms linear infinite;
 }
 
 .aura-shorts-frame {
   position: relative;
-  width: min(230px, 54vw);
+  width: min(280px, 58vw);
   aspect-ratio: 9 / 16;
   overflow: hidden;
-  border: 3px solid #fff;
+  border: 3px solid rgba(255, 255, 255, 0.92);
   background:
-    radial-gradient(circle at 50% 18%, rgba(255, 255, 255, 0.95) 0 8%, transparent 9%),
-    linear-gradient(160deg, #171717 0 42%, #d61f35 43% 58%, #121212 59%);
+    radial-gradient(circle at 50% 26%, rgba(255, 230, 91, 0.95) 0 3%, transparent 17%),
+    radial-gradient(circle at 50% 36%, rgba(255, 255, 255, 0.2) 0 18%, transparent 35%),
+    linear-gradient(180deg, #070707 0 20%, #1d1515 21% 41%, #d51e34 42% 55%, #101010 56% 100%);
   color: #fff;
   box-shadow:
     0 0 0 2px var(--line),
-    12px 14px 0 rgba(18, 18, 18, 0.22);
+    0 0 0 9px rgba(255, 255, 255, 0.2),
+    14px 16px 0 rgba(18, 18, 18, 0.26);
+}
+
+.aura-shorts-frame::before,
+.aura-shorts-frame::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+.aura-shorts-frame::before {
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(15, 201, 255, 0.24), transparent 14%, transparent 86%, rgba(255, 26, 84, 0.28)),
+    repeating-linear-gradient(0deg, transparent 0 28px, rgba(255, 255, 255, 0.06) 28px 29px);
+  mix-blend-mode: screen;
+}
+
+.aura-shorts-frame::after {
+  inset: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
 }
 
 .aura-shorts-frame span,
 .aura-shorts-frame em,
-.aura-shorts-frame i {
+.aura-shorts-frame i,
+.aura-score-stack,
+.aura-skull,
+.aura-beat-meter {
   position: absolute;
+  z-index: 1;
   font-style: normal;
   font-weight: 1000;
 }
 
-.aura-shorts-frame span {
+.aura-platform {
   top: 14px;
   left: 14px;
   font-size: 12px;
+  letter-spacing: 0.08em;
 }
 
-.aura-shorts-frame strong {
-  position: absolute;
+.aura-live {
+  top: 13px;
+  right: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  padding: 2px 6px;
+  background: #d51e34;
+  font-size: 10px;
+}
+
+.aura-score-stack {
   left: 14px;
   right: 14px;
-  bottom: 58px;
-  font-size: clamp(28px, 7vw, 44px);
+  bottom: 54px;
+  display: grid;
+  gap: 4px;
+  text-shadow: 3px 3px 0 #000;
+}
+
+.aura-score-stack small {
+  color: var(--accent);
+  font-size: 10px;
+}
+
+.aura-score-stack strong {
+  font-size: clamp(25px, 6vw, 38px);
   line-height: 0.92;
   letter-spacing: 0;
-  text-shadow: 3px 3px 0 #000;
+}
+
+.aura-score-stack b {
+  color: var(--accent);
+  font-size: clamp(58px, 13vw, 94px);
+  line-height: 0.78;
+  text-shadow:
+    4px 4px 0 #000,
+    -2px -2px 0 #fff,
+    0 0 20px rgba(255, 214, 0, 0.55);
 }
 
 .aura-shorts-frame em {
@@ -1816,26 +1904,144 @@ select {
   right: 14px;
   bottom: 24px;
   font-size: 12px;
+  text-shadow: 2px 2px 0 #000;
 }
 
 .aura-shorts-frame i {
   right: 12px;
-  top: 42%;
+  top: 38%;
   writing-mode: vertical-rl;
-  font-size: 13px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 11px;
+  letter-spacing: 0.08em;
 }
 
-.aura-shorts-frame b {
-  position: absolute;
+.aura-skull {
   left: 50%;
-  top: 28%;
+  top: 30%;
+  width: min(138px, 34vw);
+  aspect-ratio: 1;
   translate: -50% -50%;
-  color: var(--accent);
-  font-size: clamp(54px, 12vw, 86px);
-  line-height: 1;
-  text-shadow:
-    3px 3px 0 #000,
-    -2px -2px 0 #fff;
+  border: 4px solid #111;
+  border-radius: 46% 46% 40% 40%;
+  background:
+    radial-gradient(circle at 34% 40%, #101010 0 11%, transparent 12%),
+    radial-gradient(circle at 66% 40%, #101010 0 11%, transparent 12%),
+    radial-gradient(circle at 50% 58%, #101010 0 6%, transparent 7%),
+    linear-gradient(180deg, #fff 0 72%, #e8e8e8 73% 100%);
+  filter: drop-shadow(7px 7px 0 rgba(0, 0, 0, 0.46));
+  animation: aura-skull-pop 860ms steps(2, end) infinite;
+}
+
+.aura-eye,
+.aura-nose,
+.aura-teeth {
+  position: absolute;
+  display: block;
+}
+
+.aura-eye {
+  top: 35%;
+  width: 22%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #080808;
+  box-shadow: 0 0 14px rgba(213, 30, 52, 0.78);
+}
+
+.aura-eye.left {
+  left: 25%;
+}
+
+.aura-eye.right {
+  right: 25%;
+}
+
+.aura-nose {
+  left: 50%;
+  top: 54%;
+  width: 15%;
+  aspect-ratio: 1;
+  translate: -50% 0;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  background: #101010;
+}
+
+.aura-teeth {
+  left: 22%;
+  right: 22%;
+  bottom: 13%;
+  height: 18%;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 11px, #111 11px 13px),
+    linear-gradient(#fff, #d9d9d9);
+  border-top: 3px solid #111;
+}
+
+.aura-beat-meter {
+  right: 14px;
+  bottom: 16px;
+  height: 34px;
+  display: inline-flex;
+  align-items: end;
+  gap: 3px;
+}
+
+.aura-beat-meter span {
+  position: static;
+  width: 5px;
+  height: 12px;
+  background: var(--accent);
+  box-shadow: 0 0 8px rgba(255, 214, 0, 0.65);
+  animation: aura-meter 420ms ease-in-out infinite;
+}
+
+.aura-beat-meter span:nth-child(2) {
+  animation-delay: 70ms;
+}
+
+.aura-beat-meter span:nth-child(3) {
+  animation-delay: 140ms;
+}
+
+.aura-beat-meter span:nth-child(4) {
+  animation-delay: 210ms;
+}
+
+.aura-beat-meter span:nth-child(5) {
+  animation-delay: 280ms;
+}
+
+@keyframes aura-scan {
+  from {
+    transform: translateY(-8px);
+  }
+  to {
+    transform: translateY(8px);
+  }
+}
+
+@keyframes aura-skull-pop {
+  0%,
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+  40% {
+    transform: scale(1.08) rotate(-2deg);
+  }
+  70% {
+    transform: scale(0.98) rotate(2deg);
+  }
+}
+
+@keyframes aura-meter {
+  0%,
+  100% {
+    height: 10px;
+  }
+  45% {
+    height: 32px;
+  }
 }
 
 .advice-note-effect {
