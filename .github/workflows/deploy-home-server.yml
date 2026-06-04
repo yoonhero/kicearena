@@ -46,11 +46,30 @@ jobs:
                   test -n "$DEPLOY_HOST"
                   test -n "$DEPLOY_USER"
                   test -n "$DEPLOY_PATH"
+
                   case "$TAG" in
                     *[!A-Za-z0-9._-]* | "") echo "Invalid image tag: $TAG" >&2; exit 1 ;;
                   esac
+
                   case "$BRANCH" in
                     *[!A-Za-z0-9._/-]* | "" | -* | */../* | ../* | */..) echo "Invalid branch: $BRANCH" >&2; exit 1 ;;
                   esac
-                  ssh -i ~/.ssh/deploy_key "$DEPLOY_USER@$DEPLOY_HOST" -p 222 \
-                    "cd '$DEPLOY_PATH' && git fetch --prune origin && git checkout '$BRANCH' && git pull --ff-only origin '$BRANCH' && TAG='$TAG' docker compose pull && TAG='$TAG' docker compose up -d --remove-orphans"
+
+                  ssh \
+                    -i ~/.ssh/deploy_key \
+                    -p 222 \
+                    -o IdentitiesOnly=yes \
+                    -o PreferredAuthentications=publickey \
+                    -o PasswordAuthentication=no \
+                    -o StrictHostKeyChecking=yes \
+                    "$DEPLOY_USER@$DEPLOY_HOST" \
+                    "set -e;
+                    export PATH='/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin';
+                    export DOCKER_HOST='unix://\$HOME/.colima/default/docker.sock';
+                    DOCKER=\$(command -v docker);
+                    cd '$DEPLOY_PATH';
+                    git fetch --prune origin;
+                    git checkout '$BRANCH';
+                    git pull --ff-only origin '$BRANCH';
+                    TAG='$TAG' \"\$DOCKER\" compose pull;
+                    TAG='$TAG' \"\$DOCKER\" compose up -d --remove-orphans"
