@@ -43,6 +43,7 @@ jobs:
                   TAG: ${{ inputs.tag }}
                   BRANCH: ${{ inputs.branch }}
               run: |
+                  set -euo pipefail
                   test -n "$DEPLOY_HOST"
                   test -n "$DEPLOY_USER"
                   test -n "$DEPLOY_PATH"
@@ -55,6 +56,10 @@ jobs:
                     *[!A-Za-z0-9._/-]* | "" | -* | */../* | ../* | */..) echo "Invalid branch: $BRANCH" >&2; exit 1 ;;
                   esac
 
+                  Q_DEPLOY_PATH=$(printf '%q' "$DEPLOY_PATH")
+                  Q_BRANCH=$(printf '%q' "$BRANCH")
+                  Q_TAG=$(printf '%q' "$TAG")
+
                   ssh \
                     -i ~/.ssh/deploy_key \
                     -p 222 \
@@ -63,28 +68,28 @@ jobs:
                     -o PasswordAuthentication=no \
                     -o StrictHostKeyChecking=yes \
                     "$DEPLOY_USER@$DEPLOY_HOST" \
-                    "set -e;
-                    export PATH='/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin';
+                    "bash -s -- $Q_DEPLOY_PATH $Q_BRANCH $Q_TAG" <<'REMOTE'
+                  set -euo pipefail
 
-                    if command -v colima >/dev/null 2>&1; then
-                      colima status >/dev/null 2>&1 || colima start;
-                      export DOCKER_HOST=\"unix://\${HOME}/.colima/default/docker.sock\";
-                    fi;
+                  DEPLOY_PATH="$1"
+                  BRANCH="$2"
+                  TAG="$3"
 
-                    DOCKER=\$(command -v docker);
+                  export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 
-                    cd '$DEPLOY_PATH';
+                  if command -v colima >/dev/null 2>&1; then
+                    colima status >/dev/null 2>&1 || colima start
+                    export DOCKER_HOST="unix://${HOME}/.colima/default/docker.sock"
+                  fi
 
-                    git fetch --prune origin;
-                    git checkout '$BRANCH';
-                    git pull --ff-only origin '$BRANCH';
+                  DOCKER="$(command -v docker)"
 
-                    TAG='$TAG' \"\$DOCKER\" compose pull;
-                    TAG='$TAG' \"\$DOCKER\" compose up -d --remove-orphans"
-                    DOCKER=\$(command -v docker);
-                    cd '$DEPLOY_PATH';
-                    git fetch --prune origin;
-                    git checkout '$BRANCH';
-                    git pull --ff-only origin '$BRANCH';
-                    TAG='$TAG' \"\$DOCKER\" compose pull;
-                    TAG='$TAG' \"\$DOCKER\" compose up -d --remove-orphans"
+                  cd "$DEPLOY_PATH"
+
+                  git fetch --prune origin
+                  git checkout "$BRANCH"
+                  git pull --ff-only origin "$BRANCH"
+
+                  TAG="$TAG" "$DOCKER" compose pull
+                  TAG="$TAG" "$DOCKER" compose up -d --remove-orphans
+                  REMOTE
