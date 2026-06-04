@@ -167,6 +167,7 @@ export interface PlayerPublic {
   inventory: ItemId[];
   effects: ActiveEffect[];
   submissions: SubmissionPublic[];
+  submissionHistory: SubmissionPublic[];
   connected: boolean;
 }
 
@@ -201,9 +202,17 @@ export interface ServerResponse<T = unknown> {
   error?: string;
 }
 
+export const ROOM_GUARDRAILS = {
+  minTimeLimitSec: 60,
+  maxTimeLimitSec: 120 * 60,
+  defaultFreezeBeforeSec: 10 * 60,
+  maxPlayersPerRoom: 60,
+  maxActiveRooms: 200
+} as const;
+
 export const normalizeAnswer = (value: string) => value.trim().replace(/\s+/g, "").toLowerCase();
 
-export const WRONG_ANSWER_PENALTY_MS = 10 * 60 * 1000;
+export const WRONG_ANSWER_PENALTY_MS = 20 * 60 * 1000;
 
 export const getProblemPointValue = (problem: Pick<ProblemManifest, "difficulty" | "pointValue" | "text">) => {
   if (typeof problem.pointValue === "number" && Number.isFinite(problem.pointValue) && problem.pointValue > 0) {

@@ -37,7 +37,7 @@ export function ArenaScreen({ room, ownPlayer }: { room: RoomPublic; ownPlayer: 
       setFeedback(awardNames.length > 0 ? `정답. ${awardNames.join(", ")} 획득.` : "정답. 이번엔 아이템 없음.");
       setItemNotice(awardNames.length > 0 ? `${awardNames.join(" + ")} 지급` : "");
     } else {
-      setFeedback(currentProblem.answerKind === "choice" ? "오답. 5지선다는 재시도할 수 없습니다." : "오답. 이 문항 페널티 +10분.");
+      setFeedback(currentProblem.answerKind === "choice" ? "오답. 5지선다는 재시도할 수 없습니다." : "오답. 정답 시 오답 페널티 +20분.");
     }
     setAnswer("");
   };

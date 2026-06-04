@@ -45,7 +45,7 @@ export function ArenaTopbar({
         {isHost && (
           <button className="status-link danger-link" onClick={endExamEarly}>
             <ShieldAlert size={16} />
-            종료
+            시험 종료
           </button>
         )}
       </div>

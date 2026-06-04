@@ -1,4 +1,5 @@
 import { EyeOff } from "lucide-react";
+import { useMemo } from "react";
 import type { PlayerPublic, RoomPublic } from "../../../shared/game";
 import { useCountdown } from "../hooks/useCountdown";
 import { formatElapsed, formatPenalty, formatTime } from "../lib/format";
@@ -6,9 +7,9 @@ import { makePlayerStandingRows } from "../lib/report";
 
 export function RankingsScreen({ room, ownPlayer, onBack }: { room: RoomPublic; ownPlayer: PlayerPublic; onBack: () => void }) {
   const timeLeft = useCountdown(room);
-  const liveRows = makePlayerStandingRows(room);
+  const liveRows = useMemo(() => makePlayerStandingRows(room), [room]);
   const rows = room.scoreboardFrozen && room.frozenStandings.length > 0 ? room.frozenStandings : liveRows;
-  const playerById = new Map(room.players.map((player) => [player.id, player]));
+  const playerById = useMemo(() => new Map(room.players.map((player) => [player.id, player])), [room.players]);
   const visibleUntil = room.scoreboardFrozen ? room.scoreboardFrozenAt : null;
 
   return (
@@ -90,25 +91,40 @@ export function RankingsScreen({ room, ownPlayer, onBack }: { room: RoomPublic; 
 }
 
 function formatSubmissionCount(player: PlayerPublic) {
-  const count = player.submissions.reduce((sum, submission) => sum + submission.attempts, 0);
+  const count = (player.submissionHistory ?? player.submissions).length;
   return `${count}회`;
 }
 
 function makeProblemScoreCell(player: PlayerPublic, problemId: string, startedAt: number | null, visibleUntil: number | null) {
-  const submission = player.submissions.find((item) => item.problemId === problemId);
-  if (!submission || (visibleUntil !== null && submission.submittedAt > visibleUntil)) return null;
+  const history = (player.submissionHistory ?? player.submissions)
+    .filter((item) => item.problemId === problemId)
+    .sort((a, b) => a.submittedAt - b.submittedAt);
+  const hiddenAttempts = visibleUntil === null ? 0 : history.filter((item) => item.submittedAt > visibleUntil).length;
+  const visibleHistory = history.filter((item) => visibleUntil === null || item.submittedAt <= visibleUntil);
+  const submission = visibleHistory.at(-1);
+  const visiblePenaltyMs = visibleHistory.reduce((sum, item) => sum + item.penaltyMs, 0);
+
+  if (hiddenAttempts > 0 && !submission) {
+    return {
+      className: "frozen-attempt",
+      primary: `${hiddenAttempts}회`,
+      secondary: "프리즈"
+    };
+  }
+
+  if (!submission) return null;
 
   if (submission.correct) {
     return {
       className: "accepted",
       primary: `+${submission.scoreAwarded}`,
-      secondary: `${formatPenalty(submission.penaltyMs)} · ${submission.attempts}회`
+      secondary: `${formatPenalty(visiblePenaltyMs)} · ${submission.attempts}회`
     };
   }
 
   return {
-    className: "tried",
-    primary: `+${Math.round(submission.penaltyMs / 60000)}분`,
-    secondary: formatElapsed(startedAt, submission.submittedAt)
+    className: hiddenAttempts > 0 ? "tried frozen-with-attempts" : "tried",
+    primary: `${submission.attempts}회`,
+    secondary: hiddenAttempts > 0 ? `${hiddenAttempts}회 프리즈` : `오답 · ${formatElapsed(startedAt, submission.submittedAt)}`
   };
 }

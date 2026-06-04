@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Zap } from "lucide-react";
+import { X, Zap } from "lucide-react";
 import { ITEM_DEFINITIONS, type ItemId, type PlayerPublic, type RoomPublic } from "../../../../shared/game";
 import { formatEffectSeconds } from "../../lib/format";
 import { compareStandings, makePlayerStandingRows } from "../../lib/report";
@@ -29,13 +29,19 @@ export function ItemDock({
     [ownPlayer.inventory]
   );
   const selectedItemDefinition = selectedItem ? ITEM_DEFINITIONS[selectedItem] : null;
-  const standings = makePlayerStandingRows(room);
+  const standings = useMemo(() => makePlayerStandingRows(room), [room]);
   const leaderId = standings[0]?.playerId ?? null;
-  const suggestedTargetId =
-    selectedItem && room.players.length > 1
-      ? standings.filter((standing) => standing.playerId !== ownPlayer.id).sort(compareStandings)[0]?.playerId
-      : null;
-  const targets = [...room.players].sort((a, b) => (a.id === ownPlayer.id ? 1 : b.id === ownPlayer.id ? -1 : a.nickname.localeCompare(b.nickname)));
+  const suggestedTargetId = useMemo(
+    () =>
+      selectedItem && room.players.length > 1
+        ? standings.filter((standing) => standing.playerId !== ownPlayer.id).sort(compareStandings)[0]?.playerId
+        : null,
+    [ownPlayer.id, room.players.length, selectedItem, standings]
+  );
+  const targets = useMemo(
+    () => [...room.players].sort((a, b) => (a.id === ownPlayer.id ? 1 : b.id === ownPlayer.id ? -1 : a.nickname.localeCompare(b.nickname))),
+    [ownPlayer.id, room.players]
+  );
 
   return (
     <section className={`item-dock ${selectedItem ? "aiming" : ""}`}>
@@ -56,6 +62,7 @@ export function ItemDock({
                 aria-pressed={selectedItem === itemId}
               >
                 <ItemIcon itemId={itemId} size={20} />
+                <span>{item.shortName}</span>
                 {count > 1 && <em>x{count}</em>}
               </button>
             );
@@ -64,10 +71,16 @@ export function ItemDock({
       </div>
       {selectedItemDefinition && (
         <div className="target-bank" aria-label={`${selectedItemDefinition.name} 적용 대상`}>
-          <strong>
-            <ItemIcon itemId={selectedItemDefinition.id} size={16} />
-            {selectedItemDefinition.shortName}
-          </strong>
+          <div className="target-bank-head">
+            <strong>
+              <ItemIcon itemId={selectedItemDefinition.id} size={16} />
+              {selectedItemDefinition.shortName}
+            </strong>
+            <span>{selectedItemDefinition.description}</span>
+            <button type="button" onClick={() => setSelectedItem(null)} aria-label="아이템 선택 취소">
+              <X size={16} />
+            </button>
+          </div>
           {targets.map((player) => {
             const activeEffects = player.effects.filter((effect) => effect.expiresAt > Date.now());
             const sameEffect = activeEffects.find((effect) => effect.id === selectedItemDefinition.id);

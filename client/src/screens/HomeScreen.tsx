@@ -1,7 +1,13 @@
 import { useState } from "react";
-import { ChevronDown, Gamepad2, LogIn, SlidersHorizontal } from "lucide-react";
-import type { ExamSummary } from "../../../shared/game";
+import { ChevronDown, Clock3, FileText, Gamepad2, LogIn, SlidersHorizontal } from "lucide-react";
+import { ROOM_GUARDRAILS, type ExamSummary } from "../../../shared/game";
 import { formatReportDate } from "../lib/format";
+
+const QUICK_PRESETS = [
+  { label: "120 / 60", timeLimitMin: 120, freezeBeforeMin: 60 },
+  { label: "60 / 20", timeLimitMin: 60, freezeBeforeMin: 20 },
+  { label: "40 / 20", timeLimitMin: 40, freezeBeforeMin: 20 }
+];
 
 export function HomeScreen(props: {
   exams: ExamSummary[];
@@ -24,9 +30,13 @@ export function HomeScreen(props: {
   error: string;
 }) {
   const [showOptions, setShowOptions] = useState(false);
+  const [entryMode, setEntryMode] = useState<"create" | "join">("create");
   const nameSlots = 4;
   const nameInitials = ["ㄱ", "ㅇ", "ㅈ", "ㅅ", "ㅂ", "ㅎ", "ㄴ"];
   const trimmedNickname = props.nickname.trim();
+  const maxTimeLimitMin = Math.round(ROOM_GUARDRAILS.maxTimeLimitSec / 60);
+  const selectedExam = props.exams.find((exam) => exam.id === props.selectedExamId);
+  const selectedPreset = QUICK_PRESETS.find((preset) => preset.timeLimitMin === props.timeLimitMin && preset.freezeBeforeMin === props.freezeBeforeMin);
   const setNicknameSlot = (slot: number, initial: string) => {
     const chars = Array.from(props.nickname).slice(0, nameSlots);
     while (chars.length < nameSlots) chars.push("");
@@ -97,71 +107,119 @@ export function HomeScreen(props: {
           </div>
           {!props.inviteMode && (
             <div className="entry-flow-stack">
-              <div className="entry-action-panel creator-panel">
-                <div className="entry-panel-title">
-                  <span>방 생성</span>
-                  <strong>시험지를 고른 뒤 시작</strong>
-                </div>
-                <div className="omr-field exam-field">
-                  <span>시험지</span>
-                  <select value={props.selectedExamId} onChange={(event) => props.setSelectedExamId(event.target.value)}>
-                    {props.exams.map((exam) => (
-                      <option key={exam.id} value={exam.id}>
-                        {exam.title} · {exam.problemCount}문항
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className={`room-option-drawer ${showOptions ? "open" : ""}`}>
-                  <button className="option-toggle" type="button" onClick={() => setShowOptions((value) => !value)} aria-expanded={showOptions}>
-                    <SlidersHorizontal size={16} />
-                    세부 설정
-                    <ChevronDown size={16} />
-                  </button>
-                  {showOptions && (
-                    <div className="room-option-grid">
-                      <label className="omr-field">
-                        <span>시험 시간(분)</span>
-                        <input
-                          type="number"
-                          min={1}
-                          max={240}
-                          value={props.timeLimitMin}
-                          onChange={(event) => props.setTimeLimitMin(Number.isFinite(event.currentTarget.valueAsNumber) ? event.currentTarget.valueAsNumber : 1)}
-                        />
-                      </label>
-                      <label className="omr-field">
-                        <span>순위 비공개 시작(종료 전 분)</span>
-                        <input
-                          type="number"
-                          min={0}
-                          max={props.timeLimitMin}
-                          value={props.freezeBeforeMin}
-                          onChange={(event) => props.setFreezeBeforeMin(Number.isFinite(event.currentTarget.valueAsNumber) ? event.currentTarget.valueAsNumber : 0)}
-                        />
-                      </label>
+              <div className="entry-mode-toggle" role="tablist" aria-label="입실 방식">
+                <button type="button" className={entryMode === "create" ? "active" : ""} onClick={() => setEntryMode("create")} role="tab" aria-selected={entryMode === "create"}>
+                  <Gamepad2 size={16} />
+                  방 생성
+                </button>
+                <button type="button" className={entryMode === "join" ? "active" : ""} onClick={() => setEntryMode("join")} role="tab" aria-selected={entryMode === "join"}>
+                  <LogIn size={16} />
+                  기존 방 입장
+                </button>
+              </div>
+              {entryMode === "create" ? (
+                <div className="entry-action-panel creator-panel">
+                  <div className="entry-panel-title">
+                    <span>방 생성</span>
+                    <strong>{selectedExam ? `${selectedExam.problemCount}문항 · ${props.timeLimitMin}분 / 프리즈 ${props.freezeBeforeMin}분` : "시험지를 고른 뒤 시작"}</strong>
+                  </div>
+                  <div className="exam-choice-list" role="radiogroup" aria-label="시험지 선택">
+                    <span>시험지</span>
+                    <div className="exam-choice-grid">
+                      {props.exams.map((exam) => (
+                        <button
+                          key={exam.id}
+                          type="button"
+                          className={`exam-choice ${props.selectedExamId === exam.id ? "selected" : ""}`}
+                          onClick={() => props.setSelectedExamId(exam.id)}
+                          role="radio"
+                          aria-checked={props.selectedExamId === exam.id}
+                        >
+                          <FileText size={16} />
+                          <span>
+                            <strong>{exam.title}</strong>
+                            <em>{exam.problemCount}문항 · 기본 {Math.round(exam.timeLimitSec / 60)}분</em>
+                          </span>
+                        </button>
+                      ))}
                     </div>
-                  )}
+                  </div>
+                  <div className="quick-preset-list" role="radiogroup" aria-label="시험 시간 프리셋">
+                    <span>시간 / 프리즈</span>
+                    <div className="quick-preset-grid">
+                      {QUICK_PRESETS.map((preset) => (
+                        <button
+                          key={preset.label}
+                          type="button"
+                          className={`quick-preset ${selectedPreset?.label === preset.label ? "selected" : ""}`}
+                          onClick={() => {
+                            props.setTimeLimitMin(preset.timeLimitMin);
+                            props.setFreezeBeforeMin(preset.freezeBeforeMin);
+                          }}
+                          role="radio"
+                          aria-checked={selectedPreset?.label === preset.label}
+                        >
+                          <Clock3 size={15} />
+                          <strong>{preset.label}</strong>
+                          <em>분</em>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className={`room-option-drawer ${showOptions ? "open" : ""}`}>
+                    <button className="option-toggle" type="button" onClick={() => setShowOptions((value) => !value)} aria-expanded={showOptions}>
+                      <SlidersHorizontal size={16} />
+                      세부 설정
+                      <ChevronDown size={16} />
+                    </button>
+                    {showOptions && (
+                      <div className="room-option-grid">
+                        <label className="omr-field">
+                          <span>시험 시간(분)</span>
+                          <input
+                            type="number"
+                            min={1}
+                            max={maxTimeLimitMin}
+                            value={props.timeLimitMin}
+                            onChange={(event) =>
+                              props.setTimeLimitMin(Number.isFinite(event.currentTarget.valueAsNumber) ? Math.min(maxTimeLimitMin, event.currentTarget.valueAsNumber) : 1)
+                            }
+                          />
+                        </label>
+                        <label className="omr-field">
+                          <span>순위 비공개 시작(종료 전 분)</span>
+                          <input
+                            type="number"
+                            min={0}
+                            max={props.timeLimitMin}
+                            value={props.freezeBeforeMin}
+                            onChange={(event) => props.setFreezeBeforeMin(Number.isFinite(event.currentTarget.valueAsNumber) ? event.currentTarget.valueAsNumber : 0)}
+                          />
+                        </label>
+                      </div>
+                    )}
+                  </div>
+                  <button className="omr-action host-action" onClick={props.createRoom}>
+                    <Gamepad2 size={18} />
+                    방 열기
+                  </button>
                 </div>
-                <button className="omr-action host-action" onClick={props.createRoom}>
-                  <Gamepad2 size={18} />
-                  방 열기
-                </button>
-              </div>
-              <div className="entry-action-panel join-panel">
-                <div className="entry-panel-title">
-                  <span>기존 방 입장</span>
-                  <strong>방 코드만 입력</strong>
+              ) : (
+                <div className="entry-action-panel join-panel">
+                  <div className="entry-panel-title">
+                    <span>기존 방 입장</span>
+                    <strong>방 코드만 입력</strong>
+                  </div>
+                  <div className="omr-field code-field">
+                    <span>방 코드</span>
+                    <input value={props.roomCode} onChange={(event) => props.setRoomCode(event.target.value.toUpperCase())} placeholder="ABCDE" />
+                  </div>
+                  <button className="omr-action join-action" onClick={props.joinRoom}>
+                    <LogIn size={18} />
+                    입장
+                  </button>
                 </div>
-                <div className="omr-field code-field">
-                  <span>방 코드</span>
-                  <input value={props.roomCode} onChange={(event) => props.setRoomCode(event.target.value.toUpperCase())} placeholder="ABCDE" />
-                </div>
-                <button className="omr-action join-action" onClick={props.joinRoom}>
-                  <LogIn size={18} />
-                  입장
-                </button>
-              </div>
+              )}
             </div>
           )}
           {props.error && <p className="error-text">{props.error}</p>}

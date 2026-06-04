@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ExamSummary, PlayerPublic, RoomPublic } from "../../shared/game";
+import { ROOM_GUARDRAILS, type ExamSummary, type PlayerPublic, type RoomPublic } from "../../shared/game";
 import { ArenaScreen } from "./screens/ArenaScreen";
 import { HomeScreen } from "./screens/HomeScreen";
 import { LobbyScreen } from "./screens/LobbyScreen";
@@ -13,6 +13,7 @@ type SavedRoomSession = {
 };
 
 const readInviteCode = () => new URLSearchParams(window.location.search).get("room")?.trim().toUpperCase() ?? "";
+const defaultFreezeForTimeLimit = (timeLimitMin: number) => Math.max(0, Math.min(timeLimitMin, Math.round(timeLimitMin / 2)));
 
 const writeClipboard = async (text: string) => {
   try {
@@ -52,8 +53,10 @@ export function App() {
       .then((data: ExamSummary[]) => {
         setExams(data);
         const firstExam = data[0];
+        const firstTimeLimitMin = Math.max(1, Math.round((firstExam?.timeLimitSec ?? 100 * 60) / 60));
         setSelectedExamId(firstExam?.id ?? "");
-        setTimeLimitMin(Math.max(1, Math.round((firstExam?.timeLimitSec ?? 100 * 60) / 60)));
+        setTimeLimitMin(firstTimeLimitMin);
+        setFreezeBeforeMin(defaultFreezeForTimeLimit(firstTimeLimitMin));
       })
       .catch(() => setError("서버의 시험 목록을 불러오지 못했습니다."));
   }, []);
@@ -124,7 +127,8 @@ export function App() {
 
   const createRoom = async () => {
     setError("");
-    const safeTimeLimitMin = Number.isFinite(timeLimitMin) ? Math.max(1, Math.round(timeLimitMin)) : 100;
+    const maxTimeLimitMin = Math.round(ROOM_GUARDRAILS.maxTimeLimitSec / 60);
+    const safeTimeLimitMin = Number.isFinite(timeLimitMin) ? Math.min(maxTimeLimitMin, Math.max(1, Math.round(timeLimitMin))) : 100;
     const safeFreezeBeforeMin = Number.isFinite(freezeBeforeMin) ? Math.max(0, Math.min(Math.round(freezeBeforeMin), safeTimeLimitMin)) : 10;
     const response = await emitWithAck<RoomPublic>("room:create", {
       examId: selectedExamId,
@@ -188,11 +192,7 @@ export function App() {
         <HomeScreen
           exams={exams}
           selectedExamId={selectedExamId}
-          setSelectedExamId={(id) => {
-            setSelectedExamId(id);
-            const exam = exams.find((item) => item.id === id);
-            if (exam) setTimeLimitMin(Math.max(1, Math.round(exam.timeLimitSec / 60)));
-          }}
+          setSelectedExamId={setSelectedExamId}
           timeLimitMin={timeLimitMin}
           setTimeLimitMin={setTimeLimitMin}
           freezeBeforeMin={freezeBeforeMin}

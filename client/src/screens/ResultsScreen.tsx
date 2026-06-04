@@ -1,26 +1,55 @@
-import { useMemo, useState, type CSSProperties } from "react";
+import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { FileText, LogOut, RotateCw } from "lucide-react";
-import type { PlayerPublic, ProblemPublic, RoomPublic } from "../../../shared/game";
+import type { PlayerPublic, RoomPublic } from "../../../shared/game";
+import { makeScoreboardRevealState, type RevealEvent } from "../../../shared/reveal";
 import { formatPenalty, formatReportDate } from "../lib/format";
 import { emitWithEmptyPayloadAck } from "../lib/socket";
-import { compareStandings, makePlayerStandingRows, makeReportMetric } from "../lib/report";
+import { makePlayerStandingRows, makeReportMetric } from "../lib/report";
 
 export function ResultsScreen({ room, ownPlayer, onLeave }: { room: RoomPublic; ownPlayer: PlayerPublic | null; onLeave: () => Promise<void> }) {
   const [reportOpen, setReportOpen] = useState(false);
   const [revealError, setRevealError] = useState("");
+  const revealRowRefs = useRef(new Map<string, HTMLDivElement>());
+  const previousRevealRowRects = useRef(new Map<string, DOMRect>());
   const finalRows = useMemo(() => makePlayerStandingRows(room), [room]);
   const playerById = useMemo(() => new Map(room.players.map((player) => [player.id, player])), [room.players]);
   const players = finalRows.map((row) => playerById.get(row.playerId)).filter((player): player is PlayerPublic => Boolean(player));
   const frozenRows = room.frozenStandings.length > 0 ? room.frozenStandings : finalRows;
-  const focusProblems = useMemo(() => makeRevealFocusProblems(room, frozenRows, finalRows), [room, frozenRows, finalRows]);
-  const revealTotal = focusProblems.length;
+  const revealState = useMemo(() => makeScoreboardRevealState(room, frozenRows), [room, frozenRows]);
+  const revealTotal = revealState.total;
   const revealCount = Math.min(room.scoreboardRevealCount, revealTotal);
   const allRevealed = revealTotal === 0 || revealCount >= revealTotal;
   const isHost = ownPlayer?.id === room.hostId;
 
-  const revealRows = useMemo(() => focusProblems.map((problem, index) => makeFocusRevealRow(room, problem, index < revealCount)), [room, focusProblems, revealCount]);
-  const nextRevealProblem = focusProblems[revealCount];
+  const revealRows = useMemo(() => makeScoreboardRevealState(room, frozenRows, revealCount, { viewerPlayerId: ownPlayer?.id }).rows, [room, frozenRows, revealCount, ownPlayer?.id]);
+  const nextRevealRow = revealState.events[revealCount];
+  const currentRevealEvent = revealCount > 0 ? revealState.events[revealCount - 1] : undefined;
   const spinStyle = { "--reveal-turns": `${Math.max(1, revealCount + 1)}turn` } as CSSProperties;
+
+  useLayoutEffect(() => {
+    const previousRects = previousRevealRowRects.current;
+    const nextRects = new Map<string, DOMRect>();
+
+    for (const row of revealRows) {
+      const element = revealRowRefs.current.get(row.playerId);
+      if (!element) continue;
+      const nextRect = element.getBoundingClientRect();
+      nextRects.set(row.playerId, nextRect);
+
+      const previousRect = previousRects.get(row.playerId);
+      if (!previousRect) continue;
+      const deltaY = previousRect.top - nextRect.top;
+      if (Math.abs(deltaY) < 1) continue;
+
+      element.style.transition = "none";
+      element.style.transform = `translate3d(0, ${deltaY}px, 0)`;
+      element.getBoundingClientRect();
+      element.style.transition = "";
+      element.style.transform = "";
+    }
+
+    previousRevealRowRects.current = nextRects;
+  }, [revealRows]);
 
   const revealNext = async () => {
     setRevealError("공개 요청 전송 중...");
@@ -33,7 +62,7 @@ export function ResultsScreen({ room, ownPlayer, onLeave }: { room: RoomPublic; 
       <main className="results-layout">
         <section className="exam-sheet result-sheet final-report-sheet reveal-sheet">
           <div className="exam-head final-report-head">
-            <span>{allRevealed ? "전체 공개 완료" : "승부 문항 공개 중"}</span>
+            <span>{allRevealed ? "전체 공개 완료" : "비공개 시도 공개 중"}</span>
             <strong>프리즈 해제</strong>
           </div>
           <div className={`reveal-dial ${allRevealed ? "complete" : ""}`} style={spinStyle} aria-hidden="true">
@@ -47,15 +76,15 @@ export function ResultsScreen({ room, ownPlayer, onLeave }: { room: RoomPublic; 
           <div className="reveal-control-strip">
             <div>
               <span>방장 공개 순서</span>
-              <strong>{allRevealed ? "승부 영향 문항이 모두 공개되었습니다." : `${nextRevealProblem ? `${nextRevealProblem.number}번` : "다음 문항"} 정답 여부 공개 대기`}</strong>
+              <strong>{allRevealed ? "비공개 시도가 모두 공개되었습니다." : makeNextRevealLabel(nextRevealRow, room)}</strong>
             </div>
             {!allRevealed && isHost && (
               <button className="reveal-next-btn" type="button" onClick={() => void revealNext()}>
                 <RotateCw size={18} />
-                문항 공개
+                시도 공개
               </button>
             )}
-            {!allRevealed && !isHost && <em>방장이 다음 승부 문항을 공개할 때까지 대기</em>}
+            {!allRevealed && !isHost && <em>방장이 다음 비공개 시도를 공개할 때까지 대기</em>}
             {allRevealed && (
               <button className="reveal-next-btn" type="button" onClick={() => setReportOpen(true)}>
                 <FileText size={18} />
@@ -64,23 +93,42 @@ export function ResultsScreen({ room, ownPlayer, onLeave }: { room: RoomPublic; 
             )}
           </div>
           {revealError && <p className="reveal-error">{revealError}</p>}
-          <div className="final-report-table reveal-table">
+          <div className="final-report-table reveal-table" style={{ "--problem-count": String(room.exam.problemCount) } as CSSProperties & Record<string, string>}>
             <div className="final-report-row reveal-row reveal-row-head">
               <span>현재</span>
-              <span>문항</span>
-              <span>공개 상태</span>
-              <span>배점</span>
-              <span>정답자</span>
-              <span>오답/미해결</span>
+              <span>수험자</span>
+              <span>점수</span>
+              <span>정답</span>
+              <span>페널티</span>
+              {room.exam.problems.map((problem) => (
+                <span key={problem.id}>P{problem.number}</span>
+              ))}
             </div>
             {revealRows.map((row) => (
-              <div key={row.problemId} className={`final-report-row reveal-row ${row.revealed ? "revealed" : "locked"} ${row.swing ? "moved-up" : ""}`}>
-                <span>{row.order}</span>
-                <strong>{row.problemLabel}</strong>
-                <span>{row.revealed ? "정답 여부 공개" : "프리즈"}</span>
-                <em>{row.pointValue}점</em>
-                <em>{row.revealed ? row.correctNames : "-"}</em>
-                <span>{row.revealed ? row.incorrectNames : "-"}</span>
+              <div
+                key={row.playerId}
+                ref={(element) => {
+                  if (element) revealRowRefs.current.set(row.playerId, element);
+                  else revealRowRefs.current.delete(row.playerId);
+                }}
+                className={`final-report-row reveal-row ${row.revealedCount > 0 ? "revealed" : "locked"} ${row.movedToTop ? "moved-up" : ""} ${
+                  currentRevealEvent?.playerId === row.playerId ? "active-reveal" : ""
+                }`}
+              >
+                <span>{row.rankLabel}</span>
+                <strong>{row.nickname}</strong>
+                <em>{row.score}</em>
+                <em>{row.solved}/{room.exam.problemCount}</em>
+                <em>{formatPenalty(row.penaltyMs)}</em>
+                {row.cells.map((cell) => {
+                  const isActiveCell = currentRevealEvent?.playerId === row.playerId && currentRevealEvent.submission.problemId === cell.problemId;
+                  return (
+                    <span key={cell.problemId} className={`reveal-problem-cell ${cell.status} ${isActiveCell ? "active-cell" : ""}`}>
+                      <b>{cell.primary}</b>
+                      {cell.secondary && <small>{cell.secondary}</small>}
+                    </span>
+                  );
+                })}
               </div>
             ))}
           </div>
@@ -133,77 +181,8 @@ export function ResultsScreen({ room, ownPlayer, onLeave }: { room: RoomPublic; 
   );
 }
 
-type FocusProblem = ProblemPublic & {
-  changedCount: number;
-  contenderChanged: boolean;
-  afterFreezeAccepted: number;
-};
-
-type FocusRevealRow = {
-  problemId: string;
-  order: number;
-  problemLabel: string;
-  pointValue: number;
-  correctNames: string;
-  incorrectNames: string;
-  revealed: boolean;
-  swing: boolean;
-};
-
-function makeRevealFocusProblems(room: RoomPublic, frozenRows = room.frozenStandings, finalRows = makePlayerStandingRows(room)): FocusProblem[] {
-  const frozenAt = room.scoreboardFrozenAt;
-  const finalWinnerId = [...finalRows].sort(compareStandings)[0]?.playerId ?? null;
-  const frozenWinnerId = [...frozenRows].sort(compareStandings)[0]?.playerId ?? null;
-  const contenderIds = new Set([finalWinnerId, frozenWinnerId, finalRows[1]?.playerId, frozenRows[1]?.playerId].filter(Boolean));
-
-  const focusProblems = room.exam.problems
-    .map((problem) => {
-      const changedPlayers = room.players.filter((player) => wasCorrectAt(player, problem.id, null) !== wasCorrectAt(player, problem.id, frozenAt));
-      return {
-        ...problem,
-        changedCount: changedPlayers.length,
-        contenderChanged: changedPlayers.some((player) => contenderIds.has(player.id)),
-        afterFreezeAccepted: changedPlayers.filter((player) => wasCorrectAt(player, problem.id, null)).length
-      };
-    })
-    .filter((problem) => problem.changedCount > 0)
-    .sort(
-      (a, b) =>
-        Number(b.contenderChanged) - Number(a.contenderChanged) ||
-        b.pointValue - a.pointValue ||
-        b.afterFreezeAccepted - a.afterFreezeAccepted ||
-        b.changedCount - a.changedCount ||
-        a.number - b.number
-    );
-
-  return focusProblems.length > 0
-    ? focusProblems
-    : [...room.exam.problems]
-        .sort((a, b) => b.pointValue - a.pointValue || a.number - b.number)
-        .map((problem) => ({ ...problem, changedCount: 0, contenderChanged: false, afterFreezeAccepted: 0 }));
-}
-
-function makeFocusRevealRow(room: RoomPublic, problem: FocusProblem, revealed: boolean): FocusRevealRow {
-  const sortedPlayers = [...room.players].sort((a, b) => {
-    const standingA = { playerId: a.id, nickname: a.nickname, score: a.score, penaltyMs: a.penaltyMs, solved: a.scoreBreakdown.solved, lastAcceptedAt: null };
-    const standingB = { playerId: b.id, nickname: b.nickname, score: b.score, penaltyMs: b.penaltyMs, solved: b.scoreBreakdown.solved, lastAcceptedAt: null };
-    return compareStandings(standingA, standingB);
-  });
-  const correctNames = sortedPlayers.filter((player) => wasCorrectAt(player, problem.id, null)).map((player) => player.nickname);
-  const incorrectNames = sortedPlayers.filter((player) => !wasCorrectAt(player, problem.id, null)).map((player) => player.nickname);
-
-  return {
-    problemId: problem.id,
-    order: problem.number,
-    problemLabel: `${problem.number}번`,
-    pointValue: problem.pointValue,
-    correctNames: correctNames.length > 0 ? correctNames.join(", ") : "없음",
-    incorrectNames: incorrectNames.length > 0 ? incorrectNames.join(", ") : "없음",
-    revealed,
-    swing: problem.contenderChanged || problem.changedCount > 0
-  };
-}
-
-function wasCorrectAt(player: PlayerPublic, problemId: string, visibleUntil: number | null) {
-  return player.submissions.some((submission) => submission.problemId === problemId && submission.correct && (visibleUntil === null || submission.submittedAt <= visibleUntil));
+function makeNextRevealLabel(event: RevealEvent | undefined, room: RoomPublic) {
+  if (!event) return "다음 비공개 시도 공개 대기";
+  const problemNumber = room.exam.problems.find((problem) => problem.id === event.submission.problemId)?.number ?? "?";
+  return `${event.nickname}의 ${problemNumber}번 시도 공개 대기`;
 }
