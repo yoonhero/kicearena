@@ -1,56 +1,56 @@
 name: Deploy Home Server
 
 on:
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: Image tag to deploy
-        required: false
-        default: latest
-      branch:
-        description: Git branch to pull on the home server
-        required: false
-        default: main
+    workflow_dispatch:
+        inputs:
+            tag:
+                description: Image tag to deploy
+                required: false
+                default: latest
+            branch:
+                description: Git branch to pull on the home server
+                required: false
+                default: main
 
 permissions:
-  contents: read
+    contents: read
 
 jobs:
-  deploy:
-    name: Pull image and restart compose
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    environment: production
+    deploy:
+        name: Pull image and restart compose
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        environment: production
 
-    steps:
-      - name: Prepare SSH key
-        env:
-          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
-        run: |
-          test -n "$DEPLOY_SSH_KEY"
-          test -n "$DEPLOY_KNOWN_HOSTS"
-          install -m 700 -d ~/.ssh
-          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
-          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
-          chmod 600 ~/.ssh/deploy_key ~/.ssh/known_hosts
+        steps:
+            - name: Prepare SSH key
+              env:
+                  DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+                  DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+              run: |
+                  test -n "$DEPLOY_SSH_KEY"
+                  test -n "$DEPLOY_KNOWN_HOSTS"
+                  install -m 700 -d ~/.ssh
+                  printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+                  printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+                  chmod 600 ~/.ssh/deploy_key ~/.ssh/known_hosts
 
-      - name: Deploy with Docker Compose
-        env:
-          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
-          TAG: ${{ inputs.tag }}
-          BRANCH: ${{ inputs.branch }}
-        run: |
-          test -n "$DEPLOY_HOST"
-          test -n "$DEPLOY_USER"
-          test -n "$DEPLOY_PATH"
-          case "$TAG" in
-            *[!A-Za-z0-9._-]* | "") echo "Invalid image tag: $TAG" >&2; exit 1 ;;
-          esac
-          case "$BRANCH" in
-            *[!A-Za-z0-9._/-]* | "" | -* | */../* | ../* | */..) echo "Invalid branch: $BRANCH" >&2; exit 1 ;;
-          esac
-          ssh -i ~/.ssh/deploy_key "$DEPLOY_USER@$DEPLOY_HOST" \
-            "cd '$DEPLOY_PATH' && git fetch --prune origin && git checkout '$BRANCH' && git pull --ff-only origin '$BRANCH' && TAG='$TAG' docker compose pull && TAG='$TAG' docker compose up -d --remove-orphans"
+            - name: Deploy with Docker Compose
+              env:
+                  DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+                  DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+                  DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+                  TAG: ${{ inputs.tag }}
+                  BRANCH: ${{ inputs.branch }}
+              run: |
+                  test -n "$DEPLOY_HOST"
+                  test -n "$DEPLOY_USER"
+                  test -n "$DEPLOY_PATH"
+                  case "$TAG" in
+                    *[!A-Za-z0-9._-]* | "") echo "Invalid image tag: $TAG" >&2; exit 1 ;;
+                  esac
+                  case "$BRANCH" in
+                    *[!A-Za-z0-9._/-]* | "" | -* | */../* | ../* | */..) echo "Invalid branch: $BRANCH" >&2; exit 1 ;;
+                  esac
+                  ssh -i ~/.ssh/deploy_key "$DEPLOY_USER@$DEPLOY_HOST" -p 222 \
+                    "cd '$DEPLOY_PATH' && git fetch --prune origin && git checkout '$BRANCH' && git pull --ff-only origin '$BRANCH' && TAG='$TAG' docker compose pull && TAG='$TAG' docker compose up -d --remove-orphans"
