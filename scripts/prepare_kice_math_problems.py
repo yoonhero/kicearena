@@ -4,6 +4,7 @@ Create one-problem-per-image server exam assets from a KICE-style math PDF.
 
 Run with:
   conda run -n mlenv python scripts/prepare_kice_math_problems.py tmp/kice-2026-june/math.pdf server/exams
+  conda run -n mlenv python scripts/prepare_kice_math_problems.py tmp/kice-2027-june/math.pdf server/exams 2027-june
 
 The script uses PDF text-layer extraction as the primary OCR-like text source.
 KICE math PDFs embed formulas with private-use glyphs, so the image crop remains
@@ -22,7 +23,7 @@ from pathlib import Path
 import fitz
 
 
-COMMON_ANSWERS = {
+COMMON_ANSWERS_2026_JUNE = {
     1: "2",
     2: "1",
     3: "3",
@@ -47,30 +48,94 @@ COMMON_ANSWERS = {
     22: "38",
 }
 
-ELECTIVE_ANSWERS = {
+ELECTIVE_ANSWERS_2026_JUNE = {
     "probability": {23: "3", 24: "4", 25: "3", 26: "5", 27: "1", 28: "5", 29: "44", 30: "115"},
     "calculus": {23: "1", 24: "2", 25: "4", 26: "2", 27: "3", 28: "1", 29: "109", 30: "25"},
     "geometry": {23: "2", 24: "4", 25: "2", 26: "1", 27: "3", 28: "4", 29: "20", 30: "36"},
 }
 
-TRACKS = {
-    "probability": {
-        "id": "kice-2026-june-math-probability",
-        "title": "2026학년도 6월 모의평가 수학 · 확률과 통계",
-        "section": "확률과 통계",
-        "pages": set(range(8, 12)),
+COMMON_ANSWERS_2027_JUNE = {
+    1: "2",
+    2: "5",
+    3: "4",
+    4: "3",
+    5: "1",
+    6: "1",
+    7: "2",
+    8: "4",
+    9: "3",
+    10: "3",
+    11: "1",
+    12: "1",
+    13: "5",
+    14: "3",
+    15: "4",
+    16: "2",
+    17: "10",
+    18: "15",
+    19: "9",
+    20: "48",
+    21: "11",
+    22: "32",
+}
+
+ELECTIVE_ANSWERS_2027_JUNE = {
+    "probability": {23: "3", 24: "2", 25: "1", 26: "5", 27: "4", 28: "3", 29: "98", 30: "780"},
+    "calculus": {23: "4", 24: "3", 25: "2", 26: "5", 27: "1", 28: "3", 29: "54", 30: "20"},
+    "geometry": {23: "5", 24: "3", 25: "3", 26: "1", 27: "2", 28: "4", 29: "14", 30: "29"},
+}
+
+EXAMS = {
+    "2026-june": {
+        "subtitle": "2025년 6월 4일 시행 · 문항 단위 구조화 + 내장 폰트 재구성",
+        "common_answers": COMMON_ANSWERS_2026_JUNE,
+        "elective_answers": ELECTIVE_ANSWERS_2026_JUNE,
+        "tracks": {
+            "probability": {
+                "id": "kice-2026-june-math-probability",
+                "title": "2026학년도 6월 모의평가 수학 · 확률과 통계",
+                "section": "확률과 통계",
+                "pages": set(range(8, 12)),
+            },
+            "calculus": {
+                "id": "kice-2026-june-math",
+                "title": "2026학년도 6월 모의평가 수학 · 미적분",
+                "section": "미적분",
+                "pages": set(range(12, 16)),
+            },
+            "geometry": {
+                "id": "kice-2026-june-math-geometry",
+                "title": "2026학년도 6월 모의평가 수학 · 기하",
+                "section": "기하",
+                "pages": set(range(16, 20)),
+            },
+        },
     },
-    "calculus": {
-        "id": "kice-2026-june-math",
-        "title": "2026학년도 6월 모의평가 수학 · 미적분",
-        "section": "미적분",
-        "pages": set(range(12, 16)),
-    },
-    "geometry": {
-        "id": "kice-2026-june-math-geometry",
-        "title": "2026학년도 6월 모의평가 수학 · 기하",
-        "section": "기하",
-        "pages": set(range(16, 20)),
+    "2027-june": {
+        "subtitle": "2026년 6월 4일 시행 · 문항 단위 구조화 + 내장 폰트 재구성",
+        "release_at": "2026-06-04T16:00:00+09:00",
+        "common_answers": COMMON_ANSWERS_2027_JUNE,
+        "elective_answers": ELECTIVE_ANSWERS_2027_JUNE,
+        "tracks": {
+            "probability": {
+                "id": "kice-2027-june-math-probability",
+                "title": "2027학년도 6월 모의평가 수학 · 확률과 통계",
+                "section": "확률과 통계",
+                "pages": set(range(8, 12)),
+            },
+            "calculus": {
+                "id": "kice-2027-june-math",
+                "title": "2027학년도 6월 모의평가 수학 · 미적분",
+                "section": "미적분",
+                "pages": set(range(12, 16)),
+            },
+            "geometry": {
+                "id": "kice-2027-june-math-geometry",
+                "title": "2027학년도 6월 모의평가 수학 · 기하",
+                "section": "기하",
+                "pages": set(range(16, 20)),
+            },
+        },
     },
 }
 
@@ -549,8 +614,7 @@ def difficulty(number: int) -> int:
     return 5
 
 
-def selected_starts(all_starts: list[Start], track_key: str) -> list[Start]:
-    track = TRACKS[track_key]
+def selected_starts(all_starts: list[Start], track: dict) -> list[Start]:
     selected = []
     for start in all_starts:
         if 1 <= start.number <= 22 and start.page_index <= 7:
@@ -568,8 +632,8 @@ def selected_starts(all_starts: list[Start], track_key: str) -> list[Start]:
     return deduped
 
 
-def write_track(doc: fitz.Document, all_starts: list[Start], output_root: Path, track_key: str) -> None:
-    track = TRACKS[track_key]
+def write_track(doc: fitz.Document, all_starts: list[Start], output_root: Path, exam: dict, track_key: str) -> None:
+    track = exam["tracks"][track_key]
     exam_dir = output_root / track["id"]
     problems_dir = exam_dir / "problems"
     if exam_dir.exists():
@@ -578,8 +642,8 @@ def write_track(doc: fitz.Document, all_starts: list[Start], output_root: Path, 
     fonts = extract_fonts(doc, exam_dir)
 
     problems = []
-    answers = {**COMMON_ANSWERS, **ELECTIVE_ANSWERS[track_key]}
-    starts = selected_starts(all_starts, track_key)
+    answers = {**exam["common_answers"], **exam["elective_answers"][track_key]}
+    starts = selected_starts(all_starts, track)
     if len(starts) != 30:
         raise RuntimeError(f"{track_key}: expected 30 problems, found {len(starts)}")
 
@@ -615,26 +679,33 @@ def write_track(doc: fitz.Document, all_starts: list[Start], output_root: Path, 
     manifest = {
         "id": track["id"],
         "title": track["title"],
-        "subtitle": "2025년 6월 4일 시행 · 문항 단위 구조화 + 내장 폰트 재구성",
+        "subtitle": exam["subtitle"],
         "timeLimitSec": 2400,
         "fonts": fonts,
         "problems": problems,
     }
+    if exam.get("release_at"):
+        manifest["releaseAt"] = exam["release_at"]
     (exam_dir / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 def main() -> int:
-    if len(sys.argv) != 3:
-        print("usage: prepare_kice_math_problems.py input.pdf server_exams_dir", file=sys.stderr)
+    if len(sys.argv) not in {3, 4}:
+        print("usage: prepare_kice_math_problems.py input.pdf server_exams_dir [2026-june|2027-june]", file=sys.stderr)
         return 2
     pdf_path = Path(sys.argv[1]).expanduser().resolve()
     output_root = Path(sys.argv[2]).expanduser().resolve()
+    exam_key = sys.argv[3] if len(sys.argv) == 4 else "2026-june"
+    if exam_key not in EXAMS:
+        print(f"unknown exam key: {exam_key}", file=sys.stderr)
+        return 2
+    exam = EXAMS[exam_key]
     output_root.mkdir(parents=True, exist_ok=True)
     doc = fitz.open(pdf_path)
     starts = find_problem_starts(doc)
-    for track_key in TRACKS:
-        write_track(doc, starts, output_root, track_key)
-    print("wrote problem-level KICE math exams:", ", ".join(TRACKS[key]["id"] for key in TRACKS))
+    for track_key in exam["tracks"]:
+        write_track(doc, starts, output_root, exam, track_key)
+    print("wrote problem-level KICE math exams:", ", ".join(exam["tracks"][key]["id"] for key in exam["tracks"]))
     return 0
 
 

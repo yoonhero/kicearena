@@ -1,0 +1,9 @@
+# Merge this job into the existing Prometheus scrape_configs on the server.
+# Replace kice-arena.example.com:3001 with the host:port that reaches this app.
+scrape_configs:
+  - job_name: kice-arena
+    metrics_path: /metrics
+    scrape_interval: 5s
+    static_configs:
+      - targets:
+          - kice-arena.example.com:3001

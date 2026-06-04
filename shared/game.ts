@@ -25,6 +25,7 @@ export interface ExamManifest {
   title: string;
   subtitle: string;
   timeLimitSec: number;
+  releaseAt?: string;
   captureSummary?: CaptureSummary;
   problems: ProblemManifest[];
 }

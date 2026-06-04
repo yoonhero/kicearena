@@ -1,29 +1,99 @@
 Phase 1
 
--   [ ] Add data source to Grafana. (Current total rooms / avg times to expire / max time to expire / realtime user stats)
--   [ ] Upload "2027학년도 6월 모의평가" and freeze out on specific time.
+-   [ ] Add data source to Grafana.
+    -   [ ] Decide the metrics source: app process metrics, server logs, DB, or a lightweight metrics endpoint.
+    -   [ ] Add metrics for current total rooms.
+    -   [ ] Add metrics for average time to room expiration.
+    -   [ ] Add metrics for max time to room expiration.
+    -   [ ] Add realtime user stats: connected sockets, active rooms, active players.
+    -   [ ] Expose the metrics in a format Grafana can consume.
+    -   [ ] Create a first dashboard panel set for rooms, expiration time, and realtime users.
+    -   [ ] Verify dashboard values against local/server-side logs.
+-   [ ] Upload "2027학년도 6월 모의평가" and freeze out upto 4pm.
+    -   [ ] Prepare the source exam file and confirm redistribution constraints.
+    -   [ ] Convert problems into the current problem data format.
+    -   [ ] Verify answer keys, choices, images, and formulas after conversion.
+    -   [ ] Add a contest/exam config for "2027학년도 6월 모의평가".
+    -   [ ] Configure freeze behavior so scoreboard freeze lasts until 4pm.
+    -   [ ] Run a local smoke test from lobby creation through answer submission and results reveal.
+    -   [ ] Record any manual upload/admin steps needed for the first release.
 -   [ ] Construct deploy pipeline.
+    -   [ ] Decide the target deployment path: manual server deploy, Docker image, or GitHub Actions.
+    -   [ ] Build and tag the production artifact.
+    -   [ ] Add environment variable documentation for server/client runtime config.
+    -   [ ] Add database/metrics/secrets setup steps if needed.
+    -   [ ] Add a deploy command or workflow.
+    -   [ ] Add rollback steps.
+    -   [ ] Verify production build and runtime health check.
 
 Phase 2
 
 -   [ ] Add some nice items.
+    -   [ ] Define the common item lifecycle: acquire, activate, duration, cooldown, target, cancellation.
+    -   [ ] Add UI affordances for available item, active item, blocked item, and expired item.
+    -   [ ] Add server-side validation so item effects cannot be spoofed by the client.
     -   [ ] 문제 rotating item
+        -   [ ] Define rotation angle, duration, and affected problem area.
+        -   [ ] Implement visual transform without breaking answer input layout.
+        -   [ ] Add recovery behavior when the item expires.
     -   [ ] 문제 음성으로 정답 제출하기 item
+        -   [ ] Choose browser speech-recognition support or fallback input.
+        -   [ ] Define accepted spoken formats for numbers, choices, and short answers.
+        -   [ ] Add confirmation before final submission.
     -   [ ] 객관식의 정답을 문제를 풀어야지만 알 있도록 (1번. \int_0^1 x=1/2 이런 느낌으로)
+        -   [ ] Define the prerequisite micro-problem format.
+        -   [ ] Add a reveal gate before showing the original choices.
+        -   [ ] Preserve accessibility for formulas and long choices.
     -   [ ] Captcha 풀어야지 문제 풀 수 있게 하기
+        -   [ ] Pick captcha style: text, image, drag, or simple puzzle.
+        -   [ ] Make captcha difficulty low enough to be a delay, not a hard blocker.
+        -   [ ] Add timeout/failure behavior.
     -   [ ] 간단한 미니게임을 해결해야지 문제 풀 수 있게 하기
+        -   [ ] Define shared mini-game result contract: pass, fail, timeout, retry.
         -   [ ] 공룡 게임
+            -   [ ] Implement obstacle spawn, jump input, and pass threshold.
         -   [ ] 산수 게임
+            -   [ ] Generate arithmetic prompts with bounded difficulty.
+            -   [ ] Validate answer and retry count.
         -   [ ] 순발력 게임
+            -   [ ] Implement reaction trigger and acceptable response window.
         -   [ ] 상식 퀴즈 (대만은 나라인가요?)
+            -   [ ] Prepare question pool and exact accepted answers.
     -   [ ] Youtube Shorts Effect
+        -   [ ] Define screen effect: vertical crop, scrolling distraction, sound, or overlay.
+        -   [ ] Keep answer input usable while effect is active.
+        -   [ ] Add user settings guard if sound/animation is disruptive.
+    -   [ ] 주관식 정답 +-10 까지 허용. (입막음)
 -   [ ] Connect to DB (saving records)
+    -   [ ] Decide DB provider and local development setup.
+    -   [ ] Design schema for rooms, players, submissions, contests, and final standings.
+    -   [ ] Save completed game records.
+    -   [ ] Save per-player submission history.
+    -   [ ] Add record lookup path for admin/debugging.
+    -   [ ] Add migration and seed scripts.
+    -   [ ] Verify that current in-memory gameplay still works if DB writes fail.
 -   [ ] Upload custom private/public problem set (call for task) <- Pay as you go (public free / private paid)
+    -   [ ] Define owner/admin flow for creating a custom problem set.
+    -   [ ] Define public/free and private/paid visibility rules.
+    -   [ ] Add upload validation and preview before publishing.
     -   [ ] Latex
+        -   [ ] Render formulas consistently in problem statement, choices, and explanations.
     -   [ ] Graphs or renderings.
+        -   [ ] Support embedded generated graph images or structured graph specs.
     -   [ ] Image
+        -   [ ] Support image upload, resizing, and storage path references.
     -   [ ] Custom item (paid user only) - interactive
+        -   [ ] Define allowed custom item capabilities.
+        -   [ ] Add moderation/sandboxing rules before paid user items can affect games.
+    -   [ ] Add payment/entitlement checks for private paid sets.
+    -   [ ] Add basic abuse controls: file size, content type, rate limits.
 -   [ ] 땅따먹기화
+    -   [ ] Define the board/map model and how territory is represented.
+    -   [ ] Define how solving a problem captures or defends territory.
+    -   [ ] Decide whether territory updates happen in realtime or at checkpoints.
+    -   [ ] Add map UI that coexists with the current problem-solving flow.
+    -   [ ] Add win condition and tie-break rules.
+    -   [ ] Run a small playtest with at least two players.
 
 Phase 3
 

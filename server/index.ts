@@ -1,6 +1,7 @@
 import express from "express";
 import { createServer } from "node:http";
 import { Server } from "socket.io";
+import { collectDefaultMetrics, Counter, Gauge, Histogram, Registry } from "prom-client";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -73,6 +74,85 @@ const io = new Server(httpServer, {
 const rooms = new Map<string, RoomState>();
 const socketToPlayer = new Map<string, { roomCode: string; playerId: string }>();
 const socketEventTimestamps = new Map<string, Map<string, number>>();
+const metricsRegistry = new Registry();
+
+collectDefaultMetrics({
+  register: metricsRegistry,
+  prefix: "kice_arena_"
+});
+
+const roomsTotalGauge = new Gauge({
+  name: "kice_arena_rooms_total",
+  help: "Current total rooms held in memory.",
+  registers: [metricsRegistry]
+});
+
+const activeRoomsGauge = new Gauge({
+  name: "kice_arena_rooms_active",
+  help: "Current rooms that are not finished.",
+  registers: [metricsRegistry]
+});
+
+const roomsByStatusGauge = new Gauge({
+  name: "kice_arena_rooms_by_status",
+  help: "Current rooms grouped by status.",
+  labelNames: ["status"],
+  registers: [metricsRegistry]
+});
+
+const roomExpirySecondsGauge = new Gauge({
+  name: "kice_arena_room_expiry_seconds",
+  help: "Seconds until rooms finish or become eligible for cleanup.",
+  labelNames: ["stat"],
+  registers: [metricsRegistry]
+});
+
+const playingRoomTimeRemainingSecondsGauge = new Gauge({
+  name: "kice_arena_playing_room_time_remaining_seconds",
+  help: "Seconds until playing rooms naturally finish.",
+  labelNames: ["stat"],
+  registers: [metricsRegistry]
+});
+
+const playersGauge = new Gauge({
+  name: "kice_arena_players",
+  help: "Current player counts.",
+  labelNames: ["state"],
+  registers: [metricsRegistry]
+});
+
+const socketConnectionsGauge = new Gauge({
+  name: "kice_arena_socket_connections",
+  help: "Current Socket.IO connections.",
+  registers: [metricsRegistry]
+});
+
+const roomsCreatedCounter = new Counter({
+  name: "kice_arena_rooms_created_total",
+  help: "Total rooms created since server start.",
+  registers: [metricsRegistry]
+});
+
+const playersJoinedCounter = new Counter({
+  name: "kice_arena_players_joined_total",
+  help: "Total non-host players joined since server start.",
+  registers: [metricsRegistry]
+});
+
+const answersSubmittedCounter = new Counter({
+  name: "kice_arena_answers_submitted_total",
+  help: "Total answer submissions since server start, labeled by correctness.",
+  labelNames: ["correct"],
+  registers: [metricsRegistry]
+});
+
+const httpRequestDurationSeconds = new Histogram({
+  name: "kice_arena_http_request_duration_seconds",
+  help: "HTTP request duration in seconds.",
+  labelNames: ["method", "path", "status"],
+  buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2, 5],
+  registers: [metricsRegistry]
+});
 
 const ROOM_TTL = {
   emptyLobbyMs: 10 * 60 * 1000,
@@ -104,6 +184,12 @@ const readExams = (): ExamManifest[] => {
 
 const exams = readExams();
 const examById = new Map(exams.map((exam) => [exam.id, exam]));
+
+const isExamReleased = (exam: ExamManifest, now = Date.now()) => {
+  if (!exam.releaseAt) return true;
+  const releaseAt = Date.parse(exam.releaseAt);
+  return !Number.isFinite(releaseAt) || now >= releaseAt;
+};
 
 const toExamSummary = (exam: ExamManifest): ExamSummary => ({
   id: exam.id,
@@ -163,6 +249,70 @@ const readPositiveSeconds = (value: unknown, fallback: number, min: number, max:
 const readString = (value: unknown, maxLength: number) => (typeof value === "string" ? value.trim().slice(0, maxLength) : "");
 
 const activeRoomCount = () => [...rooms.values()].filter((room) => room.status !== "finished").length;
+
+const roomCleanupDeadline = (room: RoomState, now: number) => {
+  const hasConnectedPlayers = [...room.players.values()].some((player) => player.connected);
+  if (room.status === "playing" && room.endsAt !== null) return room.endsAt;
+  if (room.status === "finished") return room.lastActivityAt + ROOM_TTL.finishedMs;
+  if (room.status === "lobby" && room.players.size === 0) return room.createdAt + ROOM_TTL.emptyLobbyMs;
+  if (room.status === "lobby" && !hasConnectedPlayers) return room.lastActivityAt + ROOM_TTL.disconnectedLobbyMs;
+  return null;
+};
+
+const summarizeSeconds = (values: number[]) => ({
+  avg: values.length === 0 ? 0 : values.reduce((sum, value) => sum + value, 0) / values.length,
+  max: values.length === 0 ? 0 : Math.max(...values)
+});
+
+const updateRuntimeMetrics = () => {
+  const now = Date.now();
+  const allRooms = [...rooms.values()];
+  const statusCounts = {
+    lobby: 0,
+    playing: 0,
+    finished: 0
+  };
+  let totalPlayers = 0;
+  let connectedPlayers = 0;
+  const expirySeconds: number[] = [];
+  const playingTimeRemainingSeconds: number[] = [];
+
+  for (const room of allRooms) {
+    statusCounts[room.status] += 1;
+    totalPlayers += room.players.size;
+    connectedPlayers += [...room.players.values()].filter((player) => player.connected).length;
+
+    const deadline = roomCleanupDeadline(room, now);
+    if (deadline !== null) expirySeconds.push(Math.max(0, (deadline - now) / 1000));
+
+    if (room.status === "playing" && room.endsAt !== null) {
+      playingTimeRemainingSeconds.push(Math.max(0, (room.endsAt - now) / 1000));
+    }
+  }
+
+  roomsTotalGauge.set(allRooms.length);
+  activeRoomsGauge.set(activeRoomCount());
+  roomsByStatusGauge.reset();
+  roomsByStatusGauge.set({ status: "lobby" }, statusCounts.lobby);
+  roomsByStatusGauge.set({ status: "playing" }, statusCounts.playing);
+  roomsByStatusGauge.set({ status: "finished" }, statusCounts.finished);
+
+  const expiry = summarizeSeconds(expirySeconds);
+  roomExpirySecondsGauge.reset();
+  roomExpirySecondsGauge.set({ stat: "avg" }, expiry.avg);
+  roomExpirySecondsGauge.set({ stat: "max" }, expiry.max);
+
+  const remaining = summarizeSeconds(playingTimeRemainingSeconds);
+  playingRoomTimeRemainingSecondsGauge.reset();
+  playingRoomTimeRemainingSecondsGauge.set({ stat: "avg" }, remaining.avg);
+  playingRoomTimeRemainingSecondsGauge.set({ stat: "max" }, remaining.max);
+
+  playersGauge.reset();
+  playersGauge.set({ state: "total" }, totalPlayers);
+  playersGauge.set({ state: "connected" }, connectedPlayers);
+  playersGauge.set({ state: "disconnected" }, Math.max(0, totalPlayers - connectedPlayers));
+  socketConnectionsGauge.set(io.engine.clientsCount);
+};
 
 const touchRoom = (room: RoomState) => {
   room.lastActivityAt = Date.now();
@@ -372,14 +522,40 @@ setInterval(() => {
 
 const scoreForAccepted = (problem: ProblemManifest) => getProblemPointValue(problem);
 
+app.use((req, res, next) => {
+  const endTimer = httpRequestDurationSeconds.startTimer({
+    method: req.method,
+    path: req.path
+  });
+  res.on("finish", () => {
+    endTimer({ status: String(res.statusCode) });
+  });
+  next();
+});
+
+app.use("/exams/:examId", (req, res, next) => {
+  const exam = examById.get(readString(req.params.examId, 80));
+  if (exam && !isExamReleased(exam)) {
+    res.sendStatus(404);
+    return;
+  }
+  next();
+});
+
 app.use("/exams", express.static(examsDir));
 
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true, exams: exams.length });
 });
 
+app.get("/metrics", async (_req, res) => {
+  updateRuntimeMetrics();
+  res.set("Content-Type", metricsRegistry.contentType);
+  res.end(await metricsRegistry.metrics());
+});
+
 app.get("/api/exams", (_req, res) => {
-  res.json(exams.map(toExamSummary));
+  res.json(exams.filter((exam) => isExamReleased(exam)).map(toExamSummary));
 });
 
 if (process.env.NODE_ENV === "production") {
@@ -427,6 +603,10 @@ io.on("connection", (socket) => {
     const exam = examById.get(readString(payload?.examId, 80));
     if (!exam) {
       reply({ ok: false, error: "등록된 시험을 찾을 수 없습니다." });
+      return;
+    }
+    if (!isExamReleased(exam)) {
+      reply({ ok: false, error: "아직 공개 전인 시험입니다." });
       return;
     }
 
@@ -477,6 +657,7 @@ io.on("connection", (socket) => {
     };
 
     rooms.set(code, room);
+    roomsCreatedCounter.inc();
     socket.join(code);
     socketToPlayer.set(socket.id, { roomCode: code, playerId });
     socket.emit("player:you", playerId);
@@ -524,6 +705,7 @@ io.on("connection", (socket) => {
       connected: true
     };
     room.players.set(playerId, player);
+    playersJoinedCounter.inc();
     socket.join(code);
     socketToPlayer.set(socket.id, { roomCode: code, playerId });
     socket.emit("player:you", playerId);
@@ -690,6 +872,7 @@ io.on("connection", (socket) => {
     }
     const acceptedAt = Date.now();
     const correct = normalizeAnswer(answer) === normalizeAnswer(problem.answer);
+    answersSubmittedCounter.inc({ correct: String(correct) });
     const previousCorrect = player.submissions.some((submission) => submission.problemId === problem.id && submission.correct);
     const previousSubmission = player.submissions.find((submission) => submission.problemId === problem.id);
     if (previousCorrect) {
