@@ -21,6 +21,11 @@ npm run build
 npm test
 ```
 
+테스트 위치 규칙:
+
+-   단위 테스트는 대상 파일과 같은 디렉토리에 둔다. 예: `server/scoring.ts` -> `server/scoring.test.ts`.
+-   브라우저 흐름을 검증하는 E2E 테스트만 `tests/e2e/*.spec.ts`에 둔다.
+
 ## Project Layout
 
 -   `client/src`: React client UI.
@@ -29,6 +34,7 @@ npm test
 -   `docs`: implementation protocols and contributor-facing notes.
 -   `deploy`: deployment and monitoring configuration.
 -   `scripts`: exam/problem preparation scripts.
+-   `tests/e2e`: Playwright browser-flow tests.
 -   `todo.md`: active roadmap and task checklist.
 
 ## Contribution Guide

@@ -27,6 +27,6 @@ export default defineConfig({
     emptyOutDir: true
   },
   test: {
-    include: ["../shared/**/*.test.ts", "src/**/*.test.ts", "src/**/*.spec.ts"]
+    include: ["../server/**/*.test.ts", "../shared/**/*.test.ts", "src/**/*.test.ts", "src/**/*.spec.ts"]
   }
 });

@@ -308,6 +308,7 @@ export const ROOM_GUARDRAILS = {
   maxTimeLimitSec: 120 * 60,
   defaultFreezeBeforeSec: 10 * 60,
   maxPlayersPerRoom: 60,
+  maxNicknameLength: 6,
   maxActiveRooms: 200
 } as const;
 

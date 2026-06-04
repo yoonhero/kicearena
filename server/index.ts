@@ -1,64 +1,57 @@
 import express from "express";
+import crypto from "node:crypto";
+import fs from "node:fs";
 import { createServer } from "node:http";
 import { Server } from "socket.io";
 import { collectDefaultMetrics, Counter, Gauge, Histogram, Registry } from "prom-client";
-import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   type ActiveEffect,
   type ArenaLog,
-  type ExamManifest,
-  type ExamPublic,
-  type ExamSummary,
   ITEM_DEFINITIONS,
-  ITEM_IDS,
   type ItemAward,
   type ItemId,
-  type PlayerPublic,
   type ProblemManifest,
   type RoomPublic,
   ROOM_GUARDRAILS,
   type ServerResponse,
-  type StandingPublic,
   WRONG_ANSWER_PENALTY_MS,
-  getProblemPointValue,
   normalizeAnswer
 } from "../shared/game.js";
+import { sanitizeNickname } from "../shared/nickname.js";
 import { makeScoreboardRevealState } from "../shared/reveal.js";
+import { getRoomLeaveAction, validateLobbyKick } from "../shared/roomLifecycle.js";
 import { summarizeRoomMetrics } from "../shared/runtimeMetrics.js";
+import { isExamReleased, readExams, toExamPublic, toExamSummary } from "./exams.js";
+import { activeEffectForItem, cleanupEffects, findAdviceNoteProblem, maybeAwardItems, randomWeakDebuff, validateItemTarget } from "./items.js";
+import { shouldRateLimit as shouldRateLimitEvent } from "./rateLimit.js";
+import { derivePlayerScoreState, formatPenaltyMinutes, makeStandings, normalizeSubmissionPenalty, scoreForAccepted } from "./scoring.js";
+import type { PlayerState, RoomState } from "./types.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..");
 const examsDir = path.join(__dirname, "exams");
 const port = Number(process.env.PORT ?? 3001);
+const readMetricsBearerToken = () => {
+  const inlineToken = process.env.METRICS_BEARER_TOKEN?.trim();
+  if (inlineToken) return inlineToken;
+
+  const tokenFile = process.env.METRICS_BEARER_TOKEN_FILE?.trim();
+  if (!tokenFile) return "";
+
+  try {
+    return fs.readFileSync(tokenFile, "utf8").trim();
+  } catch (error) {
+    console.warn(`Unable to read metrics bearer token file: ${tokenFile}`, error);
+    return "";
+  }
+};
+const metricsBearerToken = readMetricsBearerToken();
 const allowedOrigins = (process.env.CORS_ORIGINS ?? "")
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
-
-interface PlayerState extends PlayerPublic {
-  socketId: string;
-}
-
-interface RoomState {
-  code: string;
-  hostId: string;
-  exam: ExamManifest;
-  status: RoomPublic["status"];
-  timeLimitSec: number;
-  freezeBeforeSec: number;
-  itemEnabled: boolean;
-  startedAt: number | null;
-  endsAt: number | null;
-  scoreboardFrozenAt: number | null;
-  frozenStandings: StandingPublic[];
-  scoreboardRevealCount: number;
-  players: Map<string, PlayerState>;
-  logs: ArenaLog[];
-  createdAt: number;
-  lastActivityAt: number;
-}
 
 const app = express();
 app.disable("x-powered-by");
@@ -78,6 +71,40 @@ const socketToPlayer = new Map<string, { roomCode: string; playerId: string }>()
 const socketEventTimestamps = new Map<string, Map<string, number>>();
 const metricsRegistry = new Registry();
 const EXPIRED_EFFECT_NOTICE_MS = 3000;
+
+const normalizeRemoteAddress = (address: string | undefined) => {
+  if (!address) return "";
+  if (address.startsWith("::ffff:")) return address.slice("::ffff:".length);
+  return address;
+};
+
+const isPrivateNetworkAddress = (address: string | undefined) => {
+  const normalized = normalizeRemoteAddress(address);
+  if (normalized === "::1") return true;
+  if (normalized.startsWith("fc") || normalized.startsWith("fd") || normalized.startsWith("fe80:")) return true;
+
+  const octets = normalized.split(".").map((part) => Number(part));
+  if (octets.length !== 4 || octets.some((octet) => !Number.isInteger(octet) || octet < 0 || octet > 255)) {
+    return false;
+  }
+
+  const [first, second] = octets;
+  return (
+    first === 10 ||
+    first === 127 ||
+    (first === 172 && second >= 16 && second <= 31) ||
+    (first === 192 && second === 168) ||
+    (first === 169 && second === 254)
+  );
+};
+
+const hasValidMetricsBearerToken = (authorization: string | undefined) => {
+  if (!metricsBearerToken || !authorization?.startsWith("Bearer ")) return false;
+  const suppliedToken = authorization.slice("Bearer ".length).trim();
+  const expected = Buffer.from(metricsBearerToken);
+  const supplied = Buffer.from(suppliedToken);
+  return expected.length === supplied.length && crypto.timingSafeEqual(expected, supplied);
+};
 
 collectDefaultMetrics({
   register: metricsRegistry,
@@ -171,56 +198,8 @@ const RATE_LIMIT_MS = {
   revealNext: 250
 } as const;
 
-const readExams = (): ExamManifest[] => {
-  if (!fs.existsSync(examsDir)) return [];
-
-  return fs
-    .readdirSync(examsDir, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .filter((entry) => fs.existsSync(path.join(examsDir, entry.name, "manifest.json")))
-    .map((entry) => {
-      const manifestPath = path.join(examsDir, entry.name, "manifest.json");
-      return JSON.parse(fs.readFileSync(manifestPath, "utf8")) as ExamManifest;
-    })
-    .sort((a, b) => a.title.localeCompare(b.title));
-};
-
-const exams = readExams();
+const exams = readExams(examsDir);
 const examById = new Map(exams.map((exam) => [exam.id, exam]));
-
-const isExamReleased = (exam: ExamManifest, now = Date.now()) => {
-  if (!exam.releaseAt) return true;
-  const releaseAt = Date.parse(exam.releaseAt);
-  return !Number.isFinite(releaseAt) || now >= releaseAt;
-};
-
-const toExamSummary = (exam: ExamManifest): ExamSummary => ({
-  id: exam.id,
-  title: exam.title,
-  subtitle: exam.subtitle,
-  timeLimitSec: exam.timeLimitSec,
-  problemCount: exam.problems.length
-});
-
-const toExamPublic = (exam: ExamManifest): ExamPublic => ({
-  ...toExamSummary(exam),
-  captureSummary: exam.captureSummary,
-  problems: exam.problems.map((problem) => ({
-    id: problem.id,
-    number: problem.number,
-    title: problem.title,
-    answerKind: problem.answerKind,
-    difficulty: problem.difficulty,
-    pointValue: getProblemPointValue(problem),
-    imageUrl: `/exams/${exam.id}/problems/${problem.image}`,
-    text: problem.text,
-    sourceNumber: problem.sourceNumber,
-    sourcePage: problem.sourcePage,
-    bbox: problem.bbox,
-    section: problem.section,
-    captureQuality: problem.captureQuality
-  }))
-});
 
 const getProblem = (room: RoomState, problemId: string): ProblemManifest | undefined =>
   room.exam.problems.find((problem) => problem.id === problemId);
@@ -302,67 +281,19 @@ const deleteRoom = (room: RoomState) => {
   rooms.delete(room.code);
 };
 
+const removePlayerFromRoom = (room: RoomState, player: PlayerState) => {
+  room.players.delete(player.id);
+  socketToPlayer.delete(player.socketId);
+  io.sockets.sockets.get(player.socketId)?.leave(room.code);
+};
+
+const closeLobbyRoom = (room: RoomState) => {
+  io.to(room.code).emit("room:closed", { code: room.code });
+  deleteRoom(room);
+};
+
 const shouldRateLimit = (socketId: string, eventName: string, minIntervalMs: number) => {
-  const now = Date.now();
-  let events = socketEventTimestamps.get(socketId);
-  if (!events) {
-    events = new Map();
-    socketEventTimestamps.set(socketId, events);
-  }
-  const previous = events.get(eventName) ?? 0;
-  events.set(eventName, now);
-  return now - previous < minIntervalMs;
-};
-
-const makeStandings = (room: RoomState, players: PlayerPublic[] = [...room.players.values()], visibleUntil: number | null = null): StandingPublic[] =>
-  players
-    .map((player) => {
-      const visibleSubmissions = visibleUntil === null ? player.submissions : player.submissions.filter((submission) => submission.submittedAt <= visibleUntil);
-      const derived = derivePlayerScoreState(room, { ...player, submissions: visibleSubmissions });
-      const lastAcceptedAt =
-        visibleSubmissions
-          .filter((submission) => submission.correct)
-          .reduce<number | null>((latest, submission) => (latest === null || submission.submittedAt > latest ? submission.submittedAt : latest), null);
-      return {
-        playerId: player.id,
-        nickname: player.nickname,
-        score: derived.score,
-        penaltyMs: derived.penaltyMs,
-        solved: derived.solved,
-        lastAcceptedAt
-      };
-    })
-    .sort(compareStandings);
-
-const compareStandings = (a: StandingPublic, b: StandingPublic) =>
-  b.score - a.score ||
-  a.penaltyMs - b.penaltyMs ||
-  b.solved - a.solved ||
-  (a.lastAcceptedAt ?? Number.MAX_SAFE_INTEGER) - (b.lastAcceptedAt ?? Number.MAX_SAFE_INTEGER);
-
-const effectiveSubmissionPenaltyMs = (room: Pick<RoomState, "startedAt">, submission: PlayerPublic["submissions"][number]) => {
-  if (!submission.correct) return 0;
-  const elapsedMs = Math.max(0, submission.submittedAt - (room.startedAt ?? submission.submittedAt));
-  const elapsedPenaltyMs = elapsedMs > 0 ? Math.max(1, Math.ceil(elapsedMs / 60000)) * 60000 : 0;
-  return elapsedPenaltyMs + Math.max(0, submission.attempts - 1) * WRONG_ANSWER_PENALTY_MS;
-};
-
-const normalizeSubmissionPenalty = (room: Pick<RoomState, "startedAt">, submission: PlayerPublic["submissions"][number]) => ({
-  ...submission,
-  penaltyMs: effectiveSubmissionPenaltyMs(room, submission)
-});
-
-const formatPenaltyMinutes = (penaltyMs: number) => Math.max(0, Math.round(penaltyMs / 60000));
-
-const derivePlayerScoreState = (room: Pick<RoomState, "startedAt">, player: PlayerPublic) => {
-  const normalizedSubmissions = player.submissions.map((submission) => normalizeSubmissionPenalty(room, submission));
-  const accepted = normalizedSubmissions.filter((submission) => submission.correct);
-  return {
-    score: accepted.reduce((sum, submission) => sum + submission.scoreAwarded, 0),
-    penaltyMs: accepted.reduce((sum, submission) => sum + submission.penaltyMs, 0),
-    solved: accepted.length,
-    normalizedSubmissions
-  };
+  return shouldRateLimitEvent(socketEventTimestamps, socketId, eventName, minIntervalMs);
 };
 
 const isScoreboardFrozen = (room: RoomState) =>
@@ -415,105 +346,6 @@ const emitRoom = (room: RoomState) => {
   io.to(room.code).emit("room:update", publicRoom(room));
 };
 
-const isItemId = (id: ActiveEffect["id"]): id is ItemId => id in ITEM_DEFINITIONS;
-
-const cleanupEffects = (room: RoomState) => {
-  const now = Date.now();
-  let changed = false;
-  for (const player of room.players.values()) {
-    const activeEffects: ActiveEffect[] = [];
-    const expiredEffects = player.expiredEffects ?? [];
-    for (const effect of player.effects) {
-      if (effect.expiresAt > now) {
-        activeEffects.push(effect);
-      } else if (isItemId(effect.id)) {
-        expiredEffects.push({ ...effect, clearedAt: now });
-        changed = true;
-      } else {
-        changed = true;
-      }
-    }
-    const visibleExpiredEffects = expiredEffects.filter((effect) => now - effect.clearedAt <= EXPIRED_EFFECT_NOTICE_MS);
-    if (visibleExpiredEffects.length !== expiredEffects.length) changed = true;
-    player.effects = activeEffects;
-    player.expiredEffects = visibleExpiredEffects;
-    const cooldowns = player.itemCooldowns ?? {};
-    for (const [itemId, readyAt] of Object.entries(cooldowns) as Array<[ItemId, number]>) {
-      if (readyAt <= now) {
-        delete cooldowns[itemId];
-        changed = true;
-      }
-    }
-    player.itemCooldowns = cooldowns;
-  }
-  return changed;
-};
-
-const randomItem = (): ItemId => {
-  return ITEM_IDS[Math.floor(Math.random() * ITEM_IDS.length)];
-};
-
-const findAdviceNoteProblem = (room: RoomState, sender: PlayerState, target: PlayerState) => {
-  const targetSolved = new Set(target.submissionHistory.filter((submission) => submission.correct).map((submission) => submission.problemId));
-  const senderSolved = sender.submissionHistory.filter((submission) => submission.correct && !targetSolved.has(submission.problemId));
-  const newest = senderSolved.sort((a, b) => b.submittedAt - a.submittedAt)[0];
-  return newest ? getProblem(room, newest.problemId) : null;
-};
-
-const activeEffectForItem = (target: PlayerState, itemId: ItemId) => target.effects.find((effect) => effect.id === itemId && effect.expiresAt > Date.now());
-
-const validateItemTarget = (room: RoomState, itemId: ItemId, sender: PlayerState, target: PlayerState) => {
-  const item = ITEM_DEFINITIONS[itemId];
-  if (item.lifecycle.target === "opponent" && sender.id === target.id) {
-    return { ok: false, error: "상대에게만 사용할 수 있는 아이템입니다." } as const;
-  }
-  if (item.lifecycle.target === "eligibleUnsolved") {
-    if (sender.id === target.id) {
-      return { ok: false, error: "다른 참가자에게만 사용할 수 있는 아이템입니다." } as const;
-    }
-    if (!findAdviceNoteProblem(room, sender, target)) {
-      return { ok: false, error: "내가 맞혔고 대상이 아직 못 맞힌 문제가 필요합니다." } as const;
-    }
-  }
-  if (item.lifecycle.duplicate === "blockWhileActive" && activeEffectForItem(target, itemId)) {
-    return { ok: false, error: "대상에게 같은 아이템 효과가 이미 적용 중입니다." } as const;
-  }
-  return { ok: true } as const;
-};
-
-const leadingScore = (room: RoomState) => Math.max(0, ...[...room.players.values()].map((player) => player.score));
-
-const maybeAwardItems = (room: RoomState, player: PlayerState, problem: ProblemManifest, attempts: number): ItemAward[] => {
-  if (!room.itemEnabled) return [];
-
-  const firstTry = attempts === 1;
-  const scoreGap = Math.max(0, leadingScore(room) - player.score);
-  const comebackBoost = scoreGap >= 240 ? 0.14 : scoreGap >= 120 ? 0.08 : 0;
-  const difficultyBoost = problem.difficulty * 0.055;
-  const firstTryBoost = firstTry ? 0.1 : 0;
-  const chance = Math.min(0.82, 0.2 + difficultyBoost + firstTryBoost + comebackBoost);
-  const awards: ItemAward[] = [];
-
-  if (Math.random() < chance) {
-    awards.push({ itemId: randomItem(), reason: comebackBoost > 0.1 ? "comeback" : problem.difficulty >= 4 ? "difficulty" : "lucky" });
-  }
-  if (firstTry && problem.difficulty >= 5 && Math.random() < 0.35) {
-    awards.push({ itemId: randomItem(), reason: "firstTry" });
-  }
-
-  return awards;
-};
-
-const randomWeakDebuff = (): ActiveEffect => {
-  const now = Date.now();
-  const pool: ActiveEffect[] = [
-    { id: "hideAssist", label: "멘탈 흔들림", sourceName: "연속 오답", expiresAt: now + 8000 },
-    { id: "blur", label: "시야 흐림", sourceName: "연속 오답", expiresAt: now + 6000 },
-    { id: "slowInput", label: "손 굳음", sourceName: "연속 오답", expiresAt: now + 5000 }
-  ];
-  return pool[Math.floor(Math.random() * pool.length)];
-};
-
 const isFinished = (room: RoomState) =>
   room.status === "playing" && room.endsAt !== null && Date.now() >= room.endsAt;
 
@@ -532,7 +364,7 @@ const finishRoom = (room: RoomState, reason = "시험 종료. 답안지를 걷�
 setInterval(() => {
   const now = Date.now();
   for (const room of rooms.values()) {
-    const effectsChanged = cleanupEffects(room);
+    const effectsChanged = cleanupEffects(room, now, EXPIRED_EFFECT_NOTICE_MS);
     if (isFinished(room)) finishRoom(room);
     else if (maybeFreezeScoreboard(room)) emitRoom(room);
     else if (effectsChanged) emitRoom(room);
@@ -545,8 +377,6 @@ setInterval(() => {
     if (shouldDelete) deleteRoom(room);
   }
 }, 1000);
-
-const scoreForAccepted = (problem: ProblemManifest) => getProblemPointValue(problem);
 
 app.use((req, res, next) => {
   const endTimer = httpRequestDurationSeconds.startTimer({
@@ -574,7 +404,22 @@ app.get("/api/health", (_req, res) => {
   res.json({ ok: true, exams: exams.length });
 });
 
-app.get("/metrics", async (_req, res) => {
+app.get("/metrics", async (req, res) => {
+  if (!isPrivateNetworkAddress(req.socket.remoteAddress)) {
+    res.sendStatus(404);
+    return;
+  }
+
+  if (!metricsBearerToken) {
+    res.status(503).send("Metrics bearer token is not configured.");
+    return;
+  }
+
+  if (!hasValidMetricsBearerToken(req.get("authorization"))) {
+    res.sendStatus(401);
+    return;
+  }
+
   updateRuntimeMetrics();
   res.set("Content-Type", metricsRegistry.contentType);
   res.end(await metricsRegistry.metrics());
@@ -636,7 +481,7 @@ io.on("connection", (socket) => {
       return;
     }
 
-    const nickname = readString(payload?.nickname, 18);
+    const nickname = sanitizeNickname(readString(payload?.nickname, ROOM_GUARDRAILS.maxNicknameLength));
     if (!nickname) {
       reply({ ok: false, error: "닉네임을 입력하세요." });
       return;
@@ -697,7 +542,7 @@ io.on("connection", (socket) => {
   socket.on("room:join", (payload: { code: string; nickname: string }, reply: (response: ServerResponse<RoomPublic>) => void) => {
     const code = readString(payload?.code, 8).toUpperCase();
     const room = rooms.get(code);
-    const nickname = readString(payload?.nickname, 18);
+    const nickname = sanitizeNickname(readString(payload?.nickname, ROOM_GUARDRAILS.maxNicknameLength));
     if (!room) {
       reply({ ok: false, error: "방을 찾을 수 없습니다." });
       return;
@@ -836,7 +681,17 @@ io.on("connection", (socket) => {
     }
     const room = rooms.get(ref.roomCode);
     const player = room?.players.get(ref.playerId);
-    if (room && player) {
+    const action = getRoomLeaveAction(room, player?.id);
+
+    if (room && player && action === "close-room") {
+      addLog(room, "system", `${player.nickname} 방장이 퇴실하여 방이 닫혔습니다.`);
+      closeLobbyRoom(room);
+    } else if (room && player && action === "remove-player") {
+      removePlayerFromRoom(room, player);
+      addLog(room, "system", `${player.nickname} 퇴실.`);
+      touchRoom(room);
+      emitRoom(room);
+    } else if (room && player && action === "detach-player") {
       player.connected = false;
       addLog(room, "system", `${player.nickname} 퇴실.`);
       socket.leave(room.code);
@@ -845,6 +700,39 @@ io.on("connection", (socket) => {
     }
     socketToPlayer.delete(socket.id);
     reply?.({ ok: true });
+  });
+
+  socket.on("room:kick", (payload: { targetPlayerId: string }, reply?: (response: ServerResponse<RoomPublic>) => void) => {
+    const ref = socketToPlayer.get(socket.id);
+    const room = ref ? rooms.get(ref.roomCode) : undefined;
+    const targetPlayerId = readString(payload?.targetPlayerId, 32);
+    const validation = validateLobbyKick(room, ref?.playerId, targetPlayerId);
+
+    if (!validation.ok) {
+      const error =
+        validation.error === "not-host"
+          ? "방장만 추방할 수 있습니다."
+          : validation.error === "not-lobby"
+            ? "로비에서만 추방할 수 있습니다."
+            : validation.error === "self-target"
+              ? "방장은 자기 자신을 추방할 수 없습니다."
+              : "추방할 참가자를 찾을 수 없습니다.";
+      reply?.({ ok: false, error });
+      return;
+    }
+
+    const target = room?.players.get(validation.targetPlayerId);
+    if (!room || !target) {
+      reply?.({ ok: false, error: "추방할 참가자를 찾을 수 없습니다." });
+      return;
+    }
+
+    removePlayerFromRoom(room, target);
+    io.sockets.sockets.get(target.socketId)?.emit("room:kicked", { code: room.code });
+    addLog(room, "system", `${target.nickname} 추방.`);
+    touchRoom(room);
+    emitRoom(room);
+    reply?.({ ok: true, data: publicRoom(room) });
   });
 
   socket.on("problem:set", (payload: { problemId: string }) => {

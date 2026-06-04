@@ -1,5 +1,8 @@
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { ItemId, PlayerPublic, ProblemPublic, RoomPublic } from "../../../../shared/game";
+import { isTallProblemImage } from "../../../../shared/problemLayout";
+import { socket } from "../../lib/socket";
 import { AnswerPanel } from "./AnswerPanel";
 import { ItemDock } from "./ItemDock";
 import { ProblemNav } from "./ProblemNav";
@@ -107,9 +110,18 @@ export function ProblemSheet({
   setSelectedItem: (itemId: ItemId | null) => void;
   useItem: (itemId: ItemId, targetPlayerId: string) => Promise<void>;
 }) {
+  const [tallProblem, setTallProblem] = useState(false);
   const bannedSongActive = ownPlayer.effects.some((effect) => effect.id === "bannedSong" && effect.expiresAt > Date.now());
   const auraEffect = ownPlayer.effects.find((effect) => effect.id === "auraMinus" && effect.expiresAt > Date.now());
   const adviceEffect = ownPlayer.effects.find((effect) => effect.id === "adviceNote" && effect.expiresAt > Date.now());
+  const currentIndex = room.exam.problems.findIndex((problem) => problem.id === currentProblem.id);
+  const isProblemLocked = (problem: ProblemPublic) => hardLocked && problem.difficulty < 4;
+  const previousProblem = useMemo(() => findAdjacentProblem(room.exam.problems, currentIndex, -1, isProblemLocked), [currentIndex, hardLocked, room.exam.problems]);
+  const nextProblem = useMemo(() => findAdjacentProblem(room.exam.problems, currentIndex, 1, isProblemLocked), [currentIndex, hardLocked, room.exam.problems]);
+
+  useEffect(() => {
+    setTallProblem(false);
+  }, [currentProblem.id]);
 
   useEffect(() => {
     if (!auraEffect) return undefined;
@@ -126,8 +138,15 @@ export function ProblemSheet({
         <ItemDock room={room} ownPlayer={ownPlayer} selectedItem={selectedItem} setSelectedItem={setSelectedItem} useItem={useItem} />
         <em>난도 {currentProblem.difficulty}</em>
       </div>
-      <div className={`problem-image-wrap ${covered ? "covered" : ""} ${problemRotated ? "rotated" : ""}`}>
-        <img src={currentProblem.imageUrl} alt={`${currentProblem.sourceNumber ?? currentProblem.number}번 문제`} />
+      <div className={`problem-image-wrap ${covered ? "covered" : ""} ${problemRotated ? "rotated" : ""} ${tallProblem ? "tall-problem" : ""}`}>
+        <img
+          src={currentProblem.imageUrl}
+          alt={`${currentProblem.sourceNumber ?? currentProblem.number}번 문제`}
+          onLoad={(event) => {
+            const image = event.currentTarget;
+            setTallProblem(isTallProblemImage(image.naturalWidth, image.naturalHeight));
+          }}
+        />
         {covered && <div className="cover-effect">문제 가리기 발동</div>}
         {problemRotated && <div className="rotate-effect">문제지 회전중</div>}
         {memeActive && (
@@ -186,9 +205,28 @@ export function ProblemSheet({
           </div>
         )}
       </div>
+      <div className="problem-command-strip">
+        <button type="button" disabled={!previousProblem} onClick={() => previousProblem && socket.emit("problem:set", { problemId: previousProblem.id })}>
+          <ChevronLeft size={18} />
+          이전 문제
+        </button>
+        <strong>{currentProblem.number}/{room.exam.problemCount}</strong>
+        <button type="button" disabled={!nextProblem} onClick={() => nextProblem && socket.emit("problem:set", { problemId: nextProblem.id })}>
+          다음 문제
+          <ChevronRight size={18} />
+        </button>
+      </div>
       <AnswerPanel currentProblem={currentProblem} answer={answer} setAnswer={setAnswer} inputLocked={inputLocked} feedback={feedback} submit={submit} />
       {itemNotice && <div className="item-toast">{itemNotice}</div>}
       <ProblemNav problems={room.exam.problems} currentProblem={currentProblem} hardLocked={hardLocked} ownPlayer={ownPlayer} room={room} />
     </div>
   );
+}
+
+function findAdjacentProblem(problems: ProblemPublic[], currentIndex: number, direction: -1 | 1, locked: (problem: ProblemPublic) => boolean) {
+  for (let index = currentIndex + direction; index >= 0 && index < problems.length; index += direction) {
+    const problem = problems[index];
+    if (!locked(problem)) return problem;
+  }
+  return null;
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ROOM_GUARDRAILS, type ExamSummary, type PlayerPublic, type RoomPublic } from "../../shared/game";
 import { ArenaScreen } from "./screens/ArenaScreen";
 import { HomeScreen } from "./screens/HomeScreen";
@@ -47,6 +47,14 @@ export function App() {
   const [joiningInvite, setJoiningInvite] = useState(false);
   const rejoinAttempted = useRef(false);
 
+  const resetRoomSession = useCallback((nextRoomCode = "") => {
+    window.localStorage.removeItem(ROOM_SESSION_KEY);
+    setRoom(null);
+    setOwnPlayerId("");
+    setRoomCode(nextRoomCode);
+    rejoinAttempted.current = false;
+  }, []);
+
   useEffect(() => {
     fetch("/api/exams")
       .then((res) => res.json())
@@ -62,8 +70,17 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    socket.on("room:update", setRoom);
+    const onRoomUpdate = (nextRoom: RoomPublic) => {
+      setRoom(nextRoom);
+      if (ownPlayerId && !nextRoom.players.some((player) => player.id === ownPlayerId)) {
+        resetRoomSession("");
+      }
+    };
+    const onRoomRemoved = () => resetRoomSession("");
+    socket.on("room:update", onRoomUpdate);
     socket.on("player:you", setOwnPlayerId);
+    socket.on("room:kicked", onRoomRemoved);
+    socket.on("room:closed", onRoomRemoved);
     const tryRejoin = async () => {
       if (rejoinAttempted.current) return;
       const raw = window.localStorage.getItem(ROOM_SESSION_KEY);
@@ -97,11 +114,13 @@ export function App() {
     socket.on("connect", tryRejoin);
     if (socket.connected) void tryRejoin();
     return () => {
-      socket.off("room:update", setRoom);
+      socket.off("room:update", onRoomUpdate);
       socket.off("player:you", setOwnPlayerId);
+      socket.off("room:kicked", onRoomRemoved);
+      socket.off("room:closed", onRoomRemoved);
       socket.off("connect", tryRejoin);
     };
-  }, [inviteCode]);
+  }, [inviteCode, ownPlayerId, resetRoomSession]);
 
   useEffect(() => {
     if (!room?.code || !ownPlayerId) return;
@@ -118,11 +137,7 @@ export function App() {
 
   const leaveRoom = async () => {
     await emitWithAck("room:leave", {});
-    window.localStorage.removeItem(ROOM_SESSION_KEY);
-    setRoom(null);
-    setOwnPlayerId("");
-    setRoomCode("");
-    rejoinAttempted.current = false;
+    resetRoomSession("");
   };
 
   const createRoom = async () => {
@@ -212,10 +227,10 @@ export function App() {
       )}
 
       {screen === "lobby" && room && (
-        <LobbyScreen room={room} ownPlayer={ownPlayer} copyCode={copyCode} copied={copied} copyInviteLink={copyInviteLink} copiedLink={copiedLink} />
+        <LobbyScreen room={room} ownPlayer={ownPlayer} copyCode={copyCode} copied={copied} copyInviteLink={copyInviteLink} copiedLink={copiedLink} leaveRoom={leaveRoom} />
       )}
 
-      {screen === "arena" && room && ownPlayer && <ArenaScreen room={room} ownPlayer={ownPlayer} />}
+      {screen === "arena" && room && ownPlayer && <ArenaScreen room={room} ownPlayer={ownPlayer} onLeave={leaveRoom} />}
 
       {screen === "results" && room && <ResultsScreen room={room} ownPlayer={ownPlayer} onLeave={leaveRoom} />}
     </div>

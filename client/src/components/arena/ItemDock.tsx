@@ -54,6 +54,7 @@ export function ItemDock({
 
   return (
     <section className={`item-dock ${selectedItem ? "aiming" : ""}`}>
+      <span className="item-dock-label">아이템</span>
       <div className="item-bank" aria-label="보유 아이템">
         {ownPlayer.inventory.length === 0 ? (
           <span className="empty-inventory" title="고난도·첫 풀이·추격 상황에서 지급 확률 상승">

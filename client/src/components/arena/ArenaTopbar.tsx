@@ -1,4 +1,4 @@
-import { BarChart3, EyeOff, ShieldAlert, Trophy } from "lucide-react";
+import { BarChart3, EyeOff, LogOut, ShieldAlert, Trophy } from "lucide-react";
 import type { PlayerPublic, RoomPublic } from "../../../../shared/game";
 import { formatPenalty } from "../../lib/format";
 import { KiceClock } from "../common/KiceClock";
@@ -9,7 +9,8 @@ export function ArenaTopbar({
   solvedCount,
   timeLeft,
   showRankings,
-  endExamEarly
+  endExamEarly,
+  leaveRoom
 }: {
   room: RoomPublic;
   ownPlayer: PlayerPublic;
@@ -17,6 +18,7 @@ export function ArenaTopbar({
   timeLeft: number;
   showRankings: () => void;
   endExamEarly: () => void;
+  leaveRoom: () => void;
 }) {
   const isHost = ownPlayer.id === room.hostId;
   return (
@@ -38,9 +40,13 @@ export function ArenaTopbar({
         )}
       </div>
       <div className="topbar-actions">
-        <button className="status-link" onClick={showRankings}>
+        <button className="status-link ranking-link" onClick={showRankings}>
           <BarChart3 size={16} />
-          순위표
+          순위표 보기
+        </button>
+        <button className="status-link" onClick={leaveRoom}>
+          <LogOut size={16} />
+          나가기
         </button>
         {isHost && (
           <button className="status-link danger-link" onClick={endExamEarly}>

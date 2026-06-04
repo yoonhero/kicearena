@@ -6,8 +6,23 @@ The app exposes Prometheus metrics at:
 GET /metrics
 ```
 
+The endpoint is closed by default unless both protections pass:
+
+- The request comes from a private network, loopback, or link-local source address.
+- The request includes `Authorization: Bearer <METRICS_BEARER_TOKEN>`.
+
+Set `METRICS_BEARER_TOKEN` on the app process and use the same value in the
+Prometheus scrape config. Keep the app endpoint reachable only over a private
+network or through a reverse proxy that restricts `/metrics` to trusted private
+or Prometheus source ranges.
+
+The integrated `docker-compose.yml` mounts `./secrets/kice-arena-metrics-token`
+as a Docker secret for both the app and Prometheus. The app reads it through
+`METRICS_BEARER_TOKEN_FILE`, while Prometheus reads the same secret from
+`/run/secrets/kice_arena_metrics_token`.
+
 Merge `prometheus-scrape.yml` into the existing Prometheus server config and
-replace the placeholder target with the reachable app host and port.
+replace the placeholder target with the private app host and port.
 
 Grafana can import `../grafana/dashboards/kice-arena.json`. During import,
 select the existing Prometheus data source.

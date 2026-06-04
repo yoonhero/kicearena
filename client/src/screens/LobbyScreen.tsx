@@ -1,5 +1,6 @@
-import { Copy, Crown, Flag, Link, Play, Users } from "lucide-react";
+import { Copy, Crown, Flag, Link, LogOut, Play, UserX, Users } from "lucide-react";
 import type { PlayerPublic, RoomPublic } from "../../../shared/game";
+import { emitWithAck } from "../lib/socket";
 import { socket } from "../lib/socket";
 
 export function LobbyScreen({
@@ -8,7 +9,8 @@ export function LobbyScreen({
   copyCode,
   copied,
   copyInviteLink,
-  copiedLink
+  copiedLink,
+  leaveRoom
 }: {
   room: RoomPublic;
   ownPlayer: PlayerPublic | null;
@@ -16,9 +18,13 @@ export function LobbyScreen({
   copied: boolean;
   copyInviteLink: () => void;
   copiedLink: boolean;
+  leaveRoom: () => Promise<void>;
 }) {
   const isHost = ownPlayer?.id === room.hostId;
   const allReady = room.players.every((player) => player.ready);
+  const kickPlayer = async (targetPlayerId: string) => {
+    await emitWithAck<RoomPublic>("room:kick", { targetPlayerId });
+  };
   return (
     <main className="lobby-layout">
       <section className="exam-sheet lobby-sheet">
@@ -61,21 +67,32 @@ export function LobbyScreen({
                 <span>{player.nickname}</span>
                 {player.id === room.hostId && <Crown size={15} />}
                 <em>{player.ready ? "준비" : "대기"}</em>
+                {isHost && player.id !== room.hostId && (
+                  <button type="button" className="kick-player-btn" onClick={() => void kickPlayer(player.id)} title={`${player.nickname} 추방`} aria-label={`${player.nickname} 추방`}>
+                    <UserX size={15} />
+                  </button>
+                )}
               </div>
             ))}
           </div>
-          {!isHost && (
-            <button className="primary-btn" onClick={() => socket.emit("player:ready", { ready: !ownPlayer?.ready })}>
-              <Flag size={18} />
-              {ownPlayer?.ready ? "준비 취소" : "준비 완료"}
+          <div className="lobby-actions">
+            {!isHost && (
+              <button className="primary-btn" onClick={() => socket.emit("player:ready", { ready: !ownPlayer?.ready })}>
+                <Flag size={18} />
+                {ownPlayer?.ready ? "준비 취소" : "준비 완료"}
+              </button>
+            )}
+            {isHost && (
+              <button className="primary-btn" disabled={!allReady} onClick={() => socket.emit("room:start")}>
+                <Play size={18} />
+                타종
+              </button>
+            )}
+            <button className="secondary-btn lobby-leave-btn" type="button" onClick={() => void leaveRoom()}>
+              <LogOut size={18} />
+              나가기
             </button>
-          )}
-          {isHost && (
-            <button className="primary-btn" disabled={!allReady} onClick={() => socket.emit("room:start")}>
-              <Play size={18} />
-              타종
-            </button>
-          )}
+          </div>
         </div>
       </section>
     </main>

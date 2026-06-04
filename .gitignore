@@ -6,3 +6,4 @@ dist
 coverage
 tmp
 /server/exams
+/secrets

@@ -6,7 +6,7 @@ import { ArenaTopbar } from "../components/arena/ArenaTopbar";
 import { ProblemSheet } from "../components/arena/ProblemSheet";
 import { RankingsScreen } from "./RankingsScreen";
 
-export function ArenaScreen({ room, ownPlayer }: { room: RoomPublic; ownPlayer: PlayerPublic }) {
+export function ArenaScreen({ room, ownPlayer, onLeave }: { room: RoomPublic; ownPlayer: PlayerPublic; onLeave: () => Promise<void> }) {
   const [answer, setAnswer] = useState("");
   const [feedback, setFeedback] = useState("");
   const [itemNotice, setItemNotice] = useState("");
@@ -83,6 +83,7 @@ export function ArenaScreen({ room, ownPlayer }: { room: RoomPublic; ownPlayer: 
             timeLeft={timeLeft}
             showRankings={() => setView("rankings")}
             endExamEarly={() => void endExamEarly()}
+            leaveRoom={() => void onLeave()}
           />
           <ProblemSheet
             room={room}

@@ -10,6 +10,7 @@ export function ResultsScreen({ room, ownPlayer, onLeave }: { room: RoomPublic; 
   const [reportOpen, setReportOpen] = useState(false);
   const [revealError, setRevealError] = useState("");
   const revealRowRefs = useRef(new Map<string, HTMLDivElement>());
+  const revealCellRefs = useRef(new Map<string, HTMLSpanElement>());
   const previousRevealRowRects = useRef(new Map<string, DOMRect>());
   const finalRows = useMemo(() => makePlayerStandingRows(room), [room]);
   const playerById = useMemo(() => new Map(room.players.map((player) => [player.id, player])), [room.players]);
@@ -50,6 +51,12 @@ export function ResultsScreen({ room, ownPlayer, onLeave }: { room: RoomPublic; 
 
     previousRevealRowRects.current = nextRects;
   }, [revealRows]);
+
+  useLayoutEffect(() => {
+    if (!currentRevealEvent) return;
+    const cell = revealCellRefs.current.get(makeRevealCellKey(currentRevealEvent.playerId, currentRevealEvent.submission.problemId));
+    cell?.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
+  }, [currentRevealEvent?.playerId, currentRevealEvent?.submission.problemId, revealCount]);
 
   const revealNext = async () => {
     setRevealError("공개 요청 전송 중...");
@@ -123,7 +130,15 @@ export function ResultsScreen({ room, ownPlayer, onLeave }: { room: RoomPublic; 
                 {row.cells.map((cell) => {
                   const isActiveCell = currentRevealEvent?.playerId === row.playerId && currentRevealEvent.submission.problemId === cell.problemId;
                   return (
-                    <span key={cell.problemId} className={`reveal-problem-cell ${cell.status} ${isActiveCell ? "active-cell" : ""}`}>
+                    <span
+                      key={cell.problemId}
+                      ref={(element) => {
+                        const key = makeRevealCellKey(row.playerId, cell.problemId);
+                        if (element) revealCellRefs.current.set(key, element);
+                        else revealCellRefs.current.delete(key);
+                      }}
+                      className={`reveal-problem-cell ${cell.status} ${isActiveCell ? "active-cell" : ""}`}
+                    >
                       <b>{cell.primary}</b>
                       {cell.secondary && <small>{cell.secondary}</small>}
                     </span>
@@ -185,4 +200,8 @@ function makeNextRevealLabel(event: RevealEvent | undefined, room: RoomPublic) {
   if (!event) return "다음 비공개 시도 공개 대기";
   const problemNumber = room.exam.problems.find((problem) => problem.id === event.submission.problemId)?.number ?? "?";
   return `${event.nickname}의 ${problemNumber}번 시도 공개 대기`;
+}
+
+function makeRevealCellKey(playerId: string, problemId: string) {
+  return `${playerId}:${problemId}`;
 }

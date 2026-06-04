@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ChevronDown, Clock3, FileText, Gamepad2, LogIn, SlidersHorizontal } from "lucide-react";
 import { ROOM_GUARDRAILS, type ExamSummary } from "../../../shared/game";
+import { composeNickname, NICKNAME_FIRST_SYLLABLES, NICKNAME_SECOND_SYLLABLES, sanitizeNickname } from "../../../shared/nickname";
 import { formatReportDate } from "../lib/format";
 
 const QUICK_PRESETS = [
@@ -31,17 +32,18 @@ export function HomeScreen(props: {
 }) {
   const [showOptions, setShowOptions] = useState(false);
   const [entryMode, setEntryMode] = useState<"create" | "join">("create");
-  const nameSlots = 4;
-  const nameInitials = ["ㄱ", "ㅇ", "ㅈ", "ㅅ", "ㅂ", "ㅎ", "ㄴ"];
+  const nameSlots = 2;
+  const displayedName = Array.from(props.nickname).slice(0, nameSlots);
+  const selectedFirst = displayedName[0] ?? "";
+  const selectedSecond = displayedName[1] ?? "";
   const trimmedNickname = props.nickname.trim();
   const maxTimeLimitMin = Math.round(ROOM_GUARDRAILS.maxTimeLimitSec / 60);
   const selectedExam = props.exams.find((exam) => exam.id === props.selectedExamId);
   const selectedPreset = QUICK_PRESETS.find((preset) => preset.timeLimitMin === props.timeLimitMin && preset.freezeBeforeMin === props.freezeBeforeMin);
-  const setNicknameSlot = (slot: number, initial: string) => {
-    const chars = Array.from(props.nickname).slice(0, nameSlots);
-    while (chars.length < nameSlots) chars.push("");
-    chars[slot] = initial;
-    props.setNickname(chars.join(""));
+  const setNicknameSyllable = (slot: 0 | 1, syllable: string) => {
+    const first = slot === 0 ? syllable : selectedFirst || NICKNAME_FIRST_SYLLABLES[0];
+    const second = slot === 1 ? syllable : selectedSecond || NICKNAME_SECOND_SYLLABLES[0];
+    props.setNickname(composeNickname(first, second));
   };
   const nicknameLength = Array.from(trimmedNickname).length;
 
@@ -66,32 +68,48 @@ export function HomeScreen(props: {
             <div className="omr-name-maker" aria-label="성명 OMR 입력">
               <div className="omr-maker-head">
                 <strong>성명</strong>
-                <span>{props.inviteMode ? `초대 방 ${props.inviteRoomCode}` : "(초성 1~4칸 선택)"}</span>
+                <span>{props.inviteMode ? `초대 방 ${props.inviteRoomCode}` : "두 글자 조합"}</span>
               </div>
               <div className="omr-maker-cells" aria-hidden="true">
                 {Array.from({ length: nameSlots }, (_, index) => (
-                  <span key={index}>{props.nickname[index] ?? ""}</span>
+                  <span key={index}>{displayedName[index] ?? ""}</span>
                 ))}
               </div>
-              {nameInitials.map((initial) => (
-                <div className="omr-syllable-row" key={initial}>
-                  {Array.from({ length: nameSlots }, (_, slot) => (
+              <div className="omr-syllable-row" aria-label="첫 글자 선택">
+                {NICKNAME_FIRST_SYLLABLES.map((syllable) => (
+                  <button
+                    key={`first-${syllable}`}
+                    type="button"
+                    className={selectedFirst === syllable ? "marked" : ""}
+                    onClick={() => setNicknameSyllable(0, syllable)}
+                    aria-label={`첫 글자 ${syllable}`}
+                  >
+                    <span>{syllable}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="omr-syllable-row" aria-label="둘째 글자 선택">
+                {NICKNAME_SECOND_SYLLABLES.map((syllable) => (
                     <button
-                      key={`${initial}-${slot}`}
+                      key={`second-${syllable}`}
                       type="button"
-                      className={props.nickname[slot] === initial ? "marked" : ""}
-                      onClick={() => setNicknameSlot(slot, initial)}
-                      aria-label={`${slot + 1}번째 초성 ${initial}`}
+                      className={selectedSecond === syllable ? "marked" : ""}
+                      onClick={() => setNicknameSyllable(1, syllable)}
+                      aria-label={`둘째 글자 ${syllable}`}
                     >
-                      <span>{initial}</span>
+                      <span>{syllable}</span>
                     </button>
-                  ))}
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
             <label className="nickname-direct-field">
-              성명
-              <input value={props.nickname} maxLength={nameSlots} onChange={(event) => props.setNickname(event.target.value.slice(0, nameSlots))} placeholder="이름" />
+              직접 입력
+              <input
+                value={props.nickname}
+                maxLength={ROOM_GUARDRAILS.maxNicknameLength}
+                onChange={(event) => props.setNickname(sanitizeNickname(event.target.value))}
+                placeholder="닉네임"
+              />
             </label>
             {props.inviteMode && (
               <>
