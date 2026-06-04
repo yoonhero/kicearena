@@ -20,7 +20,7 @@ export function AnswerPanel({
     <div className={`answer-bar ${currentProblem.answerKind === "choice" ? "choice-answer-bar" : ""}`}>
       {currentProblem.answerKind === "choice" ? (
         <div className="choice-submit-panel" aria-label="5지선다 답안 선택">
-          <span>답안란</span>
+          <span>{currentProblem.number}번 답안</span>
           <div className="choice-buttons">
             {["1", "2", "3", "4", "5"].map((choice) => (
               <button
@@ -34,6 +34,7 @@ export function AnswerPanel({
                 }}
                 aria-label={`${choice}번 제출`}
               >
+                <b>{currentProblem.number}</b>
                 <i>{choice}</i>
               </button>
             ))}
@@ -41,8 +42,8 @@ export function AnswerPanel({
         </div>
       ) : (
         <>
-          <label>
-            답안란
+          <label className="short-answer-card">
+            <span>{currentProblem.number}번 단답형</span>
             <input
               value={answer}
               disabled={inputLocked}

@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronDown, Clock3, FileText, Gamepad2, LogIn, SlidersHorizontal } from "lucide-react";
 import { ROOM_GUARDRAILS, type ExamSummary } from "../../../shared/game";
-import { composeNickname, NICKNAME_FIRST_SYLLABLES, NICKNAME_SECOND_SYLLABLES, sanitizeNickname } from "../../../shared/nickname";
+import { composeHangulSyllable, composeNickname, NICKNAME_FINALS, NICKNAME_INITIALS, NICKNAME_VOWELS, sanitizeNickname, type NicknameJamo } from "../../../shared/nickname";
 import { formatReportDate } from "../lib/format";
 
 const QUICK_PRESETS = [
@@ -32,20 +32,31 @@ export function HomeScreen(props: {
 }) {
   const [showOptions, setShowOptions] = useState(false);
   const [entryMode, setEntryMode] = useState<"create" | "join">("create");
+  const [activeSlot, setActiveSlot] = useState<0 | 1>(0);
+  const [nameParts, setNameParts] = useState<[NicknameJamo, NicknameJamo]>([
+    { initial: "ㅁ", vowel: "ㅣ", final: "ㄴ" },
+    { initial: "ㅈ", vowel: "ㅐ", final: "" }
+  ]);
   const nameSlots = 2;
   const displayedName = Array.from(props.nickname).slice(0, nameSlots);
-  const selectedFirst = displayedName[0] ?? "";
-  const selectedSecond = displayedName[1] ?? "";
   const trimmedNickname = props.nickname.trim();
   const maxTimeLimitMin = Math.round(ROOM_GUARDRAILS.maxTimeLimitSec / 60);
   const selectedExam = props.exams.find((exam) => exam.id === props.selectedExamId);
   const selectedPreset = QUICK_PRESETS.find((preset) => preset.timeLimitMin === props.timeLimitMin && preset.freezeBeforeMin === props.freezeBeforeMin);
-  const setNicknameSyllable = (slot: 0 | 1, syllable: string) => {
-    const first = slot === 0 ? syllable : selectedFirst || NICKNAME_FIRST_SYLLABLES[0];
-    const second = slot === 1 ? syllable : selectedSecond || NICKNAME_SECOND_SYLLABLES[0];
-    props.setNickname(composeNickname(first, second));
+  const setNicknamePart = (kind: keyof NicknameJamo, value: string) => {
+    setNameParts((previous) => {
+      const next: [NicknameJamo, NicknameJamo] = [{ ...previous[0] }, { ...previous[1] }];
+      next[activeSlot] = { ...next[activeSlot], [kind]: value };
+      props.setNickname(composeNickname(next[0], next[1]));
+      return next;
+    });
   };
+  const previewName = nameParts.map(composeHangulSyllable);
   const nicknameLength = Array.from(trimmedNickname).length;
+
+  useEffect(() => {
+    if (!props.nickname) props.setNickname(composeNickname(nameParts[0], nameParts[1]));
+  }, []);
 
   return (
     <main className={`home-layout ${props.inviteMode ? "invite-home-layout" : ""}`}>
@@ -68,37 +79,46 @@ export function HomeScreen(props: {
             <div className="omr-name-maker" aria-label="성명 OMR 입력">
               <div className="omr-maker-head">
                 <strong>성명</strong>
-                <span>{props.inviteMode ? `초대 방 ${props.inviteRoomCode}` : "두 글자 조합"}</span>
+                <span>{props.inviteMode ? `초대 방 ${props.inviteRoomCode}` : "초성·중성·종성 조합"}</span>
               </div>
               <div className="omr-maker-cells" aria-hidden="true">
                 {Array.from({ length: nameSlots }, (_, index) => (
-                  <span key={index}>{displayedName[index] ?? ""}</span>
+                  <span key={index}>{displayedName[index] ?? previewName[index] ?? ""}</span>
                 ))}
               </div>
-              <div className="omr-syllable-row" aria-label="첫 글자 선택">
-                {NICKNAME_FIRST_SYLLABLES.map((syllable) => (
+              <div className="omr-slot-tabs" role="tablist" aria-label="이름 글자 선택">
+                {[0, 1].map((slot) => (
                   <button
-                    key={`first-${syllable}`}
+                    key={slot}
                     type="button"
-                    className={selectedFirst === syllable ? "marked" : ""}
-                    onClick={() => setNicknameSyllable(0, syllable)}
-                    aria-label={`첫 글자 ${syllable}`}
+                    className={activeSlot === slot ? "active" : ""}
+                    onClick={() => setActiveSlot(slot as 0 | 1)}
+                    role="tab"
+                    aria-selected={activeSlot === slot}
                   >
-                    <span>{syllable}</span>
+                    {slot + 1}글자
                   </button>
                 ))}
               </div>
-              <div className="omr-syllable-row" aria-label="둘째 글자 선택">
-                {NICKNAME_SECOND_SYLLABLES.map((syllable) => (
-                    <button
-                      key={`second-${syllable}`}
-                      type="button"
-                      className={selectedSecond === syllable ? "marked" : ""}
-                      onClick={() => setNicknameSyllable(1, syllable)}
-                      aria-label={`둘째 글자 ${syllable}`}
-                    >
-                      <span>{syllable}</span>
-                    </button>
+              <div className="omr-syllable-row" aria-label={`${activeSlot + 1}글자 초성 선택`}>
+                {NICKNAME_INITIALS.map((jamo) => (
+                  <button key={`initial-${jamo}`} type="button" className={nameParts[activeSlot].initial === jamo ? "marked" : ""} onClick={() => setNicknamePart("initial", jamo)} aria-label={`${activeSlot + 1}글자 초성 ${jamo}`}>
+                    <span>{jamo}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="omr-syllable-row" aria-label={`${activeSlot + 1}글자 중성 선택`}>
+                {NICKNAME_VOWELS.map((jamo) => (
+                  <button key={`vowel-${jamo}`} type="button" className={nameParts[activeSlot].vowel === jamo ? "marked" : ""} onClick={() => setNicknamePart("vowel", jamo)} aria-label={`${activeSlot + 1}글자 중성 ${jamo}`}>
+                    <span>{jamo}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="omr-syllable-row" aria-label={`${activeSlot + 1}글자 종성 선택`}>
+                {NICKNAME_FINALS.map((jamo) => (
+                  <button key={`final-${jamo || "none"}`} type="button" className={(nameParts[activeSlot].final ?? "") === jamo ? "marked" : ""} onClick={() => setNicknamePart("final", jamo)} aria-label={`${activeSlot + 1}글자 종성 ${jamo || "없음"}`}>
+                    <span>{jamo || "-"}</span>
+                  </button>
                 ))}
               </div>
             </div>

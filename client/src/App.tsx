@@ -11,6 +11,11 @@ type SavedRoomSession = {
   code: string;
   playerId: string;
 };
+type RoomLookup = {
+  exists: boolean;
+  status?: RoomPublic["status"];
+  playerCount?: number;
+};
 
 const readInviteCode = () => new URLSearchParams(window.location.search).get("room")?.trim().toUpperCase() ?? "";
 const defaultFreezeForTimeLimit = (timeLimitMin: number) => Math.max(0, Math.min(timeLimitMin, Math.round(timeLimitMin / 2)));
@@ -45,6 +50,8 @@ export function App() {
   const [copied, setCopied] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [joiningInvite, setJoiningInvite] = useState(false);
+  const [loadingInitialRoom, setLoadingInitialRoom] = useState(true);
+  const [examsLoaded, setExamsLoaded] = useState(false);
   const rejoinAttempted = useRef(false);
 
   const resetRoomSession = useCallback((nextRoomCode = "") => {
@@ -66,7 +73,8 @@ export function App() {
         setTimeLimitMin(firstTimeLimitMin);
         setFreezeBeforeMin(defaultFreezeForTimeLimit(firstTimeLimitMin));
       })
-      .catch(() => setError("서버의 시험 목록을 불러오지 못했습니다."));
+      .catch(() => setError("서버의 시험 목록을 불러오지 못했습니다."))
+      .finally(() => setExamsLoaded(true));
   }, []);
 
   useEffect(() => {
@@ -81,35 +89,50 @@ export function App() {
     socket.on("player:you", setOwnPlayerId);
     socket.on("room:kicked", onRoomRemoved);
     socket.on("room:closed", onRoomRemoved);
+    const lookupRoom = async (code: string) => {
+      const response = await fetch(`/api/rooms/${encodeURIComponent(code)}`);
+      if (!response.ok) return { exists: false } satisfies RoomLookup;
+      return (await response.json()) as RoomLookup;
+    };
     const tryRejoin = async () => {
       if (rejoinAttempted.current) return;
-      const raw = window.localStorage.getItem(ROOM_SESSION_KEY);
-      if (!raw) return;
       rejoinAttempted.current = true;
-      let saved: SavedRoomSession | null = null;
+      const raw = window.localStorage.getItem(ROOM_SESSION_KEY);
+      const lookupCode = inviteCode || roomCode;
       try {
-        saved = JSON.parse(raw) as SavedRoomSession;
-      } catch {
-        window.localStorage.removeItem(ROOM_SESSION_KEY);
-        rejoinAttempted.current = false;
+        if (lookupCode) {
+          const lookup = await lookupRoom(lookupCode);
+          if (!lookup.exists) {
+            if (inviteCode) setError("초대된 방이 이미 닫혔습니다.");
+            if (raw) window.localStorage.removeItem(ROOM_SESSION_KEY);
+            return;
+          }
+        }
+        if (!raw) return;
+        let saved: SavedRoomSession | null = null;
+        try {
+          saved = JSON.parse(raw) as SavedRoomSession;
+        } catch {
+          window.localStorage.removeItem(ROOM_SESSION_KEY);
+          return;
+        }
+        if (!saved?.code || !saved.playerId) {
+          return;
+        }
+        if (inviteCode && saved.code !== inviteCode) {
+          window.localStorage.removeItem(ROOM_SESSION_KEY);
+          return;
+        }
+        const response = await emitWithAck<RoomPublic>("room:rejoin", saved);
+        if (!response.ok || !response.data) {
+          window.localStorage.removeItem(ROOM_SESSION_KEY);
+          return;
+        }
+        setRoom(response.data);
+        setRoomCode(response.data.code);
+      } finally {
+        setLoadingInitialRoom(false);
       }
-      if (!saved?.code || !saved.playerId) {
-        rejoinAttempted.current = false;
-        return;
-      }
-      if (inviteCode && saved.code !== inviteCode) {
-        window.localStorage.removeItem(ROOM_SESSION_KEY);
-        rejoinAttempted.current = false;
-        return;
-      }
-      const response = await emitWithAck<RoomPublic>("room:rejoin", saved);
-      if (!response.ok || !response.data) {
-        window.localStorage.removeItem(ROOM_SESSION_KEY);
-        rejoinAttempted.current = false;
-        return;
-      }
-      setRoom(response.data);
-      setRoomCode(response.data.code);
     };
     socket.on("connect", tryRejoin);
     if (socket.connected) void tryRejoin();
@@ -120,7 +143,7 @@ export function App() {
       socket.off("room:closed", onRoomRemoved);
       socket.off("connect", tryRejoin);
     };
-  }, [inviteCode, ownPlayerId, resetRoomSession]);
+  }, [inviteCode, ownPlayerId, resetRoomSession, roomCode]);
 
   useEffect(() => {
     if (!room?.code || !ownPlayerId) return;
@@ -201,6 +224,14 @@ export function App() {
     window.setTimeout(() => setCopiedLink(false), 1200);
   };
 
+  if (loadingInitialRoom || !examsLoaded) {
+    return (
+      <div className="app-shell">
+        <InitialRoomLoading inviteCode={inviteCode} />
+      </div>
+    );
+  }
+
   return (
     <div className="app-shell">
       {screen === "home" && (
@@ -234,5 +265,17 @@ export function App() {
 
       {screen === "results" && room && <ResultsScreen room={room} ownPlayer={ownPlayer} onLeave={leaveRoom} />}
     </div>
+  );
+}
+
+function InitialRoomLoading({ inviteCode }: { inviteCode: string }) {
+  return (
+    <main className="initial-room-loading" aria-live="polite">
+      <section>
+        <span>수험표 확인 중</span>
+        <strong>{inviteCode ? `${inviteCode} 방 조회` : "기록된 입실 정보 조회"}</strong>
+        <i />
+      </section>
+    </main>
   );
 }

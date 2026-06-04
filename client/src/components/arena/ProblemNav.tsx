@@ -20,6 +20,10 @@ export function ProblemNav({
     () => new Set(ownPlayer.submissions.filter((submission) => submission.correct).map((submission) => submission.problemId)),
     [ownPlayer.submissions]
   );
+  const wrongProblemIds = useMemo(
+    () => new Set(ownPlayer.submissions.filter((submission) => !submission.correct).map((submission) => submission.problemId)),
+    [ownPlayer.submissions]
+  );
   const roomSolvedCounts = useMemo(() => {
     const counts = new Map<string, number>();
     for (const player of room.players) {
@@ -30,7 +34,12 @@ export function ProblemNav({
   }, [room.players]);
 
   return (
-    <nav className="problem-nav">
+    <section className="problem-picker" aria-label="문제 선택">
+      <div className="problem-picker-head">
+        <strong>문제 선택</strong>
+        <span>동그라미=정답 · 사선=오답</span>
+      </div>
+      <nav className="problem-nav">
       {problems.map((problem) => {
         const solved = solvedProblemIds.has(problem.id);
         const solvedByRoom = roomSolvedCounts.get(problem.id) ?? 0;
@@ -39,7 +48,7 @@ export function ProblemNav({
         return (
           <button
             key={problem.id}
-            className={[problem.id === currentProblem.id ? "active" : "", solved ? "solved" : ""].filter(Boolean).join(" ")}
+            className={[problem.id === currentProblem.id ? "active" : "", solved ? "solved" : "", !solved && wrongProblemIds.has(problem.id) ? "wrong" : ""].filter(Boolean).join(" ")}
             disabled={disabled}
             onClick={() => socket.emit("problem:set", { problemId: problem.id })}
             title={disabled ? "고난도 문제부터 풀어라 발동 중" : `${problem.number}번 · ${solveRate}% 풀이`}
@@ -50,6 +59,7 @@ export function ProblemNav({
           </button>
         );
       })}
-    </nav>
+      </nav>
+    </section>
   );
 }

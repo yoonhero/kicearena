@@ -292,6 +292,14 @@ const closeLobbyRoom = (room: RoomState) => {
   deleteRoom(room);
 };
 
+const closeRoomIfNoConnectedPlayers = (room: RoomState) => {
+  const hasConnectedPlayers = [...room.players.values()].some((player) => player.connected);
+  if (hasConnectedPlayers) return false;
+  io.to(room.code).emit("room:closed", { code: room.code });
+  deleteRoom(room);
+  return true;
+};
+
 const shouldRateLimit = (socketId: string, eventName: string, minIntervalMs: number) => {
   return shouldRateLimitEvent(socketEventTimestamps, socketId, eventName, minIntervalMs);
 };
@@ -427,6 +435,21 @@ app.get("/metrics", async (req, res) => {
 
 app.get("/api/exams", (_req, res) => {
   res.json(exams.filter((exam) => isExamReleased(exam)).map(toExamSummary));
+});
+
+app.get("/api/rooms/:code", (req, res) => {
+  const code = readString(req.params.code, 8).toUpperCase();
+  const room = rooms.get(code);
+  if (!room) {
+    res.json({ exists: false });
+    return;
+  }
+  res.json({
+    exists: true,
+    status: room.status,
+    playerCount: room.players.size,
+    connectedPlayerCount: [...room.players.values()].filter((player) => player.connected).length
+  });
 });
 
 if (process.env.NODE_ENV === "production") {
@@ -696,6 +719,11 @@ io.on("connection", (socket) => {
       addLog(room, "system", `${player.nickname} 퇴실.`);
       socket.leave(room.code);
       touchRoom(room);
+      if (closeRoomIfNoConnectedPlayers(room)) {
+        socketToPlayer.delete(socket.id);
+        reply?.({ ok: true });
+        return;
+      }
       emitRoom(room);
     }
     socketToPlayer.delete(socket.id);
@@ -933,6 +961,7 @@ io.on("connection", (socket) => {
     socketToPlayer.delete(socket.id);
     addLog(room, "system", `${player.nickname} 연결 끊김.`);
     touchRoom(room);
+    if (closeRoomIfNoConnectedPlayers(room)) return;
     emitRoom(room);
   });
 });

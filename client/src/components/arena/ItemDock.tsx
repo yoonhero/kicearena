@@ -1,3 +1,4 @@
+import type React from "react";
 import { useMemo } from "react";
 import { X, Zap } from "lucide-react";
 import { ITEM_DEFINITIONS, ITEM_IDS, type ItemId, type PlayerPublic, type RoomPublic } from "../../../../shared/game";
@@ -42,6 +43,7 @@ export function ItemDock({
     () => [...room.players].sort((a, b) => (a.id === ownPlayer.id ? 1 : b.id === ownPlayer.id ? -1 : a.nickname.localeCompare(b.nickname))),
     [ownPlayer.id, room.players]
   );
+  const maxScore = useMemo(() => Math.max(1, ...room.players.map((player) => player.score)), [room.players]);
   const ownSolvedProblemIds = useMemo(
     () => new Set(ownPlayer.submissionHistory.filter((submission) => submission.correct).map((submission) => submission.problemId)),
     [ownPlayer.submissionHistory]
@@ -109,6 +111,8 @@ export function ItemDock({
               sameEffect ? `효과중 ${formatEffectSeconds(sameEffect.expiresAt)}` : "",
               expiredEffect ? "만료" : ""
             ].filter(Boolean);
+            const scoreRatio = Math.max(0.18, player.score / maxScore);
+            const scoreSize = Math.round(18 + scoreRatio * 38);
             return (
               <button
                 key={player.id}
@@ -116,12 +120,16 @@ export function ItemDock({
                 disabled={blocked}
                 onClick={() => void useItem(selectedItemDefinition.id, player.id)}
                 title={`${selectedItemDefinition.name} 사용`}
+                style={{ "--target-score-size": `${scoreSize}px` } as React.CSSProperties & Record<string, string>}
               >
-                <span>{player.nickname}</span>
-                <strong>{player.score}</strong>
-                {targetTags.map((tag) => (
-                  <small key={tag}>{tag}</small>
-                ))}
+                <span className="target-score-orb">{player.score}</span>
+                <span className="target-name">{player.nickname}</span>
+                <strong>{player.score}점</strong>
+                <span className="target-tags">
+                  {targetTags.map((tag) => (
+                    <small key={tag}>{tag}</small>
+                  ))}
+                </span>
                 {activeEffects.length > 0 && <em>{activeEffects.length}</em>}
               </button>
             );

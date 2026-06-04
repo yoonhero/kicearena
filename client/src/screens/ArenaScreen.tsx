@@ -35,10 +35,10 @@ export function ArenaScreen({ room, ownPlayer, onLeave }: { room: RoomPublic; ow
     if (response.data?.correct) {
       const awards = response.data.itemAwards ?? (response.data.itemAwarded ? [{ itemId: response.data.itemAwarded, reason: "lucky" as const }] : []);
       const awardNames = awards.map((award) => ITEM_DEFINITIONS[award.itemId].name);
-      setFeedback(awardNames.length > 0 ? `정답. ${awardNames.join(", ")} 획득.` : "정답. 이번엔 아이템 없음.");
+      setFeedback(awardNames.length > 0 ? `${awardNames.join(", ")} 획득.` : "");
       setItemNotice(awardNames.length > 0 ? `${awardNames.join(" + ")} 지급` : "");
     } else {
-      setFeedback(currentProblem.answerKind === "choice" ? "오답. 5지선다는 재시도할 수 없습니다." : "오답. 정답 시 오답 페널티 +20분.");
+      setFeedback(currentProblem.answerKind === "choice" ? "5지선다는 재시도할 수 없습니다." : "정답 시 오답 페널티 +20분.");
     }
     setAnswer("");
   };

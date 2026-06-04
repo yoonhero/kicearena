@@ -1,13 +1,33 @@
 import { expect, test, type Page } from "@playwright/test";
 
-async function composeNickname(page: Page, first = "민", second = "재") {
-  await page.getByLabel(`첫 글자 ${first}`).click();
-  await page.getByLabel(`둘째 글자 ${second}`).click();
+const JAMO_PRESETS: Record<string, Array<{ initial: string; vowel: string; final: string }>> = {
+  민재: [
+    { initial: "ㅁ", vowel: "ㅣ", final: "ㄴ" },
+    { initial: "ㅈ", vowel: "ㅐ", final: "없음" }
+  ],
+  서진: [
+    { initial: "ㅅ", vowel: "ㅓ", final: "없음" },
+    { initial: "ㅈ", vowel: "ㅣ", final: "ㄴ" }
+  ],
+  도진: [
+    { initial: "ㄷ", vowel: "ㅗ", final: "없음" },
+    { initial: "ㅈ", vowel: "ㅣ", final: "ㄴ" }
+  ]
+};
+
+async function composeNickname(page: Page, nickname = "민재") {
+  const parts = JAMO_PRESETS[nickname] ?? JAMO_PRESETS.민재;
+  for (const [index, part] of parts.entries()) {
+    await page.getByRole("tab", { name: `${index + 1}글자` }).click();
+    await page.getByLabel(`${index + 1}글자 초성 ${part.initial}`).click();
+    await page.getByLabel(`${index + 1}글자 중성 ${part.vowel}`).click();
+    await page.getByLabel(`${index + 1}글자 종성 ${part.final}`).click();
+  }
 }
 
 async function createRoom(page: Page, nickname = "민재") {
   await page.goto("/");
-  await composeNickname(page, nickname[0] ?? "민", nickname[1] ?? "재");
+  await composeNickname(page, nickname);
   await expect(page.getByLabel("직접 입력")).toHaveValue(nickname);
   await page.getByRole("button", { name: "방 열기" }).click();
   await expect(page.getByText("입실 현황")).toBeVisible();
@@ -57,7 +77,7 @@ test("guest can leave a lobby without staying in the roster", async ({ browser, 
 
 test("solver exposes problem movement, rankings, and one-cell freeze reveal", async ({ page }) => {
   await page.goto("/");
-  await composeNickname(page, "도", "진");
+  await composeNickname(page, "도진");
   await page.getByRole("button", { name: "세부 설정" }).click();
   await page.getByLabel("시험 시간(분)").fill("1");
   await page.getByLabel("순위 비공개 시작(종료 전 분)").fill("1");
