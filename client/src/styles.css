@@ -1510,6 +1510,12 @@ select {
   color: var(--muted);
 }
 
+.target-chip:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+  box-shadow: none;
+}
+
 .target-chip strong {
   flex: 0 0 auto;
   font-size: 11px;
@@ -1706,6 +1712,183 @@ select {
 
 .meme-effect img {
   max-height: 220px;
+}
+
+.banned-song-effect {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  z-index: 4;
+  width: min(420px, 86%);
+  translate: -50% -50%;
+  border: 2px solid var(--line);
+  background: #111;
+  color: #fffdf5;
+  box-shadow: 12px 14px 0 rgba(18, 18, 18, 0.24);
+  animation: item-pop 180ms ease-out;
+}
+
+.banned-song-effect div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.banned-song-effect strong {
+  font-size: 13px;
+  font-weight: 1000;
+}
+
+.banned-song-effect span {
+  min-width: 0;
+  color: rgba(255, 253, 245, 0.72);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.banned-song-effect iframe {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 0;
+}
+
+.aura-minus-effect {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, 0.24), transparent 28%, transparent 72%, rgba(0, 0, 0, 0.24)),
+    rgba(255, 255, 255, 0.08);
+  animation: aura-shake 640ms steps(2, end) infinite;
+}
+
+.aura-shorts-frame {
+  position: relative;
+  width: min(230px, 54vw);
+  aspect-ratio: 9 / 16;
+  overflow: hidden;
+  border: 3px solid #fff;
+  background:
+    radial-gradient(circle at 50% 18%, rgba(255, 255, 255, 0.95) 0 8%, transparent 9%),
+    linear-gradient(160deg, #171717 0 42%, #d61f35 43% 58%, #121212 59%);
+  color: #fff;
+  box-shadow:
+    0 0 0 2px var(--line),
+    12px 14px 0 rgba(18, 18, 18, 0.22);
+}
+
+.aura-shorts-frame span,
+.aura-shorts-frame em,
+.aura-shorts-frame i {
+  position: absolute;
+  font-style: normal;
+  font-weight: 1000;
+}
+
+.aura-shorts-frame span {
+  top: 14px;
+  left: 14px;
+  font-size: 12px;
+}
+
+.aura-shorts-frame strong {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 58px;
+  font-size: clamp(28px, 7vw, 44px);
+  line-height: 0.92;
+  letter-spacing: 0;
+  text-shadow: 3px 3px 0 #000;
+}
+
+.aura-shorts-frame em {
+  left: 14px;
+  right: 14px;
+  bottom: 24px;
+  font-size: 12px;
+}
+
+.aura-shorts-frame i {
+  right: 12px;
+  top: 42%;
+  writing-mode: vertical-rl;
+  font-size: 13px;
+}
+
+.aura-shorts-frame b {
+  position: absolute;
+  left: 50%;
+  top: 28%;
+  translate: -50% -50%;
+  color: var(--accent);
+  font-size: clamp(54px, 12vw, 86px);
+  line-height: 1;
+  text-shadow:
+    3px 3px 0 #000,
+    -2px -2px 0 #fff;
+}
+
+.advice-note-effect {
+  position: absolute;
+  left: 50%;
+  bottom: 20px;
+  z-index: 5;
+  width: min(380px, calc(100% - 36px));
+  translate: -50% 0;
+  border: 2px solid var(--line);
+  background: #fffdf5;
+  padding: 14px 16px;
+  box-shadow: 10px 12px 0 rgba(18, 18, 18, 0.18);
+  animation: item-pop 180ms ease-out;
+}
+
+.advice-note-effect span,
+.advice-note-effect strong,
+.advice-note-effect p {
+  display: block;
+}
+
+.advice-note-effect span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 1000;
+}
+
+.advice-note-effect strong {
+  margin-top: 4px;
+  font-size: 18px;
+  line-height: 1.15;
+  font-weight: 1000;
+}
+
+.advice-note-effect p {
+  margin: 8px 0 0;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+@keyframes aura-shake {
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  35% {
+    transform: translate(-3px, 2px) rotate(-0.5deg);
+  }
+  70% {
+    transform: translate(3px, -2px) rotate(0.5deg);
+  }
 }
 
 .answer-bar {

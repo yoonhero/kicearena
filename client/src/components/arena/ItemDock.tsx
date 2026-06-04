@@ -42,6 +42,15 @@ export function ItemDock({
     () => [...room.players].sort((a, b) => (a.id === ownPlayer.id ? 1 : b.id === ownPlayer.id ? -1 : a.nickname.localeCompare(b.nickname))),
     [ownPlayer.id, room.players]
   );
+  const ownSolvedProblemIds = useMemo(
+    () => new Set(ownPlayer.submissionHistory.filter((submission) => submission.correct).map((submission) => submission.problemId)),
+    [ownPlayer.submissionHistory]
+  );
+  const canReceiveAdviceNote = (player: PlayerPublic) => {
+    if (player.id === ownPlayer.id) return false;
+    const solvedByTarget = new Set(player.submissionHistory.filter((submission) => submission.correct).map((submission) => submission.problemId));
+    return [...ownSolvedProblemIds].some((problemId) => !solvedByTarget.has(problemId));
+  };
 
   return (
     <section className={`item-dock ${selectedItem ? "aiming" : ""}`}>
@@ -84,15 +93,18 @@ export function ItemDock({
           {targets.map((player) => {
             const activeEffects = player.effects.filter((effect) => effect.expiresAt > Date.now());
             const sameEffect = activeEffects.find((effect) => effect.id === selectedItemDefinition.id);
+            const adviceUnavailable = selectedItemDefinition.id === "adviceNote" && !canReceiveAdviceNote(player);
             const targetTags = [
               player.id === ownPlayer.id ? "나" : "",
               player.id === leaderId && room.players.length > 1 ? "선두" : "",
+              adviceUnavailable ? "조건 없음" : "",
               sameEffect ? `효과중 ${formatEffectSeconds(sameEffect.expiresAt)}` : ""
             ].filter(Boolean);
             return (
               <button
                 key={player.id}
                 className={`target-chip ${player.id === ownPlayer.id ? "self" : ""} ${player.id === suggestedTargetId ? "suggested" : ""}`}
+                disabled={adviceUnavailable}
                 onClick={() => void useItem(selectedItemDefinition.id, player.id)}
                 title={`${selectedItemDefinition.name} 사용`}
               >

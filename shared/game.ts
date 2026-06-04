@@ -1,6 +1,6 @@
 export type AnswerKind = "choice" | "short";
 export type RoomStatus = "lobby" | "playing" | "finished";
-export type ItemId = "mental" | "cover" | "hardFirst" | "meme" | "penLock";
+export type ItemId = "cover" | "hardFirst" | "meme" | "penLock" | "bannedSong" | "auraMinus" | "adviceNote";
 export type DebuffId = "blur" | "slowInput" | "hideAssist";
 
 export interface ProblemManifest {
@@ -86,13 +86,6 @@ export interface ItemAward {
 }
 
 export const ITEM_DEFINITIONS: Record<ItemId, ItemDefinition> = {
-  mental: {
-    id: "mental",
-    name: "암산 강요",
-    shortName: "암산",
-    durationMs: 12000,
-    description: "대상의 보조 메모 영역을 잠시 숨깁니다."
-  },
   cover: {
     id: "cover",
     name: "눈가리기",
@@ -120,6 +113,27 @@ export const ITEM_DEFINITIONS: Record<ItemId, ItemDefinition> = {
     shortName: "펜압수",
     durationMs: 5000,
     description: "대상의 답안 입력을 짧게 비활성화합니다."
+  },
+  bannedSong: {
+    id: "bannedSong",
+    name: "수능 금지곡 듣기",
+    shortName: "금지곡",
+    durationMs: 15000,
+    description: "대상 화면에 수능 금지곡 iframe을 15초 동안 띄웁니다."
+  },
+  auraMinus: {
+    id: "auraMinus",
+    name: "아우라 -100",
+    shortName: "아우라",
+    durationMs: 6000,
+    description: "대상 화면에 세로 쇼츠식 아우라 -100 놀림 효과를 띄웁니다."
+  },
+  adviceNote: {
+    id: "adviceNote",
+    name: "훈수쪽지",
+    shortName: "쪽지",
+    durationMs: 15000,
+    description: "내가 맞힌 문제를 아직 못 맞힌 대상에게 한 줄 편지를 보냅니다."
   }
 };
 
@@ -128,6 +142,8 @@ export interface ActiveEffect {
   label: string;
   sourceName: string;
   expiresAt: number;
+  message?: string;
+  problemNumber?: number;
 }
 
 export interface SubmissionPublic {

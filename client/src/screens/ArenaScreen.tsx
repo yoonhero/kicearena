@@ -44,7 +44,13 @@ export function ArenaScreen({ room, ownPlayer }: { room: RoomPublic; ownPlayer: 
 
   const useItem = async (itemId: ItemId, targetPlayerId: string) => {
     const target = room.players.find((player) => player.id === targetPlayerId);
-    const response = await emitWithAck("item:use", { itemId, targetPlayerId });
+    let message = "";
+    if (itemId === "adviceNote") {
+      const draft = window.prompt("쪽지 내용", "이 문제 아직 못 풀었어?");
+      if (draft === null) return;
+      message = draft;
+    }
+    const response = await emitWithAck("item:use", { itemId, targetPlayerId, message });
     setSelectedItem(null);
     if (!response.ok) {
       setFeedback(response.error ?? "아이템 사용 실패");

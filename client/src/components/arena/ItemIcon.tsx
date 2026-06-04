@@ -1,4 +1,4 @@
-import { EyeOff, FileText, Flag, ShieldAlert, Zap } from "lucide-react";
+import { EyeOff, FileText, Flag, Music2, ShieldAlert, Sparkles, Zap } from "lucide-react";
 import type { ItemId } from "../../../../shared/game";
 
 export function ItemIcon({ itemId, size = 16 }: { itemId: ItemId; size?: number }) {
@@ -6,5 +6,8 @@ export function ItemIcon({ itemId, size = 16 }: { itemId: ItemId; size?: number 
   if (itemId === "hardFirst") return <Flag size={size} />;
   if (itemId === "meme") return <FileText size={size} />;
   if (itemId === "penLock") return <ShieldAlert size={size} />;
+  if (itemId === "bannedSong") return <Music2 size={size} />;
+  if (itemId === "auraMinus") return <Sparkles size={size} />;
+  if (itemId === "adviceNote") return <FileText size={size} />;
   return <Zap size={size} />;
 }

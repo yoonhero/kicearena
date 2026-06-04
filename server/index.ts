@@ -299,6 +299,13 @@ const randomItem = (): ItemId => {
   return ids[Math.floor(Math.random() * ids.length)];
 };
 
+const findAdviceNoteProblem = (room: RoomState, sender: PlayerState, target: PlayerState) => {
+  const targetSolved = new Set(target.submissionHistory.filter((submission) => submission.correct).map((submission) => submission.problemId));
+  const senderSolved = sender.submissionHistory.filter((submission) => submission.correct && !targetSolved.has(submission.problemId));
+  const newest = senderSolved.sort((a, b) => b.submittedAt - a.submittedAt)[0];
+  return newest ? getProblem(room, newest.problemId) : null;
+};
+
 const leadingScore = (room: RoomState) => Math.max(0, ...[...room.players.values()].map((player) => player.score));
 
 const maybeAwardItems = (room: RoomState, player: PlayerState, problem: ProblemManifest, attempts: number): ItemAward[] => {
@@ -740,7 +747,7 @@ io.on("connection", (socket) => {
     emitRoom(room);
   });
 
-  socket.on("item:use", (payload: { itemId: ItemId; targetPlayerId: string }, reply: (response: ServerResponse) => void) => {
+  socket.on("item:use", (payload: { itemId: ItemId; targetPlayerId: string; message?: string }, reply: (response: ServerResponse) => void) => {
     if (shouldRateLimit(socket.id, "item:use", RATE_LIMIT_MS.itemUse)) {
       reply({ ok: false, error: "아이템 사용 간격이 너무 짧습니다." });
       return;
@@ -764,13 +771,23 @@ io.on("connection", (socket) => {
       reply({ ok: false, error: "보유하지 않은 아이템입니다." });
       return;
     }
-    player.inventory.splice(index, 1);
-    target.effects.push({
+    const effect: ActiveEffect = {
       id: item.id,
       label: item.name,
       sourceName: player.nickname,
       expiresAt: Date.now() + item.durationMs
-    });
+    };
+    if (itemId === "adviceNote") {
+      const problem = findAdviceNoteProblem(room, player, target);
+      if (!problem) {
+        reply({ ok: false, error: "내가 맞혔고 대상이 아직 못 맞힌 문제가 필요합니다." });
+        return;
+      }
+      effect.problemNumber = problem.number;
+      effect.message = readString(payload?.message, 72) || `${problem.number}번은 생각보다 쉽던데?`;
+    }
+    player.inventory.splice(index, 1);
+    target.effects.push(effect);
     addLog(room, "item", `${player.nickname} -> ${target.nickname}: ${item.name}`);
     reply({ ok: true });
     touchRoom(room);
