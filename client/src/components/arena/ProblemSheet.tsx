@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Grid2X2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Menu } from "lucide-react";
 import type { ItemId, PlayerPublic, ProblemPublic, RoomPublic } from "../../../../shared/game";
 import { isTallProblemImage } from "../../../../shared/problemLayout";
 import { socket } from "../../lib/socket";
@@ -224,6 +224,9 @@ export function ProblemSheet({
         <button type="button" disabled={!previousProblem} onClick={() => previousProblem && socket.emit("problem:set", { problemId: previousProblem.id })} aria-label="이전 문제">
           <ChevronLeft size={18} />
         </button>
+        <button type="button" className="problem-picker-toggle" aria-expanded={showProblemPicker} onClick={() => setProblemPickerOpen((open) => !open)} aria-label="문제 선택">
+          <Menu size={18} />
+        </button>
         <button
           type="button"
           className={answerState !== "unanswered" ? `next-problem-cue ${answerState}` : ""}
@@ -234,6 +237,7 @@ export function ProblemSheet({
           <ChevronRight size={18} />
         </button>
       </div>
+      {showProblemPicker && <ProblemNav problems={room.exam.problems} currentProblem={currentProblem} hardLocked={hardLocked} ownPlayer={ownPlayer} room={room} />}
       <AnswerPanel
         currentProblem={currentProblem}
         answer={answer}
@@ -244,13 +248,6 @@ export function ProblemSheet({
         submit={submit}
       />
       {itemNotice && <div className="item-toast">{itemNotice}</div>}
-      <div className="problem-picker-toggle-row">
-        <button type="button" className="problem-picker-toggle" aria-expanded={showProblemPicker} onClick={() => setProblemPickerOpen((open) => !open)}>
-          <Grid2X2 size={15} />
-          문제 선택
-        </button>
-      </div>
-      {showProblemPicker && <ProblemNav problems={room.exam.problems} currentProblem={currentProblem} hardLocked={hardLocked} ownPlayer={ownPlayer} room={room} />}
     </div>
   );
 }
