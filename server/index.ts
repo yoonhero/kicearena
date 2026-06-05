@@ -280,6 +280,12 @@ const socketConnectionsGauge = new Gauge({
   registers: [metricsRegistry]
 });
 
+const registeredSocketConnectionsGauge = new Gauge({
+  name: "kice_arena_registered_socket_connections",
+  help: "Current Socket.IO connections associated with a tracked room player.",
+  registers: [metricsRegistry]
+});
+
 const roomsCreatedCounter = new Counter({
   name: "kice_arena_rooms_created_total",
   help: "Total rooms created since server start.",
@@ -382,6 +388,7 @@ const updateRuntimeMetrics = () => {
   }
 
   socketConnectionsGauge.set(io.engine.clientsCount);
+  registeredSocketConnectionsGauge.set(socketToPlayer.size);
 };
 
 const touchRoom = (room: RoomState) => {

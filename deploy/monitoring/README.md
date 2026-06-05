@@ -77,7 +77,8 @@ Useful custom metrics:
 - `kice_arena_room_expiry_seconds{stat="avg|max"}`: time until playing rooms finish or inactive rooms become eligible for cleanup
 - `kice_arena_playing_room_time_remaining_seconds{stat="avg|max"}`
 - `kice_arena_players{state="total|connected|disconnected"}`
-- `kice_arena_socket_connections`
+- `kice_arena_socket_connections`: all current Socket.IO connections, including visitors that have not joined a room
+- `kice_arena_registered_socket_connections`: Socket.IO connections currently associated with a tracked room player
 - `kice_arena_rooms_created_total`
 - `kice_arena_players_joined_total`
 - `kice_arena_answers_submitted_total{correct="true|false"}`
