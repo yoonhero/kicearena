@@ -63,7 +63,13 @@ export interface RuntimeMetricGaugeSample {
   labels?: Record<string, string>;
 }
 
+export interface RuntimeMetricSampleOptions {
+  collectedAtMs?: number;
+  service?: string;
+}
+
 const DEFAULT_EXPIRING_SOON_MS = 60 * 1000;
+const DEFAULT_SERVICE = "kice-arena";
 
 const summarizeSeconds = (values: number[]) => ({
   avg: values.length === 0 ? 0 : values.reduce((sum, value) => sum + value, 0) / values.length,
@@ -73,6 +79,11 @@ const summarizeSeconds = (values: number[]) => ({
 const ratio = (numerator: number, denominator: number) => (denominator <= 0 ? 0 : numerator / denominator);
 
 const boundedScore = (value: number) => Math.max(0, Math.min(1, value));
+
+const sampleOptions = (options: RuntimeMetricSampleOptions = {}) => ({
+  collectedAtMs: options.collectedAtMs ?? Date.now(),
+  service: options.service ?? DEFAULT_SERVICE
+});
 
 const roomExpiryDeadline = (room: RoomMetricInput, ttl: RoomTtlConfig) => {
   if (room.status === "playing" && room.endsAt !== null) return room.endsAt;
@@ -167,6 +178,86 @@ export const summarizeRoomMetrics = (rooms: RoomMetricInput[], now: number, ttl:
   };
 };
 
+export const baseRuntimeMetricSamples = (
+  summary: RuntimeMetricSummary,
+  options: RuntimeMetricSampleOptions = {}
+): RuntimeMetricGaugeSample[] => {
+  const resolved = sampleOptions(options);
+
+  return [
+    {
+      name: "kice_arena_runtime_metrics_info",
+      help: "Stable heartbeat emitted by the KICE Arena runtime metrics collector.",
+      labels: { service: resolved.service },
+      value: 1
+    },
+    {
+      name: "kice_arena_runtime_metrics_last_success_unixtime",
+      help: "Unix timestamp of the most recent successful runtime metrics collection.",
+      labels: { service: resolved.service },
+      value: Math.floor(resolved.collectedAtMs / 1000)
+    },
+    {
+      name: "kice_arena_rooms_total",
+      help: "Total rooms currently tracked in memory.",
+      value: summary.roomCount
+    },
+    {
+      name: "kice_arena_rooms_active",
+      help: "Rooms currently tracked in memory that are not finished.",
+      value: summary.activeRoomCount
+    },
+    ...(["lobby", "playing", "finished"] as const).map((status) => ({
+      name: "kice_arena_rooms_by_status",
+      help: "Rooms currently tracked in memory by room status.",
+      labels: { status },
+      value: summary.statusCounts[status]
+    })),
+    {
+      name: "kice_arena_players",
+      help: "Tracked players by connection state.",
+      labels: { state: "total" },
+      value: summary.totalPlayers
+    },
+    {
+      name: "kice_arena_players",
+      help: "Tracked players by connection state.",
+      labels: { state: "connected" },
+      value: summary.connectedPlayers
+    },
+    {
+      name: "kice_arena_players",
+      help: "Tracked players by connection state.",
+      labels: { state: "disconnected" },
+      value: summary.disconnectedPlayers
+    },
+    {
+      name: "kice_arena_room_expiry_seconds",
+      help: "Seconds until the next finish or cleanup deadline among rooms with a deadline.",
+      labels: { stat: "avg" },
+      value: summary.roomExpirySeconds.avg
+    },
+    {
+      name: "kice_arena_room_expiry_seconds",
+      help: "Seconds until the next finish or cleanup deadline among rooms with a deadline.",
+      labels: { stat: "max" },
+      value: summary.roomExpirySeconds.max
+    },
+    {
+      name: "kice_arena_playing_room_time_remaining_seconds",
+      help: "Seconds remaining for currently playing rooms.",
+      labels: { stat: "avg" },
+      value: summary.playingRoomTimeRemainingSeconds.avg
+    },
+    {
+      name: "kice_arena_playing_room_time_remaining_seconds",
+      help: "Seconds remaining for currently playing rooms.",
+      labels: { stat: "max" },
+      value: summary.playingRoomTimeRemainingSeconds.max
+    }
+  ];
+};
+
 export const derivedRuntimeMetricSamples = (summary: RuntimeMetricSummary): RuntimeMetricGaugeSample[] => [
   {
     name: "kice_arena_players_disconnected_ratio",
@@ -243,3 +334,8 @@ export const derivedRuntimeMetricSamples = (summary: RuntimeMetricSummary): Runt
     value: summary.roomCleanupPressureScore
   }
 ];
+
+export const runtimeMetricSamples = (
+  summary: RuntimeMetricSummary,
+  options: RuntimeMetricSampleOptions = {}
+): RuntimeMetricGaugeSample[] => [...baseRuntimeMetricSamples(summary, options), ...derivedRuntimeMetricSamples(summary)];

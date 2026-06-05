@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { FileText, LogOut, RotateCw } from "lucide-react";
 import type { PlayerPublic, RoomPublic } from "../../../shared/game";
 import { makeScoreboardRevealState, type RevealEvent } from "../../../shared/reveal";
@@ -9,6 +9,9 @@ import { makePlayerStandingRows, makeReportMetric } from "../lib/report";
 export function ResultsScreen({ room, ownPlayer, onLeave }: { room: RoomPublic; ownPlayer: PlayerPublic | null; onLeave: () => Promise<void> }) {
   const [reportOpen, setReportOpen] = useState(false);
   const [revealError, setRevealError] = useState("");
+  const [focusedProblemId, setFocusedProblemId] = useState(() => room.exam.problems[0]?.id ?? "");
+  const revealBoardRef = useRef<HTMLDivElement | null>(null);
+  const revealFocusTimerRef = useRef<number | null>(null);
   const revealRowRefs = useRef(new Map<string, HTMLDivElement>());
   const revealCellRefs = useRef(new Map<string, HTMLSpanElement>());
   const previousRevealRowRects = useRef(new Map<string, DOMRect>());
@@ -25,7 +28,13 @@ export function ResultsScreen({ room, ownPlayer, onLeave }: { room: RoomPublic; 
   const revealRows = useMemo(() => makeScoreboardRevealState(room, frozenRows, revealCount, { viewerPlayerId: ownPlayer?.id }).rows, [room, frozenRows, revealCount, ownPlayer?.id]);
   const nextRevealRow = revealState.events[revealCount];
   const currentRevealEvent = revealCount > 0 ? revealState.events[revealCount - 1] : undefined;
+  const focusedProblem = room.exam.problems.find((problem) => problem.id === focusedProblemId) ?? room.exam.problems[0];
   const spinStyle = { "--reveal-turns": `${Math.max(1, revealCount + 1)}turn` } as CSSProperties;
+
+  useEffect(() => {
+    if (room.exam.problems.some((problem) => problem.id === focusedProblemId)) return;
+    setFocusedProblemId(room.exam.problems[0]?.id ?? "");
+  }, [focusedProblemId, room.exam.problems]);
 
   useLayoutEffect(() => {
     const previousRects = previousRevealRowRects.current;
@@ -54,9 +63,81 @@ export function ResultsScreen({ room, ownPlayer, onLeave }: { room: RoomPublic; 
 
   useLayoutEffect(() => {
     if (!currentRevealEvent) return;
+    const row = revealRowRefs.current.get(currentRevealEvent.playerId);
     const cell = revealCellRefs.current.get(makeRevealCellKey(currentRevealEvent.playerId, currentRevealEvent.submission.problemId));
-    cell?.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
+    scrollElementVerticallyIntoView(row);
+    focusRevealProblemCell(currentRevealEvent.submission.problemId, cell);
   }, [currentRevealEvent?.playerId, currentRevealEvent?.submission.problemId, revealCount]);
+
+  useEffect(() => {
+    if (!currentRevealEvent) return undefined;
+    const frame = window.requestAnimationFrame(() => {
+      const cell = revealCellRefs.current.get(makeRevealCellKey(currentRevealEvent.playerId, currentRevealEvent.submission.problemId));
+      focusRevealProblemCell(currentRevealEvent.submission.problemId, cell);
+    });
+    const timer = window.setTimeout(() => {
+      const cell = revealCellRefs.current.get(makeRevealCellKey(currentRevealEvent.playerId, currentRevealEvent.submission.problemId));
+      focusRevealProblemCell(currentRevealEvent.submission.problemId, cell);
+    }, 80);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timer);
+    };
+  }, [currentRevealEvent?.playerId, currentRevealEvent?.submission.problemId, revealCount]);
+
+  useEffect(() => {
+    const board = revealBoardRef.current;
+    if (!board) return undefined;
+
+    const syncFocusedProblem = () => {
+      const nearestHeader = findNearestRevealProblemHeader(board);
+      if (!nearestHeader?.dataset.scoreProblemId) return;
+      setFocusedProblemId(nearestHeader.dataset.scoreProblemId);
+    };
+    const scheduleSync = () => {
+      if (revealFocusTimerRef.current !== null) window.clearTimeout(revealFocusTimerRef.current);
+      revealFocusTimerRef.current = window.setTimeout(() => {
+        revealFocusTimerRef.current = null;
+        syncFocusedProblem();
+      }, 80);
+    };
+
+    syncFocusedProblem();
+    board.addEventListener("scroll", scheduleSync, { passive: true });
+    return () => {
+      board.removeEventListener("scroll", scheduleSync);
+      if (revealFocusTimerRef.current !== null) {
+        window.clearTimeout(revealFocusTimerRef.current);
+        revealFocusTimerRef.current = null;
+      }
+    };
+  }, [room.exam.problems]);
+
+  const focusRevealProblemColumn = (problemId: string, behavior: ScrollBehavior = "smooth") => {
+    const board = revealBoardRef.current;
+    if (!board) return;
+    const header = Array.from(board.querySelectorAll<HTMLElement>(".domjudge-header [data-score-problem-id]")).find(
+      (element) => element.dataset.scoreProblemId === problemId
+    );
+    if (!header) return;
+    setFocusedProblemId(problemId);
+    board.scrollTo({
+      left: getRevealProblemScrollLeft(board, header),
+      behavior
+    });
+  };
+
+  const focusRevealProblemCell = (problemId: string, cell: HTMLElement | undefined) => {
+    const board = revealBoardRef.current;
+    if (!board) return;
+    setFocusedProblemId(problemId);
+    if (cell) {
+      board.scrollLeft = getRevealVisibleScrollLeft(board, cell);
+      board.scrollLeft = getRevealRectAdjustedScrollLeft(board, cell);
+      return;
+    }
+    focusRevealProblemColumn(problemId, "auto");
+  };
 
   const revealNext = async () => {
     setRevealError("공개 요청 전송 중...");
@@ -100,15 +181,18 @@ export function ResultsScreen({ room, ownPlayer, onLeave }: { room: RoomPublic; 
             )}
           </div>
           {revealError && <p className="reveal-error">{revealError}</p>}
-          <div className="final-report-table reveal-table" style={{ "--problem-count": String(room.exam.problemCount) } as CSSProperties & Record<string, string>}>
-            <div className="final-report-row reveal-row reveal-row-head">
+          <div ref={revealBoardRef} className="domjudge-board reveal-domjudge-board" style={{ "--problem-count": String(room.exam.problemCount) } as CSSProperties & Record<string, string>}>
+            <div className="domjudge-row reveal-row domjudge-header">
               <span>현재</span>
               <span>수험자</span>
+              <em>공개</em>
               <span>점수</span>
-              <span>정답</span>
               <span>페널티</span>
+              <span>AC</span>
               {room.exam.problems.map((problem) => (
-                <span key={problem.id}>P{problem.number}</span>
+                <span key={problem.id} data-score-problem-id={problem.id} className={focusedProblem?.id === problem.id ? "focused-problem" : ""}>
+                  P{problem.number}
+                </span>
               ))}
             </div>
             {revealRows.map((row) => (
@@ -118,15 +202,16 @@ export function ResultsScreen({ room, ownPlayer, onLeave }: { room: RoomPublic; 
                   if (element) revealRowRefs.current.set(row.playerId, element);
                   else revealRowRefs.current.delete(row.playerId);
                 }}
-                className={`final-report-row reveal-row ${row.revealedCount > 0 ? "revealed" : "locked"} ${row.movedToTop ? "moved-up" : ""} ${
+                className={`domjudge-row reveal-row ${row.revealedCount > 0 ? "revealed" : "locked"} ${row.movedToTop ? "moved-up" : ""} ${
                   currentRevealEvent?.playerId === row.playerId ? "active-reveal" : ""
                 }`}
               >
                 <span>{row.rankLabel}</span>
                 <strong>{row.nickname}</strong>
+                <em>{row.attemptLabel}</em>
                 <em>{row.score}</em>
-                <em>{row.solved}/{room.exam.problemCount}</em>
-                <em>{formatPenalty(row.penaltyMs)}</em>
+                <span>{formatPenalty(row.penaltyMs)}</span>
+                <span>{row.solved}/{room.exam.problemCount}</span>
                 {row.cells.map((cell) => {
                   const isActiveCell = currentRevealEvent?.playerId === row.playerId && currentRevealEvent.submission.problemId === cell.problemId;
                   return (
@@ -137,7 +222,7 @@ export function ResultsScreen({ room, ownPlayer, onLeave }: { room: RoomPublic; 
                         if (element) revealCellRefs.current.set(key, element);
                         else revealCellRefs.current.delete(key);
                       }}
-                      className={`reveal-problem-cell ${cell.status} ${isActiveCell ? "active-cell" : ""}`}
+                      className={`reveal-problem-cell ${cell.status} ${focusedProblem?.id === cell.problemId ? "focused-column" : ""} ${isActiveCell ? "active-cell" : ""}`}
                     >
                       <b>{cell.primary}</b>
                       {cell.secondary && <small>{cell.secondary}</small>}
@@ -145,6 +230,20 @@ export function ResultsScreen({ room, ownPlayer, onLeave }: { room: RoomPublic; 
                   );
                 })}
               </div>
+            ))}
+          </div>
+          <div className="scoreboard-scroll-dots reveal-scroll-dots" aria-label="성적 공개 문항 포커스">
+            {room.exam.problems.map((problem) => (
+              <button
+                key={problem.id}
+                type="button"
+                className={focusedProblem?.id === problem.id ? "active" : ""}
+                aria-label={`P${problem.number} 열 보기`}
+                aria-pressed={focusedProblem?.id === problem.id}
+                onClick={() => focusRevealProblemColumn(problem.id)}
+              >
+                <span />
+              </button>
             ))}
           </div>
         </section>
@@ -204,4 +303,86 @@ function makeNextRevealLabel(event: RevealEvent | undefined, room: RoomPublic) {
 
 function makeRevealCellKey(playerId: string, problemId: string) {
   return `${playerId}:${problemId}`;
+}
+
+function readRevealStickyWidth(board: HTMLElement) {
+  const header = board.querySelector<HTMLElement>(".domjudge-header");
+  if (!header) return 0;
+  return Array.from(header.children)
+    .slice(0, 6)
+    .reduce((sum, child) => sum + (child as HTMLElement).offsetWidth, 0);
+}
+
+function getRevealProblemScrollLeft(board: HTMLElement, target: HTMLElement) {
+  const stickyWidth = readRevealStickyWidth(board);
+  const availableWidth = Math.max(target.offsetWidth, board.clientWidth - stickyWidth);
+  const centeredLeft = target.offsetLeft - stickyWidth - (availableWidth - target.offsetWidth) / 2;
+  const fullyVisibleRightLeft = target.offsetLeft + target.offsetWidth - board.clientWidth + 8;
+  const fullyVisibleLeftLimit = target.offsetLeft - stickyWidth - 4;
+  const maxLeft = Math.max(0, board.scrollWidth - board.clientWidth);
+  const visibleLeft = Math.min(fullyVisibleLeftLimit, Math.max(fullyVisibleRightLeft, centeredLeft));
+  return Math.min(maxLeft, Math.max(0, visibleLeft));
+}
+
+function getRevealVisibleScrollLeft(board: HTMLElement, target: HTMLElement) {
+  const stickyWidth = readRevealStickyWidth(board);
+  const padding = 8;
+  const targetLeft = target.offsetLeft;
+  const targetRight = target.offsetLeft + target.offsetWidth;
+  const maxLeft = Math.max(0, board.scrollWidth - board.clientWidth);
+  let nextLeft = board.scrollLeft;
+
+  if (targetRight - nextLeft > board.clientWidth - padding) {
+    nextLeft = targetRight - board.clientWidth + padding;
+  }
+  if (targetLeft - nextLeft < stickyWidth + padding) {
+    nextLeft = targetLeft - stickyWidth - padding;
+  }
+
+  return Math.min(maxLeft, Math.max(0, nextLeft));
+}
+
+function getRevealRectAdjustedScrollLeft(board: HTMLElement, target: HTMLElement) {
+  const header = board.querySelector<HTMLElement>(".domjudge-header");
+  const stickyAnchor = header?.children[5] as HTMLElement | undefined;
+  const boardRect = board.getBoundingClientRect();
+  const targetRect = target.getBoundingClientRect();
+  const stickyRight = stickyAnchor?.getBoundingClientRect().right ?? boardRect.left;
+  const maxLeft = Math.max(0, board.scrollWidth - board.clientWidth);
+  const padding = 8;
+  let nextLeft = board.scrollLeft;
+
+  if (targetRect.right > boardRect.right - padding) {
+    nextLeft += targetRect.right - boardRect.right + padding;
+  }
+  if (targetRect.left < stickyRight + padding) {
+    nextLeft -= stickyRight + padding - targetRect.left;
+  }
+
+  return Math.min(maxLeft, Math.max(0, nextLeft));
+}
+
+function findNearestRevealProblemHeader(board: HTMLElement) {
+  const stickyWidth = readRevealStickyWidth(board);
+  const headers = Array.from(board.querySelectorAll<HTMLElement>(".domjudge-header [data-score-problem-id]"));
+  if (headers.length === 0) return null;
+  const visibleCenter = board.scrollLeft + stickyWidth + Math.max(0, board.clientWidth - stickyWidth) / 2;
+  return headers.reduce((nearest, header) => {
+    const nearestCenter = nearest.offsetLeft + nearest.offsetWidth / 2;
+    const headerCenter = header.offsetLeft + header.offsetWidth / 2;
+    return Math.abs(headerCenter - visibleCenter) < Math.abs(nearestCenter - visibleCenter) ? header : nearest;
+  }, headers[0]);
+}
+
+function scrollElementVerticallyIntoView(element: HTMLElement | undefined) {
+  if (!element) return;
+  const rect = element.getBoundingClientRect();
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+  if (rect.top < 0) {
+    window.scrollBy({ top: rect.top - 12, behavior: "smooth" });
+    return;
+  }
+  if (rect.bottom > viewportHeight) {
+    window.scrollBy({ top: rect.bottom - viewportHeight + 12, behavior: "smooth" });
+  }
 }

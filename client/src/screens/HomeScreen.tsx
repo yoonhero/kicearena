@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { ChevronDown, Clock3, FileText, Gamepad2, LogIn, LogOut, SlidersHorizontal } from "lucide-react";
+import type { CSSProperties } from "react";
+import { ChevronDown, Gamepad2, LogIn, LogOut, SlidersHorizontal } from "lucide-react";
 import { ROOM_GUARDRAILS, type ExamSummary } from "../../../shared/game";
 import { composeHangulSyllable, composeNickname, createRandomNicknameParts, NICKNAME_FINALS, NICKNAME_INITIALS, NICKNAME_VOWELS, sanitizeNickname, type NicknameJamo } from "../../../shared/nickname";
 import { formatReportDate } from "../lib/format";
@@ -41,6 +42,21 @@ export function HomeScreen(props: {
   const maxTimeLimitMin = Math.round(ROOM_GUARDRAILS.maxTimeLimitSec / 60);
   const selectedExam = props.exams.find((exam) => exam.id === props.selectedExamId);
   const selectedPreset = QUICK_PRESETS.find((preset) => preset.timeLimitMin === props.timeLimitMin && preset.freezeBeforeMin === props.freezeBeforeMin);
+  const freezeStartMin = Math.max(0, props.timeLimitMin - props.freezeBeforeMin);
+  const timelineTicks = Array.from({ length: 5 }, (_, index) => Math.round((maxTimeLimitMin / 4) * index));
+  const timeSliderStyle = {
+    "--time-ratio": props.timeLimitMin / maxTimeLimitMin,
+    "--freeze-ratio": freezeStartMin / maxTimeLimitMin
+  } as CSSProperties;
+  const setRoomTimeLimitMin = (value: number) => {
+    const nextValue = Math.max(1, Math.min(maxTimeLimitMin, value));
+    props.setTimeLimitMin(nextValue);
+    if (props.freezeBeforeMin > nextValue) props.setFreezeBeforeMin(nextValue);
+  };
+  const setRoomFreezeStartMin = (value: number) => {
+    const nextStart = Math.max(0, Math.min(props.timeLimitMin, value));
+    props.setFreezeBeforeMin(props.timeLimitMin - nextStart);
+  };
   const setNicknamePart = (kind: keyof NicknameJamo, value: string) => {
     setNameParts((previous) => {
       const next: [NicknameJamo, NicknameJamo] = [{ ...previous[0] }, { ...previous[1] }];
@@ -143,6 +159,27 @@ export function HomeScreen(props: {
           </div>
           {!props.inviteMode && (
             <div className="entry-flow-stack">
+              <div className="exam-choice-list exam-cover-shelf" role="radiogroup" aria-label="문제지 선택">
+                <span>문제지 선택</span>
+                <div className="exam-choice-grid">
+                  {props.exams.map((exam) => (
+                    <button
+                      key={exam.id}
+                      type="button"
+                      className={`exam-choice ${props.selectedExamId === exam.id ? "selected" : ""}`}
+                      onClick={() => props.setSelectedExamId(exam.id)}
+                      role="radio"
+                      aria-checked={props.selectedExamId === exam.id}
+                    >
+                      <span className="exam-cover-art">
+                        <em>수학 영역</em>
+                        <strong>{exam.title}</strong>
+                        <small>{exam.problemCount}문항 · {Math.round(exam.timeLimitSec / 60)}분</small>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div className="entry-mode-toggle" role="tablist" aria-label="입실 방식">
                 <button type="button" className={entryMode === "create" ? "active" : ""} onClick={() => setEntryMode("create")} role="tab" aria-selected={entryMode === "create"}>
                   <Gamepad2 size={16} />
@@ -154,31 +191,10 @@ export function HomeScreen(props: {
                 </button>
               </div>
               {entryMode === "create" ? (
-                <div className="entry-action-panel creator-panel">
+                <div className={`entry-action-panel creator-panel ${showOptions ? "options-open" : ""}`}>
                   <div className="entry-panel-title">
                     <span>방 생성</span>
                     <strong>{selectedExam ? `${selectedExam.problemCount}문항 · ${props.timeLimitMin}분 / 프리즈 ${props.freezeBeforeMin}분` : "시험지를 고른 뒤 시작"}</strong>
-                  </div>
-                  <div className="exam-choice-list" role="radiogroup" aria-label="시험지 선택">
-                    <span>시험지</span>
-                    <div className="exam-choice-grid">
-                      {props.exams.map((exam) => (
-                        <button
-                          key={exam.id}
-                          type="button"
-                          className={`exam-choice ${props.selectedExamId === exam.id ? "selected" : ""}`}
-                          onClick={() => props.setSelectedExamId(exam.id)}
-                          role="radio"
-                          aria-checked={props.selectedExamId === exam.id}
-                        >
-                          <FileText size={16} />
-                          <span>
-                            <strong>{exam.title}</strong>
-                            <em>{exam.problemCount}문항 · 기본 {Math.round(exam.timeLimitSec / 60)}분</em>
-                          </span>
-                        </button>
-                      ))}
-                    </div>
                   </div>
                   <div className="quick-preset-list" role="radiogroup" aria-label="시험 시간 프리셋">
                     <span>시간 / 프리즈</span>
@@ -194,10 +210,22 @@ export function HomeScreen(props: {
                           }}
                           role="radio"
                           aria-checked={selectedPreset?.label === preset.label}
+                          style={
+                            {
+                              "--preset-time-ratio": preset.timeLimitMin / maxTimeLimitMin,
+                              "--preset-freeze-ratio": (preset.timeLimitMin - preset.freezeBeforeMin) / maxTimeLimitMin
+                            } as CSSProperties
+                          }
                         >
-                          <Clock3 size={15} />
-                          <strong>{preset.label}</strong>
-                          <em>분</em>
+                          <span className="preset-mini-head">
+                            <strong>{preset.timeLimitMin}분 종료</strong>
+                            <em>{preset.timeLimitMin - preset.freezeBeforeMin}분부터</em>
+                          </span>
+                          <span className="preset-mini-track" aria-hidden="true">
+                            <i className="preset-mini-freeze" />
+                            <i className="preset-mini-end" />
+                            <i className="preset-mini-start" />
+                          </span>
                         </button>
                       ))}
                     </div>
@@ -209,29 +237,53 @@ export function HomeScreen(props: {
                       <ChevronDown size={16} />
                     </button>
                     {showOptions && (
-                      <div className="room-option-grid">
-                        <label className="omr-field">
-                          <span>시험 시간(분)</span>
-                          <input
-                            type="number"
-                            min={1}
-                            max={maxTimeLimitMin}
-                            value={props.timeLimitMin}
-                            onChange={(event) =>
-                              props.setTimeLimitMin(Number.isFinite(event.currentTarget.valueAsNumber) ? Math.min(maxTimeLimitMin, event.currentTarget.valueAsNumber) : 1)
-                            }
-                          />
-                        </label>
-                        <label className="omr-field">
-                          <span>순위 비공개 시작(종료 전 분)</span>
-                          <input
-                            type="number"
-                            min={0}
-                            max={props.timeLimitMin}
-                            value={props.freezeBeforeMin}
-                            onChange={(event) => props.setFreezeBeforeMin(Number.isFinite(event.currentTarget.valueAsNumber) ? event.currentTarget.valueAsNumber : 0)}
-                          />
-                        </label>
+                      <div className="coupled-time-board" role="group" aria-label="시험 시간 및 프리즈 설정" style={timeSliderStyle}>
+                        <div className="timeline-status" aria-hidden="true">
+                          <strong>{freezeStartMin}분부터 프리즈 · {props.timeLimitMin}분 종료</strong>
+                        </div>
+                        <div className="coupled-time-track">
+                          <div className="coupled-slider-stack">
+                            <div className="coupled-axis" aria-hidden="true" />
+                            <div className="freeze-zone" aria-hidden="true" />
+                            <div className="coupled-ticks" aria-hidden="true">
+                              {timelineTicks.map((minute) => (
+                                <span key={minute} style={{ left: `${(minute / maxTimeLimitMin) * 100}%` }}>
+                                  {minute}
+                                </span>
+                              ))}
+                            </div>
+                            <div className="axis-arrow left" aria-hidden="true" />
+                            <div className="axis-arrow right" aria-hidden="true" />
+                            <div className="time-marker time-limit-marker" aria-hidden="true">
+                              <span>종료</span>
+                              <strong>{props.timeLimitMin}분</strong>
+                            </div>
+                            <div className="time-marker freeze-marker-dot" aria-hidden="true">
+                              <span>프리즈 시작</span>
+                              <strong>{freezeStartMin}분</strong>
+                            </div>
+                            <input
+                              className="time-range time-limit-range"
+                              type="range"
+                              min={5}
+                              max={maxTimeLimitMin}
+                              step={5}
+                              value={props.timeLimitMin}
+                              onChange={(event) => setRoomTimeLimitMin(event.currentTarget.valueAsNumber)}
+                              aria-label="시험 시간"
+                            />
+                            <input
+                              className="time-range freeze-range"
+                              type="range"
+                              min={0}
+                              max={maxTimeLimitMin}
+                              step={5}
+                              value={freezeStartMin}
+                              onChange={(event) => setRoomFreezeStartMin(event.currentTarget.valueAsNumber)}
+                              aria-label="프리즈 시작"
+                            />
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>

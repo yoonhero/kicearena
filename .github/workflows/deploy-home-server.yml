@@ -1,6 +1,13 @@
 name: Deploy Home Server
 
 on:
+    workflow_run:
+        workflows:
+            - Publish Image
+        types:
+            - completed
+        branches:
+            - main
     workflow_dispatch:
         inputs:
             tag:
@@ -21,6 +28,7 @@ jobs:
         runs-on: ubuntu-latest
         timeout-minutes: 10
         environment: production
+        if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
 
         steps:
             - name: Prepare SSH key
@@ -40,8 +48,8 @@ jobs:
                   DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
                   DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
                   DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
-                  TAG: ${{ inputs.tag }}
-                  BRANCH: ${{ inputs.branch }}
+                  TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || 'latest' }}
+                  BRANCH: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || github.event.workflow_run.head_branch }}
               run: |
                   set -euo pipefail
                   test -n "$DEPLOY_HOST"

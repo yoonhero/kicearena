@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  baseRuntimeMetricSamples,
   derivedRuntimeMetricSamples,
+  runtimeMetricSamples,
   summarizeRoomMetrics,
   type RoomMetricInput,
   type RoomTtlConfig
@@ -24,18 +26,20 @@ const room = (overrides: Partial<RoomMetricInput>): RoomMetricInput => ({
   ...overrides
 });
 
-const metricValue = (name: string, labels?: Record<string, string>) => {
+const sampleValue = (samples: ReturnType<typeof runtimeMetricSamples>, name: string, labels?: Record<string, string>) => {
   const labelEntries = Object.entries(labels ?? {});
-  return (summary: ReturnType<typeof summarizeRoomMetrics>) => {
-    const sample = derivedRuntimeMetricSamples(summary).find(
-      (candidate) =>
-        candidate.name === name &&
-        labelEntries.every(([key, value]) => candidate.labels?.[key] === value) &&
-        Object.keys(candidate.labels ?? {}).length === labelEntries.length
-    );
-    if (!sample) throw new Error(`Missing metric sample ${name}`);
-    return sample.value;
-  };
+  const sample = samples.find(
+    (candidate) =>
+      candidate.name === name &&
+      labelEntries.every(([key, value]) => candidate.labels?.[key] === value) &&
+      Object.keys(candidate.labels ?? {}).length === labelEntries.length
+  );
+  if (!sample) throw new Error(`Missing metric sample ${name}`);
+  return sample.value;
+};
+
+const metricValue = (name: string, labels?: Record<string, string>) => {
+  return (summary: ReturnType<typeof summarizeRoomMetrics>) => sampleValue(runtimeMetricSamples(summary), name, labels);
 };
 
 describe("summarizeRoomMetrics", () => {
@@ -192,5 +196,39 @@ describe("summarizeRoomMetrics", () => {
     expect(summary.roomDisconnectRiskScore).toBeCloseTo((0.7 + 0.3) / 3);
     expect(metricValue("kice_arena_rooms_disconnected_lobby")(summary)).toBe(1);
     expect(metricValue("kice_arena_rooms_player_count_mismatch")(summary)).toBe(1);
+  });
+});
+
+describe("runtimeMetricSamples", () => {
+  it("always emits base room metrics and heartbeat samples, even when there are no rooms", () => {
+    const summary = summarizeRoomMetrics([], now, ttl);
+    const samples = runtimeMetricSamples(summary, { collectedAtMs: now, service: "kice-arena-test" });
+
+    expect(sampleValue(samples, "kice_arena_runtime_metrics_info", { service: "kice-arena-test" })).toBe(1);
+    expect(sampleValue(samples, "kice_arena_runtime_metrics_last_success_unixtime", { service: "kice-arena-test" })).toBe(1000);
+    expect(sampleValue(samples, "kice_arena_rooms_total")).toBe(0);
+    expect(sampleValue(samples, "kice_arena_rooms_active")).toBe(0);
+    expect(sampleValue(samples, "kice_arena_rooms_by_status", { status: "lobby" })).toBe(0);
+    expect(sampleValue(samples, "kice_arena_players", { state: "connected" })).toBe(0);
+  });
+
+  it("keeps base and derived sample groups available separately", () => {
+    const summary = summarizeRoomMetrics(
+      [
+        room({
+          status: "playing",
+          endsAt: now + 60_000,
+          playerCount: 2,
+          connectedPlayerCount: 1
+        })
+      ],
+      now,
+      ttl
+    );
+
+    expect(baseRuntimeMetricSamples(summary).some((sample) => sample.name === "kice_arena_rooms_active")).toBe(true);
+    expect(derivedRuntimeMetricSamples(summary).some((sample) => sample.name === "kice_arena_rooms_active")).toBe(false);
+    expect(runtimeMetricSamples(summary).some((sample) => sample.name === "kice_arena_rooms_active")).toBe(true);
+    expect(runtimeMetricSamples(summary).some((sample) => sample.name === "kice_arena_room_disconnect_risk_score")).toBe(true);
   });
 });

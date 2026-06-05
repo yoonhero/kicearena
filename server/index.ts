@@ -22,7 +22,7 @@ import {
 import { sanitizeNickname } from "../shared/nickname.js";
 import { makeScoreboardRevealState } from "../shared/reveal.js";
 import { getRoomLeaveAction, shouldCloseRoomForNoConnectedPlayers, validateLobbyKick, validateRoomJoin } from "../shared/roomLifecycle.js";
-import { derivedRuntimeMetricSamples, summarizeRoomMetrics } from "../shared/runtimeMetrics.js";
+import { runtimeMetricSamples, summarizeRoomMetrics } from "../shared/runtimeMetrics.js";
 import { isExamReleased, readExams, toExamPublic, toExamSummary } from "./exams.js";
 import { activeEffectForItem, cleanupEffects, findAdviceNoteProblem, maybeAwardItems, randomWeakDebuff, validateItemTarget } from "./items.js";
 import { shouldRateLimit as shouldRateLimitEvent } from "./rateLimit.js";
@@ -111,6 +111,20 @@ collectDefaultMetrics({
   prefix: "kice_arena_"
 });
 
+const runtimeMetricsInfoGauge = new Gauge({
+  name: "kice_arena_runtime_metrics_info",
+  help: "Stable heartbeat emitted by the KICE Arena runtime metrics collector.",
+  labelNames: ["service"],
+  registers: [metricsRegistry]
+});
+
+const runtimeMetricsLastSuccessGauge = new Gauge({
+  name: "kice_arena_runtime_metrics_last_success_unixtime",
+  help: "Unix timestamp of the most recent successful runtime metrics collection.",
+  labelNames: ["service"],
+  registers: [metricsRegistry]
+});
+
 const roomsTotalGauge = new Gauge({
   name: "kice_arena_rooms_total",
   help: "Current total rooms held in memory.",
@@ -151,7 +165,15 @@ const playersGauge = new Gauge({
   registers: [metricsRegistry]
 });
 
-const derivedRuntimeMetricGauges = new Map<string, Gauge<string>>([
+const runtimeMetricGauges = new Map<string, Gauge<string>>([
+  ["kice_arena_runtime_metrics_info", runtimeMetricsInfoGauge],
+  ["kice_arena_runtime_metrics_last_success_unixtime", runtimeMetricsLastSuccessGauge],
+  ["kice_arena_rooms_total", roomsTotalGauge],
+  ["kice_arena_rooms_active", activeRoomsGauge],
+  ["kice_arena_rooms_by_status", roomsByStatusGauge],
+  ["kice_arena_room_expiry_seconds", roomExpirySecondsGauge],
+  ["kice_arena_playing_room_time_remaining_seconds", playingRoomTimeRemainingSecondsGauge],
+  ["kice_arena_players", playersGauge],
   [
     "kice_arena_players_disconnected_ratio",
     new Gauge({
@@ -348,29 +370,9 @@ const updateRuntimeMetrics = () => {
     ROOM_TTL
   );
 
-  roomsTotalGauge.set(summary.roomCount);
-  activeRoomsGauge.set(summary.activeRoomCount);
-  roomsByStatusGauge.reset();
-  roomsByStatusGauge.set({ status: "lobby" }, summary.statusCounts.lobby);
-  roomsByStatusGauge.set({ status: "playing" }, summary.statusCounts.playing);
-  roomsByStatusGauge.set({ status: "finished" }, summary.statusCounts.finished);
-
-  roomExpirySecondsGauge.reset();
-  roomExpirySecondsGauge.set({ stat: "avg" }, summary.roomExpirySeconds.avg);
-  roomExpirySecondsGauge.set({ stat: "max" }, summary.roomExpirySeconds.max);
-
-  playingRoomTimeRemainingSecondsGauge.reset();
-  playingRoomTimeRemainingSecondsGauge.set({ stat: "avg" }, summary.playingRoomTimeRemainingSeconds.avg);
-  playingRoomTimeRemainingSecondsGauge.set({ stat: "max" }, summary.playingRoomTimeRemainingSeconds.max);
-
-  playersGauge.reset();
-  playersGauge.set({ state: "total" }, summary.totalPlayers);
-  playersGauge.set({ state: "connected" }, summary.connectedPlayers);
-  playersGauge.set({ state: "disconnected" }, summary.disconnectedPlayers);
-
-  for (const gauge of derivedRuntimeMetricGauges.values()) gauge.reset();
-  for (const sample of derivedRuntimeMetricSamples(summary)) {
-    const gauge = derivedRuntimeMetricGauges.get(sample.name);
+  for (const gauge of runtimeMetricGauges.values()) gauge.reset();
+  for (const sample of runtimeMetricSamples(summary, { collectedAtMs: now })) {
+    const gauge = runtimeMetricGauges.get(sample.name);
     if (!gauge) continue;
     if (sample.labels) {
       gauge.set(sample.labels, sample.value);

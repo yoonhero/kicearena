@@ -69,6 +69,8 @@ Override them with `HOST_PORT`, `PROMETHEUS_HOST_PORT`,
 
 Useful custom metrics:
 
+- `kice_arena_runtime_metrics_info{service="kice-arena"}`
+- `kice_arena_runtime_metrics_last_success_unixtime{service="kice-arena"}`
 - `kice_arena_rooms_total`
 - `kice_arena_rooms_active`
 - `kice_arena_rooms_by_status`

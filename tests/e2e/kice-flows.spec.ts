@@ -79,29 +79,34 @@ test("solver exposes problem movement, rankings, and one-cell freeze reveal", as
   await page.goto("/");
   await composeNickname(page, "도진");
   await page.getByRole("button", { name: "세부 설정" }).click();
-  await page.getByLabel("시험 시간(분)").fill("1");
-  await page.getByLabel("순위 비공개 시작(종료 전 분)").fill("1");
+  await page.getByLabel("시험 시간", { exact: true }).fill("5");
+  await expect(page.getByLabel("프리즈 시작")).toHaveValue("0");
   await page.getByRole("button", { name: "방 열기" }).click();
   await expect(page.getByText("입실 현황")).toBeVisible();
 
   await page.getByRole("button", { name: "타종" }).click();
   await expect(page.getByRole("button", { name: "순위표 보기" })).toBeVisible();
-  await expect(page.getByText("순위 비공개")).toBeVisible();
 
   await page.getByRole("button", { name: "다음 문제" }).click();
   await expect(page.getByText("2번")).toBeVisible();
   await page.waitForTimeout(200);
   await page.getByRole("button", { name: "이전 문제" }).click();
   await expect(page.getByText("1번")).toBeVisible();
+  await page.waitForTimeout(300);
+
+  await page.getByRole("button", { name: "문제 선택" }).click();
+  await page.locator(".problem-nav button").nth(2).click();
+  await expect(page.locator(".problem-focus-head strong")).toContainText("3번");
+  await page.getByRole("button", { name: "3번 선택" }).click();
+  await expect(page.locator(".feedback")).toHaveCount(0);
+  await page.getByRole("button", { name: "답안 제출" }).click();
+  await expect(page.locator(".feedback")).toContainText(/정답|오답/);
 
   await page.getByRole("button", { name: "순위표 보기" }).click();
   await expect(page.getByRole("heading", { name: "순위표" })).toBeVisible();
   await page.getByRole("button", { name: "문제로" }).click();
 
-  await page.getByRole("button", { name: "3번 선택" }).click();
-  await expect(page.locator(".feedback")).toHaveCount(0);
-  await page.getByRole("button", { name: "답안 제출" }).click();
-  await expect(page.locator(".feedback")).toContainText(/정답|오답/);
+  await page.setViewportSize({ width: 390, height: 760 });
   await page.getByRole("button", { name: "시험 종료" }).click();
 
   await expect(page.getByText("프리즈 해제")).toBeVisible();
@@ -109,4 +114,18 @@ test("solver exposes problem movement, rankings, and one-cell freeze reveal", as
   await page.getByRole("button", { name: "시도 공개" }).click();
   await expect(page.getByText("1/1")).toBeVisible();
   await expect(page.locator(".reveal-problem-cell.active-cell")).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "P3 열 보기" })).toHaveAttribute("aria-pressed", "true");
+  await expect.poll(async () => page.locator(".reveal-domjudge-board").evaluate((board) => Math.round((board as HTMLElement).scrollLeft))).toBeGreaterThan(0);
+
+  await expect.poll(async () => page.locator(".reveal-domjudge-board").evaluate((board) => {
+    const element = board as HTMLElement;
+    const activeCell = element.querySelector<HTMLElement>(".reveal-problem-cell.active-cell");
+    const stickyCell = element.querySelector<HTMLElement>(".domjudge-header > :nth-child(6)");
+    const boardRect = element.getBoundingClientRect();
+    const activeRect = activeCell?.getBoundingClientRect();
+    const stickyRect = stickyCell?.getBoundingClientRect();
+    if (!activeRect || !stickyRect) return false;
+    const activeCenter = activeRect.left + activeRect.width / 2;
+    return activeCenter >= stickyRect.right && activeCenter <= boardRect.right;
+  })).toBe(true);
 });
