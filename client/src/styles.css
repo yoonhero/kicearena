@@ -4742,7 +4742,7 @@ select {
   .problem-command-strip {
     position: fixed;
     left: 50%;
-    bottom: calc(92px + env(safe-area-inset-bottom));
+    bottom: calc(232px + env(safe-area-inset-bottom));
     z-index: 80;
     grid-template-columns: repeat(3, 42px);
     gap: 8px;
@@ -4785,7 +4785,7 @@ select {
   }
 
   .problem-sheet {
-    padding-bottom: 118px;
+    padding-bottom: calc(300px + env(safe-area-inset-bottom));
   }
 
   .single-question-sheet {
@@ -4971,10 +4971,10 @@ select {
     position: fixed;
     left: 10px;
     right: 10px;
-    bottom: calc(232px + env(safe-area-inset-bottom));
+    bottom: calc(294px + env(safe-area-inset-bottom));
     z-index: 78;
     width: auto;
-    max-height: min(46svh, 420px);
+    max-height: min(38svh, 360px);
     overflow: auto;
     margin: 0;
     padding: 12px;
