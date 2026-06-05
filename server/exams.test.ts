@@ -43,6 +43,31 @@ describe("exam serialization", () => {
     expect(publicExam.problems[0]).not.toHaveProperty("answer");
   });
 
+  it("keeps LaTeX body blocks public without exposing answers", () => {
+    const publicExam = toExamPublic({
+      ...exam,
+      problems: [
+        {
+          ...exam.problems[0],
+          image: undefined,
+          body: [
+            { kind: "paragraph", text: "{}의 값은?", inlineMath: ["x^2"] },
+            { kind: "diagram", src: "diagrams/graph.svg", alt: "그래프" }
+          ]
+        }
+      ]
+    });
+
+    expect(publicExam.problems[0]).toMatchObject({
+      imageUrl: undefined,
+      body: [
+        { kind: "paragraph", text: "{}의 값은?", inlineMath: ["x^2"] },
+        { kind: "diagram", src: "/exams/mock-exam/diagrams/graph.svg", alt: "그래프" }
+      ]
+    });
+    expect(publicExam.problems[0]).not.toHaveProperty("answer");
+  });
+
   it("hides exams until releaseAt has passed", () => {
     expect(isExamReleased({ ...exam, releaseAt: "2026-06-05T00:00:00.000Z" }, Date.parse("2026-06-04T00:00:00.000Z"))).toBe(false);
     expect(isExamReleased({ ...exam, releaseAt: "2026-06-03T00:00:00.000Z" }, Date.parse("2026-06-04T00:00:00.000Z"))).toBe(true);

@@ -1,5 +1,8 @@
+import katex from "katex";
 import { Send } from "lucide-react";
 import type { ProblemPublic } from "../../../../shared/game";
+
+const fallbackChoices = ["1", "2", "3", "4", "5"];
 
 export function AnswerPanel({
   currentProblem,
@@ -20,29 +23,41 @@ export function AnswerPanel({
 }) {
   const activeChoice = submittedAnswer || answer || "";
   const choiceLocked = inputLocked || Boolean(submittedAnswer);
+  const canSubmitChoice = currentProblem.answerKind === "choice" && Boolean(answer) && !choiceLocked;
+  const choiceTexts = currentProblem.body?.find((block) => block.kind === "choices")?.choices ?? fallbackChoices;
 
   return (
     <div className={`answer-bar ${currentProblem.answerKind === "choice" ? "choice-answer-bar" : ""}`}>
       {currentProblem.answerKind === "choice" ? (
         <div className="choice-submit-panel" aria-label="5지선다 답안 선택">
           <div className="choice-buttons">
-            {["1", "2", "3", "4", "5"].map((choice) => (
-              <button
-                key={choice}
-                type="button"
-                className={activeChoice === choice ? "selected" : ""}
-                disabled={choiceLocked}
-                onClick={() => {
-                  if (choiceLocked) return;
-                  setAnswer(choice);
-                  void submit(choice);
-                }}
-                aria-label={`${choice}번 제출`}
-              >
-                <i>{choice}</i>
-              </button>
-            ))}
+            {choiceTexts.map((choiceText, index) => {
+              const choice = String(index + 1);
+              return (
+                <button
+                  key={choice}
+                  type="button"
+                  className={activeChoice === choice ? "selected" : ""}
+                  disabled={choiceLocked}
+                  onClick={() => {
+                    if (choiceLocked) return;
+                    setAnswer(choice);
+                  }}
+                  aria-label={`${choice}번 선택 ${choiceText}`}
+                  aria-pressed={activeChoice === choice}
+                >
+                  <i>{choice}</i>
+                  <span className="choice-option-text">
+                    <MathHtml latex={choiceText} />
+                  </span>
+                </button>
+              );
+            })}
           </div>
+          <button className="primary-btn" disabled={!canSubmitChoice} onClick={() => void submit()}>
+            <Send size={18} />
+            답안 제출
+          </button>
         </div>
       ) : (
         <>
@@ -64,7 +79,23 @@ export function AnswerPanel({
           </button>
         </>
       )}
-      {currentProblem.answerKind !== "choice" && feedback && <span className="feedback">{feedback}</span>}
+      {feedback && <span className="feedback">{feedback}</span>}
     </div>
+  );
+}
+
+function MathHtml({ latex }: { latex: string }) {
+  return (
+    <span
+      dangerouslySetInnerHTML={{
+        __html: katex.renderToString(latex, {
+          displayMode: false,
+          output: "html",
+          throwOnError: false,
+          strict: "ignore",
+          trust: false
+        })
+      }}
+    />
   );
 }

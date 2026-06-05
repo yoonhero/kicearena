@@ -5,6 +5,7 @@ import { isTallProblemImage } from "../../../../shared/problemLayout";
 import { socket } from "../../lib/socket";
 import { AnswerPanel } from "./AnswerPanel";
 import { ItemDock } from "./ItemDock";
+import { ProblemContent } from "./ProblemContent";
 import { ProblemNav } from "./ProblemNav";
 
 type ProblemAnswerState = "correct" | "wrong" | "unanswered";
@@ -146,17 +147,21 @@ export function ProblemSheet({
           </strong>
         </div>
         <ItemDock room={room} ownPlayer={ownPlayer} selectedItem={selectedItem} setSelectedItem={setSelectedItem} useItem={useItem} />
-        <em>난도 {currentProblem.difficulty}</em>
+        <em>{currentProblem.pointValue}점</em>
       </div>
       <div className={`problem-image-wrap ${covered ? "covered" : ""} ${problemRotated ? "rotated" : ""} ${tallProblem ? "tall-problem" : ""}`}>
-        <img
-          src={currentProblem.imageUrl}
-          alt={`${currentProblem.sourceNumber ?? currentProblem.number}번 문제`}
-          onLoad={(event) => {
-            const image = event.currentTarget;
-            setTallProblem(isTallProblemImage(image.naturalWidth, image.naturalHeight));
-          }}
-        />
+        {currentProblem.body?.length ? (
+          <ProblemContent problem={currentProblem} />
+        ) : (
+          <img
+            src={currentProblem.imageUrl}
+            alt={`${currentProblem.sourceNumber ?? currentProblem.number}번 문제`}
+            onLoad={(event) => {
+              const image = event.currentTarget;
+              setTallProblem(isTallProblemImage(image.naturalWidth, image.naturalHeight));
+            }}
+          />
+        )}
         {covered && <div className="cover-effect">문제 가리기 발동</div>}
         {problemRotated && <div className="rotate-effect">문제지 회전중</div>}
         {memeActive && (

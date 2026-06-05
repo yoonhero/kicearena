@@ -2203,6 +2203,87 @@ select {
   background: var(--paper);
 }
 
+.kice-problem-content {
+  width: min(880px, 100%);
+  min-height: clamp(300px, 54vh, 650px);
+  padding: clamp(22px, 4vw, 48px) clamp(18px, 4vw, 54px);
+  background: #fffef9;
+  color: #0b0b0b;
+  font-family: "Times New Roman", "AppleMyungjo", "Batang", "Apple SD Gothic Neo", serif;
+  line-height: 1.82;
+}
+
+.kice-problem-body {
+  display: grid;
+  gap: 14px;
+  font-size: clamp(18px, 2.2vw, 24px);
+}
+
+.kice-problem-paragraph,
+.kice-problem-note {
+  margin: 0;
+  word-break: keep-all;
+}
+
+.kice-problem-note {
+  padding-top: 8px;
+  font-size: 0.9em;
+}
+
+.kice-display-math {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+  padding: 4px 0;
+  text-align: center;
+}
+
+.kice-problem-content .katex {
+  font-size: 1.03em;
+}
+
+.kice-choice-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px 18px;
+  align-items: center;
+}
+
+.kice-choice-list li {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.kice-choice-list li > span {
+  font-family: "Apple SD Gothic Neo", sans-serif;
+  font-size: 0.92em;
+}
+
+.kice-diagram {
+  margin: 4px auto 8px;
+  width: min(430px, 100%);
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+}
+
+.kice-diagram img {
+  width: 100%;
+  max-height: none;
+  background: transparent;
+}
+
+.kice-diagram figcaption {
+  font-size: 13px;
+  line-height: 1.35;
+}
+
 .problem-image-wrap.tall-problem img {
   width: max(780px, 100%);
   max-width: none;
@@ -2276,7 +2357,8 @@ select {
   mix-blend-mode: multiply;
 }
 
-.problem-image-wrap.rotated > img {
+.problem-image-wrap.rotated > img,
+.problem-image-wrap.rotated > .kice-problem-content {
   transform: rotate(-7deg) scale(0.96);
   transform-origin: center;
   transition: transform 180ms ease-out;
@@ -2727,7 +2809,10 @@ select {
 
 .choice-submit-panel {
   position: relative;
-  display: block;
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  gap: 10px;
+  align-items: center;
   padding: 12px clamp(14px, 2.6vw, 24px);
   border-top: 2px solid var(--line);
   border-bottom: 2px solid var(--line);
@@ -2736,7 +2821,7 @@ select {
 
 .choice-buttons {
   display: grid;
-  grid-template-columns: repeat(5, minmax(44px, 1fr));
+  grid-template-columns: repeat(5, minmax(64px, 1fr));
   gap: clamp(8px, 2vw, 22px);
   align-items: center;
 }
@@ -2746,33 +2831,52 @@ select {
   min-height: 44px;
   border: 0;
   background: transparent;
-  display: grid;
-  place-items: center;
+  display: inline-flex;
+  justify-content: center;
+  gap: 7px;
+  align-items: center;
   padding: 0;
+  text-align: center;
 }
 
 .choice-buttons i {
   position: relative;
   z-index: 1;
-  width: clamp(34px, 4.8vw, 40px);
-  height: clamp(34px, 4.8vw, 40px);
+  width: 30px;
+  height: 30px;
   display: grid;
   place-items: center;
-  border: 2.5px solid rgba(18, 18, 18, 0.9);
+  border: 2px solid rgba(18, 18, 18, 0.9);
   border-radius: 999px;
   color: var(--ink);
   font-style: normal;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif;
-  font-size: clamp(15px, 2vw, 18px);
+  font-size: 15px;
   font-weight: 1000;
   line-height: 1;
   background: var(--paper);
   box-shadow: 0 1px 0 rgba(18, 18, 18, 0.1);
 }
 
+.choice-option-text {
+  min-width: 0;
+  display: inline-flex;
+  align-items: baseline;
+  color: var(--ink);
+  font-family: "Times New Roman", "AppleMyungjo", "Batang", "Apple SD Gothic Neo", serif;
+  font-size: clamp(18px, 2vw, 23px);
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.choice-option-text .katex {
+  font-size: 1em;
+}
+
 .choice-buttons button:hover,
 .choice-buttons button.selected {
   background: transparent;
+  border-color: transparent;
   box-shadow: none;
 }
 
@@ -2785,9 +2889,6 @@ select {
 
 .choice-buttons button:hover i {
   border-color: var(--line);
-  box-shadow:
-    0 0 0 4px rgba(18, 18, 18, 0.06),
-    0 1px 0 rgba(18, 18, 18, 0.1);
 }
 
 .choice-buttons button:disabled {
@@ -2800,6 +2901,10 @@ select {
   color: rgba(18, 18, 18, 0.42);
   background: rgba(18, 18, 18, 0.02);
   box-shadow: none;
+}
+
+.choice-buttons button:disabled:not(.selected) .choice-option-text {
+  color: rgba(18, 18, 18, 0.48);
 }
 
 .choice-buttons button:disabled.selected i {
@@ -3570,6 +3675,15 @@ select {
     max-height: min(56vh, 520px);
   }
 
+  .kice-problem-content {
+    min-height: auto;
+    padding: 18px 14px 22px;
+  }
+
+  .kice-choice-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .answer-bar {
     gap: 10px;
     padding-top: 10px;
@@ -3850,7 +3964,6 @@ select {
     grid-template-columns: 1fr;
     grid-template-areas:
       "clock"
-      "stats"
       "actions";
     gap: 8px;
     align-items: stretch;
@@ -3863,18 +3976,7 @@ select {
   }
 
   .compact-stats {
-    grid-area: stats;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 4px;
-  }
-
-  .compact-stats span {
-    min-height: 26px;
-    justify-content: center;
-    gap: 3px;
-    padding: 0 3px;
-    font-size: 11px;
+    display: none;
   }
 
   .topbar-actions {
@@ -3932,11 +4034,17 @@ select {
   }
 
   .choice-submit-panel {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    padding: 0;
+    border: 0;
+    background: transparent;
   }
 
   .answer-bar .primary-btn {
-    width: 100%;
+    width: auto;
+    min-width: 118px;
+    min-height: 44px;
   }
 
   .problem-focus-head {
@@ -3944,11 +4052,36 @@ select {
   }
 
   .problem-sheet {
-    padding-bottom: 34px;
+    padding-bottom: 104px;
   }
 
   .single-question-sheet {
     gap: 16px;
+    min-height: calc(100svh - 190px);
+  }
+
+  .single-question-sheet > .answer-bar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 70;
+    width: auto;
+    margin-top: 0;
+    padding: 10px 16px max(10px, env(safe-area-inset-bottom));
+    background: rgba(255, 254, 249, 0.97);
+    border-top: 1.5px solid rgba(18, 18, 18, 0.82);
+    box-shadow: none;
+  }
+
+  .single-question-sheet > .answer-bar .feedback {
+    min-height: 18px;
+    padding-left: 2px;
+    font-size: 12px;
+  }
+
+  .single-question-sheet > .answer-bar.choice-answer-bar .feedback {
+    padding-left: 0;
   }
 
   .problem-focus-head strong {
@@ -4084,9 +4217,13 @@ select {
     object-fit: contain;
   }
 
-  .choice-submit-panel {
-    padding-top: 16px;
-    padding-bottom: 16px;
+  .kice-problem-body {
+    font-size: 18px;
+  }
+
+  .kice-choice-list {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
   }
 
   .problem-picker-toggle-row {
@@ -4185,7 +4322,6 @@ select {
     grid-template-columns: 1fr;
     grid-template-areas:
       "clock"
-      "stats"
       "actions";
   }
 
@@ -4213,12 +4349,24 @@ select {
     max-height: none;
   }
 
+  .kice-problem-body {
+    font-size: 17px;
+  }
+
   .problem-image-wrap.tall-problem img {
     width: 100%;
   }
 
   .choice-buttons {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .choice-submit-panel {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .answer-bar .primary-btn {
+    width: 100%;
   }
 
   .choice-buttons button {

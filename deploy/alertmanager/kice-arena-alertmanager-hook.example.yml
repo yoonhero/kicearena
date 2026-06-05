@@ -1,0 +1,19 @@
+# Alertmanager webhook receiver example for the Prometheus rules in
+# kice-arena-prometheus-rules.yml.
+#
+# Replace the URL with your incident hook endpoint, for example a Slack bridge,
+# Discord bridge, PagerDuty Events API bridge, or an internal incident bot.
+
+route:
+  receiver: kice-arena-webhook
+  group_by: [alertname, severity, service]
+  group_wait: 10s
+  group_interval: 1m
+  repeat_interval: 30m
+
+receivers:
+  - name: kice-arena-webhook
+    webhook_configs:
+      - url: "https://example.internal/hooks/kice-arena-alerts"
+        send_resolved: true
+        max_alerts: 0

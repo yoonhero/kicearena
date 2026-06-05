@@ -3,6 +3,8 @@ import path from "node:path";
 import type { ExamManifest, ExamPublic, ExamSummary } from "../shared/game.js";
 import { getProblemPointValue } from "../shared/game.js";
 
+const ACTIVE_EXAM_IDS = new Set(["preliminary-day"]);
+
 export const readExams = (examsDir: string): ExamManifest[] => {
   if (!fs.existsSync(examsDir)) return [];
 
@@ -14,6 +16,7 @@ export const readExams = (examsDir: string): ExamManifest[] => {
       const manifestPath = path.join(examsDir, entry.name, "manifest.json");
       return JSON.parse(fs.readFileSync(manifestPath, "utf8")) as ExamManifest;
     })
+    .filter((exam) => ACTIVE_EXAM_IDS.has(exam.id))
     .sort((a, b) => a.title.localeCompare(b.title));
 };
 
@@ -41,7 +44,8 @@ export const toExamPublic = (exam: ExamManifest): ExamPublic => ({
     answerKind: problem.answerKind,
     difficulty: problem.difficulty,
     pointValue: getProblemPointValue(problem),
-    imageUrl: `/exams/${exam.id}/problems/${problem.image}`,
+    imageUrl: problem.image ? `/exams/${exam.id}/problems/${problem.image}` : undefined,
+    body: problem.body?.map((block) => (block.kind === "diagram" ? { ...block, src: `/exams/${exam.id}/${block.src}` } : block)),
     text: problem.text,
     sourceNumber: problem.sourceNumber,
     sourcePage: problem.sourcePage,

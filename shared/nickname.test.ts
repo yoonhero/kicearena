@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { composeHangulSyllable, composeNickname, sanitizeNickname } from "./nickname";
+import { composeHangulSyllable, composeNickname, createRandomNickname, createRandomNicknameParts, sanitizeNickname } from "./nickname";
 
 describe("nickname helpers", () => {
   it("composes a compact two-syllable nickname", () => {
@@ -17,5 +17,22 @@ describe("nickname helpers", () => {
 
   it("keeps blank manual names blank so callers can reject them", () => {
     expect(sanitizeNickname("   ")).toBe("");
+  });
+
+  it("creates random nickname parts from the allowed OMR jamo sets", () => {
+    const values = [0, 0.99, 0.5, 0.25, 0.75, 0.2];
+    const random = () => values.shift() ?? 0;
+
+    expect(createRandomNicknameParts(random)).toEqual([
+      { initial: "ㄱ", vowel: "ㅔ", final: "ㄹ" },
+      { initial: "ㄷ", vowel: "ㅐ", final: "ㄴ" }
+    ]);
+  });
+
+  it("creates a compact random nickname", () => {
+    const values = [0, 0.99, 0.5, 0.25, 0.75, 0.2];
+    const random = () => values.shift() ?? 0;
+
+    expect(createRandomNickname(random)).toBe("겔댄");
   });
 });

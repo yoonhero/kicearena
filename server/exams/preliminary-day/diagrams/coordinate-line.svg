@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 340" role="img" aria-label="좌표평면 위의 점 A, B와 직선 y=x-1">
+  <rect width="520" height="340" fill="#fffef9"/>
+  <g stroke="#d8d8d2" stroke-width="1">
+    <path d="M62 278H470"/>
+    <path d="M62 230H470"/>
+    <path d="M62 182H470"/>
+    <path d="M62 134H470"/>
+    <path d="M62 86H470"/>
+    <path d="M110 38V294"/>
+    <path d="M158 38V294"/>
+    <path d="M206 38V294"/>
+    <path d="M254 38V294"/>
+    <path d="M302 38V294"/>
+    <path d="M350 38V294"/>
+    <path d="M398 38V294"/>
+  </g>
+  <g stroke="#111" stroke-width="2.4" stroke-linecap="round">
+    <path d="M62 278H480"/>
+    <path d="M110 294V30"/>
+  </g>
+  <path d="M62 326L430  -42" fill="none" stroke="#111" stroke-width="3" stroke-dasharray="8 6"/>
+  <path d="M158 182L446 86" fill="none" stroke="#111" stroke-width="2.2"/>
+  <circle cx="158" cy="182" r="5.5" fill="#111"/>
+  <circle cx="446" cy="86" r="5.5" fill="#111"/>
+  <circle cx="254" cy="134" r="5.5" fill="#fffef9" stroke="#111" stroke-width="2.2"/>
+  <g fill="#111" font-family="Times New Roman, serif" font-size="22">
+    <text x="484" y="285">x</text>
+    <text x="94" y="25">y</text>
+    <text x="90" y="303">O</text>
+    <text x="132" y="176">A</text>
+    <text x="454" y="82">B</text>
+    <text x="265" y="130">P</text>
+    <text x="312" y="210">y=x-1</text>
+  </g>
+</svg>

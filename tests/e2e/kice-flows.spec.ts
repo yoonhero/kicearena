@@ -98,7 +98,9 @@ test("solver exposes problem movement, rankings, and one-cell freeze reveal", as
   await expect(page.getByRole("heading", { name: "순위표" })).toBeVisible();
   await page.getByRole("button", { name: "문제로" }).click();
 
-  await page.getByRole("button", { name: "3번 제출" }).click();
+  await page.getByRole("button", { name: "3번 선택" }).click();
+  await expect(page.locator(".feedback")).toHaveCount(0);
+  await page.getByRole("button", { name: "답안 제출" }).click();
   await expect(page.locator(".feedback")).toContainText(/정답|오답/);
   await page.getByRole("button", { name: "시험 종료" }).click();
 

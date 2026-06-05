@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 340" role="img" aria-label="구간 0부터 3까지 직선 y=x+1의 그래프">
+  <rect width="520" height="340" fill="#fffef9"/>
+  <g stroke="#d8d8d2" stroke-width="1">
+    <path d="M90 282H460"/>
+    <path d="M90 222H460"/>
+    <path d="M90 162H460"/>
+    <path d="M90 102H460"/>
+    <path d="M150 42V282"/>
+    <path d="M210 42V282"/>
+    <path d="M270 42V282"/>
+    <path d="M330 42V282"/>
+    <path d="M390 42V282"/>
+  </g>
+  <g stroke="#111" stroke-width="2.4" stroke-linecap="round">
+    <path d="M90 282H470"/>
+    <path d="M90 282V34"/>
+  </g>
+  <path d="M90 282L330 42" fill="none" stroke="#111" stroke-width="3.2"/>
+  <path d="M90 222L330 42L330 282L90 282Z" fill="#f1f1ec" stroke="#111" stroke-width="1.8" stroke-dasharray="6 5"/>
+  <g fill="#111" font-family="Times New Roman, serif" font-size="22">
+    <text x="474" y="289">x</text>
+    <text x="78" y="26">y</text>
+    <text x="82" y="304">O</text>
+    <text x="322" y="304">3</text>
+    <text x="342" y="52">y=x+1</text>
+  </g>
+</svg>

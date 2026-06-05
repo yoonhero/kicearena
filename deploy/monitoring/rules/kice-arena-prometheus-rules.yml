@@ -1,0 +1,251 @@
+groups:
+  - name: kice-arena-derived
+    interval: 30s
+    rules:
+      - record: "kice_arena:http_rps:5m"
+        expr: |
+          sum(rate(kice_arena_http_request_duration_seconds_count[5m]))
+
+      - record: "kice_arena:http_5xx_rps:5m"
+        expr: |
+          sum(rate(kice_arena_http_request_duration_seconds_count{status=~"5.."}[5m]))
+
+      - record: "kice_arena:http_error_ratio:5m"
+        expr: |
+          (sum(rate(kice_arena_http_request_duration_seconds_count{status=~"5.."}[5m])) or vector(0))
+          /
+          clamp_min((sum(rate(kice_arena_http_request_duration_seconds_count[5m])) or vector(0)), 1)
+
+      - record: "kice_arena:http_latency_seconds:5m"
+        labels:
+          quantile: "0.95"
+        expr: |
+          histogram_quantile(0.95, sum by (le) (rate(kice_arena_http_request_duration_seconds_bucket[5m])))
+
+      - record: "kice_arena:http_latency_seconds:5m"
+        labels:
+          quantile: "0.99"
+        expr: |
+          histogram_quantile(0.99, sum by (le) (rate(kice_arena_http_request_duration_seconds_bucket[5m])))
+
+      - record: "kice_arena:event_loop_lag_p99_seconds"
+        expr: |
+          max(kice_arena_nodejs_eventloop_lag_p99_seconds)
+
+      - record: "kice_arena:rss_growth_bytes:15m"
+        expr: |
+          sum(clamp_min(deriv(kice_arena_process_resident_memory_bytes[15m]) * 900, 0))
+
+      - record: "kice_arena:fd_usage_ratio"
+        expr: |
+          (sum(kice_arena_process_open_fds) or vector(0))
+          /
+          clamp_min((sum(kice_arena_process_max_fds) or vector(0)), 1)
+
+      - record: "kice_arena:socket_orphans"
+        expr: |
+          clamp_min(
+            (sum(kice_arena_socket_connections) or vector(0))
+            -
+            (sum(kice_arena_players{state="connected"}) or vector(0)),
+            0
+          )
+
+      - record: "kice_arena:socket_orphan_ratio"
+        expr: |
+          (kice_arena:socket_orphans or vector(0))
+          /
+          clamp_min((sum(kice_arena_socket_connections) or vector(0)), 1)
+
+      - record: "kice_arena:room_disconnect_risk_score"
+        expr: |
+          max(kice_arena_room_disconnect_risk_score) or vector(0)
+
+      - record: "kice_arena:room_cleanup_pressure_score"
+        expr: |
+          max(kice_arena_room_cleanup_pressure_score) or vector(0)
+
+      - record: "kice_arena:cause_score"
+        labels:
+          cause: "http_5xx"
+        expr: |
+          100 * clamp_max((kice_arena:http_error_ratio:5m or vector(0)) / 0.05, 1)
+
+      - record: "kice_arena:cause_score"
+        labels:
+          cause: "latency"
+        expr: |
+          100 * clamp_max((kice_arena:http_latency_seconds:5m{quantile="0.95"} or vector(0)) / 1.0, 1)
+
+      - record: "kice_arena:cause_score"
+        labels:
+          cause: "event_loop"
+        expr: |
+          100 * clamp_max((kice_arena:event_loop_lag_p99_seconds or vector(0)) / 0.25, 1)
+
+      - record: "kice_arena:cause_score"
+        labels:
+          cause: "rss_growth"
+        expr: |
+          100 * clamp_max((kice_arena:rss_growth_bytes:15m or vector(0)) / 209715200, 1)
+
+      - record: "kice_arena:cause_score"
+        labels:
+          cause: "fd_saturation"
+        expr: |
+          100 * clamp_max((kice_arena:fd_usage_ratio or vector(0)) / 0.80, 1)
+
+      - record: "kice_arena:cause_score"
+        labels:
+          cause: "socket_orphan"
+        expr: |
+          100 * clamp_max((kice_arena:socket_orphan_ratio or vector(0)) / 0.10, 1)
+
+      - record: "kice_arena:cause_score"
+        labels:
+          cause: "room_disconnect"
+        expr: |
+          100 * (kice_arena:room_disconnect_risk_score or vector(0))
+
+      - record: "kice_arena:cause_score"
+        labels:
+          cause: "room_cleanup"
+        expr: |
+          100 * (kice_arena:room_cleanup_pressure_score or vector(0))
+
+      - record: "kice_arena:incident_score"
+        expr: |
+          0.22 * (sum(kice_arena:cause_score{cause="http_5xx"}) or vector(0))
+          + 0.18 * (sum(kice_arena:cause_score{cause="latency"}) or vector(0))
+          + 0.18 * (sum(kice_arena:cause_score{cause="event_loop"}) or vector(0))
+          + 0.14 * (sum(kice_arena:cause_score{cause="rss_growth"}) or vector(0))
+          + 0.10 * (sum(kice_arena:cause_score{cause="fd_saturation"}) or vector(0))
+          + 0.08 * (sum(kice_arena:cause_score{cause="socket_orphan"}) or vector(0))
+          + 0.05 * (sum(kice_arena:cause_score{cause="room_disconnect"}) or vector(0))
+          + 0.05 * (sum(kice_arena:cause_score{cause="room_cleanup"}) or vector(0))
+
+  - name: kice-arena-alerts
+    interval: 30s
+    rules:
+      - alert: KiceArenaMetricsMissing
+        expr: absent(kice_arena_rooms_active)
+        for: 2m
+        labels:
+          severity: critical
+          service: kice-arena
+        annotations:
+          summary: "KICE Arena metrics are missing"
+          description: "Prometheus has not seen kice_arena_rooms_active for 2 minutes. The process, scrape target, or exporter may be down."
+
+      - alert: KiceArenaIncidentScoreHigh
+        expr: kice_arena:incident_score > 70
+        for: 3m
+        labels:
+          severity: critical
+          service: kice-arena
+        annotations:
+          summary: "KICE Arena incident score is high"
+          description: "The weighted incident score is above 70 for 3 minutes. Check kice_arena:cause_score to identify the largest contributor."
+
+      - alert: KiceArenaHttp5xxHigh
+        expr: kice_arena:http_error_ratio:5m > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          service: kice-arena
+        annotations:
+          summary: "KICE Arena HTTP 5xx ratio is high"
+          description: "HTTP 5xx ratio is above 5% for 5 minutes. Investigate logs by route/status and recent deploys."
+
+      - alert: KiceArenaHttpLatencyHigh
+        expr: kice_arena:http_latency_seconds:5m{quantile="0.95"} > 1
+        for: 5m
+        labels:
+          severity: warning
+          service: kice-arena
+        annotations:
+          summary: "KICE Arena HTTP p95 latency is high"
+          description: "HTTP p95 latency is above 1 second for 5 minutes. Compare event loop lag, GC duration, CPU, and external dependencies."
+
+      - alert: KiceArenaEventLoopLagHigh
+        expr: kice_arena:event_loop_lag_p99_seconds > 0.25
+        for: 3m
+        labels:
+          severity: critical
+          service: kice-arena
+        annotations:
+          summary: "KICE Arena event loop p99 lag is high"
+          description: "Node.js event loop p99 lag is above 250 ms for 3 minutes. Look for sync CPU work, large JSON work, GC pauses, or timer/callback backlog."
+
+      - alert: KiceArenaMemoryGrowthFast
+        expr: kice_arena:rss_growth_bytes:15m > 209715200
+        for: 15m
+        labels:
+          severity: warning
+          service: kice-arena
+        annotations:
+          summary: "KICE Arena RSS memory is growing quickly"
+          description: "RSS grew by more than 200 MiB over a 15-minute slope window. Check heap, external memory, buffers, and retained room/player state."
+
+      - alert: KiceArenaFileDescriptorSaturation
+        expr: kice_arena:fd_usage_ratio > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          service: kice-arena
+        annotations:
+          summary: "KICE Arena file descriptor usage is high"
+          description: "Open file descriptors are above 85% of the process limit. Check socket leaks and unclosed file/network handles."
+
+      - alert: KiceArenaSocketOrphansHigh
+        expr: (kice_arena:socket_orphan_ratio > 0.10) and (kice_arena:socket_orphans > 10)
+        for: 5m
+        labels:
+          severity: warning
+          service: kice-arena
+        annotations:
+          summary: "KICE Arena has many socket orphans"
+          description: "Socket connections exceed connected players by more than 10% and at least 10 sockets. Investigate connection cleanup and auth/session lifecycle."
+
+      - alert: KiceArenaZombiePlayingRooms
+        expr: sum(kice_arena_rooms_zombie_playing) > 0
+        for: 3m
+        labels:
+          severity: warning
+          service: kice-arena
+        annotations:
+          summary: "KICE Arena has zombie playing rooms"
+          description: "At least one playing room has no connected players for 3 minutes. The game-room state machine may not be cleaning stale sessions."
+
+      - alert: KiceArenaRoomCleanupBacklog
+        expr: sum(kice_arena_rooms_expired) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: kice-arena
+        annotations:
+          summary: "KICE Arena room cleanup backlog exists"
+          description: "At least one room has passed its finish or cleanup deadline but still exists for 5 minutes. Check cleanup timers and room lifecycle code."
+
+      - alert: KiceArenaPlayerCountMismatch
+        expr: sum(kice_arena_rooms_player_count_mismatch) > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: kice-arena
+        annotations:
+          summary: "KICE Arena player count mismatch detected"
+          description: "A room reports invalid player counts, such as connected players exceeding total players. Check room/player mutation paths."
+
+      - alert: KiceArenaGameplaySubmissionsStalled
+        expr: |
+          (sum(kice_arena_rooms_by_status{status="playing"}) > 0)
+          and
+          ((sum(rate(kice_arena_answers_submitted_total[10m])) or vector(0)) == 0)
+        for: 10m
+        labels:
+          severity: warning
+          service: kice-arena
+        annotations:
+          summary: "KICE Arena gameplay submissions appear stalled"
+          description: "There are playing rooms but no answer submissions for 10 minutes. Check socket delivery, room timers, and client connectivity."

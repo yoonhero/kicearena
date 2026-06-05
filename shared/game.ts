@@ -4,6 +4,13 @@ export const ITEM_IDS = ["cover", "rotateProblem", "hardFirst", "meme", "penLock
 export type ItemId = (typeof ITEM_IDS)[number];
 export type DebuffId = "blur" | "slowInput" | "hideAssist";
 
+export type ProblemBodyBlock =
+  | { kind: "paragraph"; text: string; inlineMath?: string[] }
+  | { kind: "displayMath"; latex: string }
+  | { kind: "choices"; choices: string[] }
+  | { kind: "diagram"; src: string; alt: string; caption?: string }
+  | { kind: "note"; text: string };
+
 export interface ProblemManifest {
   id: string;
   number: number;
@@ -12,7 +19,8 @@ export interface ProblemManifest {
   answer: string;
   difficulty: 1 | 2 | 3 | 4 | 5;
   pointValue?: number;
-  image: string;
+  image?: string;
+  body?: ProblemBodyBlock[];
   text?: string;
   sourceNumber?: number;
   sourcePage?: number;
@@ -46,7 +54,8 @@ export interface ProblemPublic {
   answerKind: AnswerKind;
   difficulty: 1 | 2 | 3 | 4 | 5;
   pointValue: number;
-  imageUrl: string;
+  imageUrl?: string;
+  body?: ProblemBodyBlock[];
   text?: string;
   sourceNumber?: number;
   sourcePage?: number;

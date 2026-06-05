@@ -22,7 +22,7 @@ import {
 import { sanitizeNickname } from "../shared/nickname.js";
 import { makeScoreboardRevealState } from "../shared/reveal.js";
 import { getRoomLeaveAction, shouldCloseRoomForNoConnectedPlayers, validateLobbyKick, validateRoomJoin } from "../shared/roomLifecycle.js";
-import { summarizeRoomMetrics } from "../shared/runtimeMetrics.js";
+import { derivedRuntimeMetricSamples, summarizeRoomMetrics } from "../shared/runtimeMetrics.js";
 import { isExamReleased, readExams, toExamPublic, toExamSummary } from "./exams.js";
 import { activeEffectForItem, cleanupEffects, findAdviceNoteProblem, maybeAwardItems, randomWeakDebuff, validateItemTarget } from "./items.js";
 import { shouldRateLimit as shouldRateLimitEvent } from "./rateLimit.js";
@@ -151,6 +151,107 @@ const playersGauge = new Gauge({
   registers: [metricsRegistry]
 });
 
+const derivedRuntimeMetricGauges = new Map<string, Gauge<string>>([
+  [
+    "kice_arena_players_disconnected_ratio",
+    new Gauge({
+      name: "kice_arena_players_disconnected_ratio",
+      help: "Share of tracked players that are currently disconnected. Value range: 0..1.",
+      registers: [metricsRegistry]
+    })
+  ],
+  [
+    "kice_arena_players_per_active_room",
+    new Gauge({
+      name: "kice_arena_players_per_active_room",
+      help: "Average players per non-finished room by player state.",
+      labelNames: ["state"],
+      registers: [metricsRegistry]
+    })
+  ],
+  [
+    "kice_arena_rooms_empty_lobby",
+    new Gauge({
+      name: "kice_arena_rooms_empty_lobby",
+      help: "Lobby rooms with no tracked players. High values point to lobby cleanup pressure.",
+      registers: [metricsRegistry]
+    })
+  ],
+  [
+    "kice_arena_rooms_disconnected_lobby",
+    new Gauge({
+      name: "kice_arena_rooms_disconnected_lobby",
+      help: "Lobby rooms that still have tracked players but no connected players.",
+      registers: [metricsRegistry]
+    })
+  ],
+  [
+    "kice_arena_rooms_partially_disconnected",
+    new Gauge({
+      name: "kice_arena_rooms_partially_disconnected",
+      help: "Active rooms where at least one, but not all, tracked players are disconnected.",
+      registers: [metricsRegistry]
+    })
+  ],
+  [
+    "kice_arena_rooms_zombie_playing",
+    new Gauge({
+      name: "kice_arena_rooms_zombie_playing",
+      help: "Playing rooms with no connected players. This is usually a stale game-session signal.",
+      registers: [metricsRegistry]
+    })
+  ],
+  [
+    "kice_arena_rooms_player_count_mismatch",
+    new Gauge({
+      name: "kice_arena_rooms_player_count_mismatch",
+      help: "Rooms whose connected player count is negative, exceeds total players, or total players is negative.",
+      registers: [metricsRegistry]
+    })
+  ],
+  [
+    "kice_arena_rooms_expiring_soon",
+    new Gauge({
+      name: "kice_arena_rooms_expiring_soon",
+      help: "Rooms whose finish or cleanup deadline is inside the expiringSoonMs window.",
+      registers: [metricsRegistry]
+    })
+  ],
+  [
+    "kice_arena_rooms_expired",
+    new Gauge({
+      name: "kice_arena_rooms_expired",
+      help: "Rooms whose finish or cleanup deadline has passed but are still present in memory.",
+      registers: [metricsRegistry]
+    })
+  ],
+  [
+    "kice_arena_room_expiry_overdue_seconds",
+    new Gauge({
+      name: "kice_arena_room_expiry_overdue_seconds",
+      help: "How long expired rooms have remained in memory after their deadline.",
+      labelNames: ["stat"],
+      registers: [metricsRegistry]
+    })
+  ],
+  [
+    "kice_arena_room_disconnect_risk_score",
+    new Gauge({
+      name: "kice_arena_room_disconnect_risk_score",
+      help: "Weighted active-room disconnect risk score. Value range: 0..1.",
+      registers: [metricsRegistry]
+    })
+  ],
+  [
+    "kice_arena_room_cleanup_pressure_score",
+    new Gauge({
+      name: "kice_arena_room_cleanup_pressure_score",
+      help: "Weighted room cleanup pressure score. Value range: 0..1.",
+      registers: [metricsRegistry]
+    })
+  ]
+]);
+
 const socketConnectionsGauge = new Gauge({
   name: "kice_arena_socket_connections",
   help: "Current Socket.IO connections.",
@@ -266,6 +367,18 @@ const updateRuntimeMetrics = () => {
   playersGauge.set({ state: "total" }, summary.totalPlayers);
   playersGauge.set({ state: "connected" }, summary.connectedPlayers);
   playersGauge.set({ state: "disconnected" }, summary.disconnectedPlayers);
+
+  for (const gauge of derivedRuntimeMetricGauges.values()) gauge.reset();
+  for (const sample of derivedRuntimeMetricSamples(summary)) {
+    const gauge = derivedRuntimeMetricGauges.get(sample.name);
+    if (!gauge) continue;
+    if (sample.labels) {
+      gauge.set(sample.labels, sample.value);
+    } else {
+      gauge.set(sample.value);
+    }
+  }
+
   socketConnectionsGauge.set(io.engine.clientsCount);
 };
 

@@ -17,15 +17,55 @@ network or through a reverse proxy that restricts `/metrics` to trusted private
 or Prometheus source ranges.
 
 The integrated `docker-compose.yml` mounts `./secrets/kice-arena-metrics-token`
-as a Docker secret for both the app and Prometheus. The app reads it through
-`METRICS_BEARER_TOKEN_FILE`, while Prometheus reads the same secret from
-`/run/secrets/kice_arena_metrics_token`.
+as a Docker secret for both the app and Prometheus when `METRICS_TOKEN_FILE` is
+set. Without that override, it uses the committed development token at
+`deploy/monitoring/kice-arena-metrics-token.default` so a fresh clone can start
+with only `docker compose up`.
 
-Merge `prometheus-scrape.yml` into the existing Prometheus server config and
-replace the placeholder target with the private app host and port.
+The app reads the token through `METRICS_BEARER_TOKEN_FILE`, while Prometheus
+reads the same secret from `/run/secrets/kice_arena_metrics_token`.
 
-Grafana can import `../grafana/dashboards/kice-arena.json`. During import,
-select the existing Prometheus data source.
+For the bundled home-server stack, run:
+
+```bash
+docker compose up -d
+```
+
+That starts the app, Prometheus, Alertmanager, the Discord alert bridge, and
+Grafana. The bundled `prometheus.yml` already loads the scrape job,
+Alertmanager target, and rule file:
+
+```yaml
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+rule_files:
+  - /etc/prometheus/rules/kice-arena-prometheus-rules.yml
+```
+
+For an existing external Prometheus instead of the bundled compose service,
+merge `prometheus-scrape.yml` into the existing Prometheus server config,
+replace the placeholder target with the private app host and port, copy
+`rules/kice-arena-prometheus-rules.yml` into the Prometheus rules directory, add
+it to `rule_files`, then reload Prometheus.
+
+The bundled Grafana service provisions the Prometheus data source and both
+dashboards automatically:
+
+- `../grafana/dashboards/kice-arena.json`: baseline server dashboard
+- `../grafana/dashboards/kice-arena-cause-first.json`: incident triage first dashboard
+
+Default local ports:
+
+- App: `http://127.0.0.1:3001`
+- Prometheus: `http://127.0.0.1:9090`
+- Alertmanager: `http://127.0.0.1:9093`
+- Grafana: `http://127.0.0.1:3000`
+
+Override them with `HOST_PORT`, `PROMETHEUS_HOST_PORT`,
+`ALERTMANAGER_HOST_PORT`, and `GRAFANA_HOST_PORT`.
 
 Useful custom metrics:
 
@@ -40,3 +80,45 @@ Useful custom metrics:
 - `kice_arena_players_joined_total`
 - `kice_arena_answers_submitted_total{correct="true|false"}`
 - `kice_arena_http_request_duration_seconds`
+- `kice_arena_players_disconnected_ratio`
+- `kice_arena_players_per_active_room{state="total|connected"}`
+- `kice_arena_rooms_empty_lobby`
+- `kice_arena_rooms_disconnected_lobby`
+- `kice_arena_rooms_partially_disconnected`
+- `kice_arena_rooms_zombie_playing`
+- `kice_arena_rooms_player_count_mismatch`
+- `kice_arena_rooms_expiring_soon`
+- `kice_arena_rooms_expired`
+- `kice_arena_room_expiry_overdue_seconds{stat="avg|max"}`
+- `kice_arena_room_disconnect_risk_score`
+- `kice_arena_room_cleanup_pressure_score`
+
+The bundled Alertmanager config sends alerts to the internal Discord bridge.
+The bridge returns success without sending anything when `DISCORD_WEBHOOK_URL`
+is empty, so the stack still starts before Discord is configured.
+
+To enable Discord notifications:
+
+1. In Discord, open the target channel settings.
+2. Go to Integrations, then Webhooks.
+3. Create a webhook and copy its webhook URL.
+4. On the home server, create `.env` next to `docker-compose.yml`:
+
+```bash
+DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
+```
+
+5. Restart the stack:
+
+```bash
+docker compose up -d
+```
+
+Optional Alertmanager webhook example:
+
+- `../alertmanager/kice-arena-alertmanager-hook.example.yml`
+
+To enable external notifications, merge that receiver into
+`../alertmanager/alertmanager.yml` and replace
+`https://example.internal/hooks/kice-arena-alerts` with the real incident hook
+URL.

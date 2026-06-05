@@ -5,5 +5,7 @@ dist
 .env
 coverage
 tmp
-/server/exams
+# /server/exams
+!/server/exams/preliminary-day/
+!/server/exams/preliminary-day/**
 /secrets

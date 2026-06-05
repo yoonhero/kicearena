@@ -87,6 +87,21 @@ export type NicknameJamo = {
   final?: string;
 };
 
+const pickRandom = <T>(values: readonly T[], random: () => number) => values[Math.floor(random() * values.length)] ?? values[0];
+
+export const createRandomNicknameParts = (random: () => number = Math.random): [NicknameJamo, NicknameJamo] => [
+  {
+    initial: pickRandom(NICKNAME_INITIALS, random),
+    vowel: pickRandom(NICKNAME_VOWELS, random),
+    final: pickRandom(NICKNAME_FINALS, random)
+  },
+  {
+    initial: pickRandom(NICKNAME_INITIALS, random),
+    vowel: pickRandom(NICKNAME_VOWELS, random),
+    final: pickRandom(NICKNAME_FINALS, random)
+  }
+];
+
 export const sanitizeNickname = (value: string, maxLength: number = ROOM_GUARDRAILS.maxNicknameLength) => Array.from(value.trim()).slice(0, maxLength).join("");
 
 export const composeHangulSyllable = ({ initial, vowel, final = "" }: NicknameJamo) => {
@@ -99,3 +114,8 @@ export const composeHangulSyllable = ({ initial, vowel, final = "" }: NicknameJa
 
 export const composeNickname = (first: string | NicknameJamo, second: string | NicknameJamo) =>
   sanitizeNickname(`${typeof first === "string" ? first : composeHangulSyllable(first)}${typeof second === "string" ? second : composeHangulSyllable(second)}`, 2);
+
+export const createRandomNickname = (random: () => number = Math.random) => {
+  const [first, second] = createRandomNicknameParts(random);
+  return composeNickname(first, second);
+};

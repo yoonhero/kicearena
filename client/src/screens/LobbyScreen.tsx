@@ -49,7 +49,7 @@ export function LobbyScreen({
           {room.exam.problems.map((problem) => (
             <span key={problem.id}>
               {problem.number}
-              <small>난도 {problem.difficulty}</small>
+              <small>{problem.pointValue}점</small>
             </span>
           ))}
         </div>

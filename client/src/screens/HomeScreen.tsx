@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { ChevronDown, Clock3, FileText, Gamepad2, LogIn, LogOut, SlidersHorizontal } from "lucide-react";
 import { ROOM_GUARDRAILS, type ExamSummary } from "../../../shared/game";
-import { composeHangulSyllable, composeNickname, NICKNAME_FINALS, NICKNAME_INITIALS, NICKNAME_VOWELS, sanitizeNickname, type NicknameJamo } from "../../../shared/nickname";
+import { composeHangulSyllable, composeNickname, createRandomNicknameParts, NICKNAME_FINALS, NICKNAME_INITIALS, NICKNAME_VOWELS, sanitizeNickname, type NicknameJamo } from "../../../shared/nickname";
 import { formatReportDate } from "../lib/format";
 
 const QUICK_PRESETS = [
@@ -34,10 +34,7 @@ export function HomeScreen(props: {
   const [showOptions, setShowOptions] = useState(false);
   const [entryMode, setEntryMode] = useState<"create" | "join">("create");
   const [activeSlot, setActiveSlot] = useState<0 | 1>(0);
-  const [nameParts, setNameParts] = useState<[NicknameJamo, NicknameJamo]>([
-    { initial: "ㅁ", vowel: "ㅣ", final: "ㄴ" },
-    { initial: "ㅈ", vowel: "ㅐ", final: "" }
-  ]);
+  const [nameParts, setNameParts] = useState<[NicknameJamo, NicknameJamo]>(() => createRandomNicknameParts());
   const nameSlots = 2;
   const displayedName = Array.from(props.nickname).slice(0, nameSlots);
   const trimmedNickname = props.nickname.trim();
