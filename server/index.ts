@@ -21,7 +21,7 @@ import {
 } from "../shared/game.js";
 import { sanitizeNickname } from "../shared/nickname.js";
 import { makeScoreboardRevealState } from "../shared/reveal.js";
-import { getRoomLeaveAction, validateLobbyKick } from "../shared/roomLifecycle.js";
+import { getRoomLeaveAction, shouldCloseRoomForNoConnectedPlayers, validateLobbyKick, validateRoomJoin } from "../shared/roomLifecycle.js";
 import { summarizeRoomMetrics } from "../shared/runtimeMetrics.js";
 import { isExamReleased, readExams, toExamPublic, toExamSummary } from "./exams.js";
 import { activeEffectForItem, cleanupEffects, findAdviceNoteProblem, maybeAwardItems, randomWeakDebuff, validateItemTarget } from "./items.js";
@@ -293,8 +293,7 @@ const closeLobbyRoom = (room: RoomState) => {
 };
 
 const closeRoomIfNoConnectedPlayers = (room: RoomState) => {
-  const hasConnectedPlayers = [...room.players.values()].some((player) => player.connected);
-  if (hasConnectedPlayers) return false;
+  if (!shouldCloseRoomForNoConnectedPlayers(room.players.values())) return false;
   io.to(room.code).emit("room:closed", { code: room.code });
   deleteRoom(room);
   return true;
@@ -570,12 +569,13 @@ io.on("connection", (socket) => {
       reply({ ok: false, error: "방을 찾을 수 없습니다." });
       return;
     }
-    if (!nickname) {
-      reply({ ok: false, error: "닉네임을 입력하세요." });
+    const joinValidation = validateRoomJoin(room);
+    if (!joinValidation.ok) {
+      reply({ ok: false, error: "이미 종료된 방입니다." });
       return;
     }
-    if (room.status !== "lobby") {
-      reply({ ok: false, error: "이미 시작한 방입니다." });
+    if (!nickname) {
+      reply({ ok: false, error: "닉네임을 입력하세요." });
       return;
     }
     if (room.players.size >= ROOM_GUARDRAILS.maxPlayersPerRoom) {
@@ -591,7 +591,7 @@ io.on("connection", (socket) => {
       score: 0,
       penaltyMs: 0,
       scoreBreakdown: { solved: 0, timeBonus: 0, difficultyBonus: 0 },
-      ready: false,
+      ready: room.status === "playing",
       currentProblemId: room.exam.problems[0]?.id ?? "",
       consecutiveWrong: 0,
       inventory: [],
@@ -608,7 +608,7 @@ io.on("connection", (socket) => {
     socketToPlayer.set(socket.id, { roomCode: code, playerId });
     socket.emit("player:you", playerId);
     touchRoom(room);
-    addLog(room, "system", `${nickname} 입실. 컴싸 확인 완료.`);
+    addLog(room, "system", room.status === "playing" ? `${nickname} 지각 입실. 시험지와 답안지를 받았습니다.` : `${nickname} 입실. 컴싸 확인 완료.`);
     reply({ ok: true, data: publicRoom(room) });
     emitRoom(room);
   });

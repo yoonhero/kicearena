@@ -1,14 +1,4 @@
-Phase 1
-
--   [ ] Add data source to Grafana.
-    -   [ ] Decide the metrics source: app process metrics, server logs, DB, or a lightweight metrics endpoint.
-    -   [ ] Add metrics for current total rooms.
-    -   [ ] Add metrics for average time to room expiration.
-    -   [ ] Add metrics for max time to room expiration.
-    -   [ ] Add realtime user stats: connected sockets, active rooms, active players.
-    -   [ ] Expose the metrics in a format Grafana can consume.
-    -   [ ] Create a first dashboard panel set for rooms, expiration time, and realtime users.
-    -   [ ] Verify dashboard values against local/server-side logs.
+<!-- Phase 1
 -   [ ] Construct deploy pipeline.
     -   [ ] Decide the target deployment path: manual server deploy, Docker image, or GitHub Actions.
     -   [ ] Build and tag the production artifact.
@@ -93,4 +83,4 @@ Phase 3
     -   [ ] login/register rating system
     -   [ ] div 1 / div 2 / div 3: 일주일마다 출제진이 공개 콘테스트 개최
         -   [ ] 문제 등록 UI
-    -   [ ] 기존의 문제 풀이 UI/UX를 활용해서
+    -   [ ] 기존의 문제 풀이 UI/UX를 활용해서 -->

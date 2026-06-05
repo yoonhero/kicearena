@@ -18,7 +18,7 @@ const JAMO_PRESETS: Record<string, Array<{ initial: string; vowel: string; final
 async function composeNickname(page: Page, nickname = "민재") {
   const parts = JAMO_PRESETS[nickname] ?? JAMO_PRESETS.민재;
   for (const [index, part] of parts.entries()) {
-    await page.getByRole("tab", { name: `${index + 1}글자` }).click();
+    await page.getByRole("tab", { name: `${index + 1}번째 글자` }).click();
     await page.getByLabel(`${index + 1}글자 초성 ${part.initial}`).click();
     await page.getByLabel(`${index + 1}글자 중성 ${part.vowel}`).click();
     await page.getByLabel(`${index + 1}글자 종성 ${part.final}`).click();
@@ -28,7 +28,7 @@ async function composeNickname(page: Page, nickname = "민재") {
 async function createRoom(page: Page, nickname = "민재") {
   await page.goto("/");
   await composeNickname(page, nickname);
-  await expect(page.getByLabel("직접 입력")).toHaveValue(nickname);
+  await expect(page.getByLabel("직접 수정")).toHaveValue(nickname);
   await page.getByRole("button", { name: "방 열기" }).click();
   await expect(page.getByText("입실 현황")).toBeVisible();
   return (await page.locator(".room-code button").first().innerText()).replace(/[^A-Z0-9]/g, "");
@@ -36,7 +36,7 @@ async function createRoom(page: Page, nickname = "민재") {
 
 async function joinRoom(page: Page, roomCode: string, nickname: string) {
   await page.goto("/");
-  await page.getByLabel("직접 입력").fill(nickname);
+  await page.getByLabel("직접 수정").fill(nickname);
   await page.getByRole("tab", { name: "기존 방 입장" }).click();
   await page.getByPlaceholder("ABCDE").fill(roomCode);
   await page.locator(".join-panel").getByRole("button", { name: "입장" }).click();

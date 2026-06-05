@@ -1,16 +1,84 @@
 import { EyeOff } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type { PlayerPublic, RoomPublic } from "../../../shared/game";
 import { useCountdown } from "../hooks/useCountdown";
 import { formatElapsed, formatPenalty, formatTime } from "../lib/format";
 import { makePlayerStandingRows } from "../lib/report";
 
+const PROBLEM_RANGE_SIZE = 10;
+
 export function RankingsScreen({ room, ownPlayer, onBack }: { room: RoomPublic; ownPlayer: PlayerPublic; onBack: () => void }) {
   const timeLeft = useCountdown(room);
+  const boardRef = useRef<HTMLDivElement | null>(null);
+  const scrollSnapTimerRef = useRef<number | null>(null);
+  const [problemRange, setProblemRange] = useState(() => (room.exam.problemCount > PROBLEM_RANGE_SIZE ? `1-${PROBLEM_RANGE_SIZE}` : "all"));
+  const [focusedProblemId, setFocusedProblemId] = useState("");
   const liveRows = useMemo(() => makePlayerStandingRows(room), [room]);
   const rows = room.scoreboardFrozen && room.frozenStandings.length > 0 ? room.frozenStandings : liveRows;
   const playerById = useMemo(() => new Map(room.players.map((player) => [player.id, player])), [room.players]);
   const visibleUntil = room.scoreboardFrozen ? room.scoreboardFrozenAt : null;
+  const problemRanges = useMemo(() => makeProblemRanges(room.exam.problemCount), [room.exam.problemCount]);
+  const visibleProblems = useMemo(() => {
+    const selectedRange = problemRanges.find((range) => range.id === problemRange);
+    if (!selectedRange || selectedRange.id === "all") return room.exam.problems;
+    return room.exam.problems.filter((problem) => problem.number >= selectedRange.from && problem.number <= selectedRange.to);
+  }, [problemRange, problemRanges, room.exam.problems]);
+  const visibleProblemIds = useMemo(() => visibleProblems.map((problem) => problem.id).join("|"), [visibleProblems]);
+  const firstVisibleProblemId = visibleProblems[0]?.id ?? "";
+  const focusedProblem = visibleProblems.find((problem) => problem.id === focusedProblemId) ?? visibleProblems[0];
+
+  useEffect(() => {
+    setFocusedProblemId(firstVisibleProblemId);
+    if (boardRef.current) boardRef.current.scrollLeft = 0;
+  }, [firstVisibleProblemId, problemRange, visibleProblemIds]);
+
+  useEffect(() => {
+    const board = boardRef.current;
+    if (!board) return undefined;
+
+    const snapToNearestProblem = () => {
+      const nearestHeader = findNearestProblemHeader(board);
+      if (!nearestHeader?.dataset.scoreProblemId) return;
+      const targetLeft = Math.max(0, nearestHeader.offsetLeft - readStickyWidth(board));
+      setFocusedProblemId(nearestHeader.dataset.scoreProblemId);
+      if (Math.abs(board.scrollLeft - targetLeft) <= 1) return;
+      board.scrollTo({
+        left: targetLeft,
+        behavior: "smooth"
+      });
+    };
+    const scheduleSnap = () => {
+      if (scrollSnapTimerRef.current !== null) window.clearTimeout(scrollSnapTimerRef.current);
+      scrollSnapTimerRef.current = window.setTimeout(() => {
+        scrollSnapTimerRef.current = null;
+        snapToNearestProblem();
+      }, 110);
+    };
+
+    setFocusedProblemId(findNearestProblemHeader(board)?.dataset.scoreProblemId ?? firstVisibleProblemId);
+    board.addEventListener("scroll", scheduleSnap, { passive: true });
+    return () => {
+      board.removeEventListener("scroll", scheduleSnap);
+      if (scrollSnapTimerRef.current !== null) {
+        window.clearTimeout(scrollSnapTimerRef.current);
+        scrollSnapTimerRef.current = null;
+      }
+    };
+  }, [firstVisibleProblemId, visibleProblemIds]);
+
+  const focusProblemColumn = (problemId: string) => {
+    const board = boardRef.current;
+    if (!board) return;
+    const header = Array.from(board.querySelectorAll<HTMLElement>(".domjudge-header [data-score-problem-id]")).find(
+      (element) => element.dataset.scoreProblemId === problemId
+    );
+    if (!header) return;
+    setFocusedProblemId(problemId);
+    board.scrollTo({
+      left: Math.max(0, header.offsetLeft - readStickyWidth(board)),
+      behavior: "smooth"
+    });
+  };
 
   return (
     <main className="rankings-layout">
@@ -29,7 +97,24 @@ export function RankingsScreen({ room, ownPlayer, onBack }: { room: RoomPublic; 
             순위 비공개: 현재 표는 설정된 비공개 시작 시점의 임시 성적입니다. 실제 성적은 시험 종료 후 공개됩니다.
           </div>
         )}
-        <div className="domjudge-board" style={{ "--problem-count": String(room.exam.problemCount) } as React.CSSProperties & Record<string, string>}>
+        <div className="rankings-toolbar">
+          <div className="problem-range-tabs" role="tablist" aria-label="순위표 문항 범위">
+            {problemRanges.map((range) => (
+              <button
+                key={range.id}
+                type="button"
+                role="tab"
+                aria-selected={problemRange === range.id}
+                className={problemRange === range.id ? "selected" : ""}
+                onClick={() => setProblemRange(range.id)}
+              >
+                {range.label}
+              </button>
+            ))}
+          </div>
+          <span>{visibleProblems.length}/{room.exam.problemCount}문항 표시</span>
+        </div>
+        <div ref={boardRef} className="domjudge-board" style={{ "--problem-count": String(visibleProblems.length) } as CSSProperties & Record<string, string>}>
           <div className="domjudge-row domjudge-header">
             <span>순위</span>
             <strong>참가자</strong>
@@ -37,8 +122,8 @@ export function RankingsScreen({ room, ownPlayer, onBack }: { room: RoomPublic; 
             <em>점수</em>
             <em>페널티</em>
             <em>AC</em>
-            {room.exam.problems.map((problem) => (
-              <span key={problem.id}>P{problem.number}</span>
+            {visibleProblems.map((problem) => (
+              <span key={problem.id} data-score-problem-id={problem.id}>P{problem.number}</span>
             ))}
           </div>
           {rows.map((standing, index) => {
@@ -60,10 +145,10 @@ export function RankingsScreen({ room, ownPlayer, onBack }: { room: RoomPublic; 
                 <em>{displayStanding.score}</em>
                 <span>{formatPenalty(displayStanding.penaltyMs)}</span>
                 <span>{displayStanding.solved}/{room.exam.problemCount}</span>
-                {room.exam.problems.map((problem) => {
+                {visibleProblems.map((problem) => {
                   const cell = player ? makeProblemScoreCell(player, problem.id, room.startedAt, ownRow ? null : visibleUntil) : null;
                   return (
-                    <span key={problem.id} className={cell?.className ?? ""}>
+                    <span key={problem.id} className={cell?.className ?? ""} title={cell?.title ?? `P${problem.number}`}>
                       {cell ? (
                         <>
                           <b>{cell.primary}</b>
@@ -79,6 +164,20 @@ export function RankingsScreen({ room, ownPlayer, onBack }: { room: RoomPublic; 
             );
           })}
         </div>
+        <div className="scoreboard-scroll-dots" aria-label="순위표 문항 포커스">
+          {visibleProblems.map((problem) => (
+            <button
+              key={problem.id}
+              type="button"
+              className={focusedProblem?.id === problem.id ? "active" : ""}
+              aria-label={`P${problem.number} 열 보기`}
+              aria-pressed={focusedProblem?.id === problem.id}
+              onClick={() => focusProblemColumn(problem.id)}
+            >
+              <span />
+            </button>
+          ))}
+        </div>
         {room.scoreboardFrozen && (
           <div className="private-score rankings-private-score">
             <span>내 실제 채점</span>
@@ -88,6 +187,39 @@ export function RankingsScreen({ room, ownPlayer, onBack }: { room: RoomPublic; 
       </section>
     </main>
   );
+}
+
+function findNearestProblemHeader(board: HTMLElement) {
+  const stickyWidth = readStickyWidth(board);
+  const headers = Array.from(board.querySelectorAll<HTMLElement>(".domjudge-header [data-score-problem-id]"));
+  if (headers.length === 0) return null;
+  return headers.reduce((nearest, header) => {
+    const nearestDistance = Math.abs(nearest.offsetLeft - stickyWidth - board.scrollLeft);
+    const headerDistance = Math.abs(header.offsetLeft - stickyWidth - board.scrollLeft);
+    return headerDistance < nearestDistance ? header : nearest;
+  }, headers[0]);
+}
+
+function readStickyWidth(board: HTMLElement) {
+  const header = board.querySelector<HTMLElement>(".domjudge-header");
+  if (!header) return 0;
+  return Array.from(header.children)
+    .slice(0, 6)
+    .reduce((sum, child) => sum + (child as HTMLElement).offsetWidth, 0);
+}
+
+function makeProblemRanges(problemCount: number) {
+  const ranges = [{ id: "all", label: "전체", from: 1, to: problemCount }];
+  for (let from = 1; from <= problemCount; from += PROBLEM_RANGE_SIZE) {
+    const to = Math.min(problemCount, from + PROBLEM_RANGE_SIZE - 1);
+    ranges.push({
+      id: `${from}-${to}`,
+      label: `${from}-${to}`,
+      from,
+      to
+    });
+  }
+  return ranges;
 }
 
 function formatSubmissionCount(player: PlayerPublic) {
@@ -108,7 +240,8 @@ function makeProblemScoreCell(player: PlayerPublic, problemId: string, startedAt
     return {
       className: "frozen-attempt",
       primary: `${hiddenAttempts}회`,
-      secondary: "프리즈"
+      secondary: "프리즈",
+      title: `프리즈 이후 제출 ${hiddenAttempts}회`
     };
   }
 
@@ -118,13 +251,18 @@ function makeProblemScoreCell(player: PlayerPublic, problemId: string, startedAt
     return {
       className: "accepted",
       primary: `+${submission.scoreAwarded}`,
-      secondary: `${formatPenalty(visiblePenaltyMs)} · ${submission.attempts}회`
+      secondary: `${formatPenalty(visiblePenaltyMs)} · ${submission.attempts}회`,
+      title: `정답 +${submission.scoreAwarded}, 페널티 ${formatPenalty(visiblePenaltyMs)}, ${submission.attempts}회 시도`
     };
   }
 
   return {
     className: hiddenAttempts > 0 ? "tried frozen-with-attempts" : "tried",
     primary: `${submission.attempts}회`,
-    secondary: hiddenAttempts > 0 ? `${hiddenAttempts}회 프리즈` : `오답 · ${formatElapsed(startedAt, submission.submittedAt)}`
+    secondary: hiddenAttempts > 0 ? `${hiddenAttempts}회 프리즈` : `오답 · ${formatElapsed(startedAt, submission.submittedAt)}`,
+    title:
+      hiddenAttempts > 0
+        ? `오답 ${submission.attempts}회, 프리즈 이후 제출 ${hiddenAttempts}회`
+        : `오답 ${submission.attempts}회, ${formatElapsed(startedAt, submission.submittedAt)} 제출`
   };
 }

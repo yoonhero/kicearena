@@ -6,6 +6,7 @@ export function AnswerPanel({
   answer,
   setAnswer,
   inputLocked,
+  submittedAnswer,
   feedback,
   submit
 }: {
@@ -13,28 +14,31 @@ export function AnswerPanel({
   answer: string;
   setAnswer: (answer: string) => void;
   inputLocked: boolean;
+  submittedAnswer?: string | null;
   feedback: string;
   submit: (selectedAnswer?: string) => Promise<void>;
 }) {
+  const activeChoice = submittedAnswer || answer || "";
+  const choiceLocked = inputLocked || Boolean(submittedAnswer);
+
   return (
     <div className={`answer-bar ${currentProblem.answerKind === "choice" ? "choice-answer-bar" : ""}`}>
       {currentProblem.answerKind === "choice" ? (
         <div className="choice-submit-panel" aria-label="5지선다 답안 선택">
-          <span>{currentProblem.number}번 답안</span>
           <div className="choice-buttons">
             {["1", "2", "3", "4", "5"].map((choice) => (
               <button
                 key={choice}
                 type="button"
-                className={answer === choice ? "selected" : ""}
-                disabled={inputLocked}
+                className={activeChoice === choice ? "selected" : ""}
+                disabled={choiceLocked}
                 onClick={() => {
+                  if (choiceLocked) return;
                   setAnswer(choice);
                   void submit(choice);
                 }}
                 aria-label={`${choice}번 제출`}
               >
-                <b>{currentProblem.number}</b>
                 <i>{choice}</i>
               </button>
             ))}
@@ -60,7 +64,7 @@ export function AnswerPanel({
           </button>
         </>
       )}
-      {feedback && <span className="feedback">{feedback}</span>}
+      {currentProblem.answerKind !== "choice" && feedback && <span className="feedback">{feedback}</span>}
     </div>
   );
 }

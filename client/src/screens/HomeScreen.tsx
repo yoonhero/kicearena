@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ChevronDown, Clock3, FileText, Gamepad2, LogIn, SlidersHorizontal } from "lucide-react";
+import { ChevronDown, Clock3, FileText, Gamepad2, LogIn, LogOut, SlidersHorizontal } from "lucide-react";
 import { ROOM_GUARDRAILS, type ExamSummary } from "../../../shared/game";
 import { composeHangulSyllable, composeNickname, NICKNAME_FINALS, NICKNAME_INITIALS, NICKNAME_VOWELS, sanitizeNickname, type NicknameJamo } from "../../../shared/nickname";
 import { formatReportDate } from "../lib/format";
@@ -28,6 +28,7 @@ export function HomeScreen(props: {
   inviteMode: boolean;
   inviteRoomCode: string;
   joiningInvite: boolean;
+  exitInviteMode: () => void;
   error: string;
 }) {
   const [showOptions, setShowOptions] = useState(false);
@@ -79,24 +80,20 @@ export function HomeScreen(props: {
             <div className="omr-name-maker" aria-label="성명 OMR 입력">
               <div className="omr-maker-head">
                 <strong>성명</strong>
-                <span>{props.inviteMode ? `초대 방 ${props.inviteRoomCode}` : "초성·중성·종성 조합"}</span>
+                {props.inviteMode && <span>{`초대 방 ${props.inviteRoomCode}`}</span>}
               </div>
-              <div className="omr-maker-cells" aria-hidden="true">
+              <div className="omr-maker-cells" role="tablist" aria-label="수정할 이름 글자 선택">
                 {Array.from({ length: nameSlots }, (_, index) => (
-                  <span key={index}>{displayedName[index] ?? previewName[index] ?? ""}</span>
-                ))}
-              </div>
-              <div className="omr-slot-tabs" role="tablist" aria-label="이름 글자 선택">
-                {[0, 1].map((slot) => (
                   <button
-                    key={slot}
+                    key={index}
                     type="button"
-                    className={activeSlot === slot ? "active" : ""}
-                    onClick={() => setActiveSlot(slot as 0 | 1)}
+                    className={`omr-name-cell ${activeSlot === index ? "active" : ""}`}
+                    onClick={() => setActiveSlot(index as 0 | 1)}
                     role="tab"
-                    aria-selected={activeSlot === slot}
+                    aria-selected={activeSlot === index}
+                    aria-label={`${index + 1}번째 글자 ${displayedName[index] ?? previewName[index] ?? ""} 수정`}
                   >
-                    {slot + 1}글자
+                    {displayedName[index] ?? previewName[index] ?? ""}
                   </button>
                 ))}
               </div>
@@ -123,7 +120,7 @@ export function HomeScreen(props: {
               </div>
             </div>
             <label className="nickname-direct-field">
-              직접 입력
+              <span>직접 수정</span>
               <input
                 value={props.nickname}
                 maxLength={ROOM_GUARDRAILS.maxNicknameLength}
@@ -139,6 +136,10 @@ export function HomeScreen(props: {
                 <button className="omr-action invite-enter-action" type="button" disabled={!trimmedNickname || props.joiningInvite} onClick={props.joinInviteRoom}>
                   <LogIn size={18} />
                   입장
+                </button>
+                <button className="invite-exit-action" type="button" onClick={props.exitInviteMode}>
+                  <LogOut size={16} />
+                  나가기
                 </button>
               </>
             )}

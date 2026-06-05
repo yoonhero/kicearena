@@ -1,0 +1,16 @@
+-   [ ] Problem
+    -   [ ] LaTex: statement / SVG: graph, diagram
+    -   [ ] Storage Database
+-   [ ] Contest
+    -   [ ] Anonymous
+    -   [ ] Rule: editted ICPC (retry/penalty 객관식=1/+40, 주관식=2/+20)
+    -   [ ] Unfreeze Live-Streaming / 성적표 배분
+-   [ ] User Auth
+    -   [ ] 고등학교 인증 (location + 지인전파로 인증된 url 뿌리기)
+    -   [ ] username/password/신분(고3,재수)/phone(대회공지?)/기타PG사에필요한정보
+-   [ ] Ranking system
+    -   [ ] Tier(elo)
+    -   [ ] Half:Full:Half-Killer
+-   [ ] Community
+    -   [ ] Megapass : virtual gym / ai 약점분석 / 경쟁자 비교 / 예상 학교 / score board
+    -   [ ] Profile decoration (solved.ac, discord)

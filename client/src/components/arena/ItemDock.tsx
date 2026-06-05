@@ -105,6 +105,7 @@ export function ItemDock({
             const duplicateBlocked = selectedItemDefinition.lifecycle.duplicate === "blockWhileActive" && Boolean(sameEffect);
             const blocked = selfBlocked || adviceUnavailable || duplicateBlocked;
             const targetTags = [
+              player.id === suggestedTargetId ? "추천" : "",
               selfBlocked ? "상대 전용" : player.id === ownPlayer.id ? "나" : "",
               player.id === leaderId && room.players.length > 1 ? "선두" : "",
               adviceUnavailable ? "조건 없음" : "",
@@ -122,7 +123,7 @@ export function ItemDock({
                 title={`${selectedItemDefinition.name} 사용`}
                 style={{ "--target-score-size": `${scoreSize}px` } as React.CSSProperties & Record<string, string>}
               >
-                <span className="target-score-orb">{player.score}</span>
+                <span className="target-score-orb" aria-label={`${player.score}점`} />
                 <span className="target-name">{player.nickname}</span>
                 <strong>{player.score}점</strong>
                 <span className="target-tags">

@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Grid2X2 } from "lucide-react";
 import type { ItemId, PlayerPublic, ProblemPublic, RoomPublic } from "../../../../shared/game";
 import { isTallProblemImage } from "../../../../shared/problemLayout";
 import { socket } from "../../lib/socket";
 import { AnswerPanel } from "./AnswerPanel";
 import { ItemDock } from "./ItemDock";
 import { ProblemNav } from "./ProblemNav";
+
+type ProblemAnswerState = "correct" | "wrong" | "unanswered";
 
 type WebkitAudioWindow = Window &
   typeof globalThis & {
@@ -111,6 +113,7 @@ export function ProblemSheet({
   useItem: (itemId: ItemId, targetPlayerId: string) => Promise<void>;
 }) {
   const [tallProblem, setTallProblem] = useState(false);
+  const [problemPickerOpen, setProblemPickerOpen] = useState(false);
   const bannedSongActive = ownPlayer.effects.some((effect) => effect.id === "bannedSong" && effect.expiresAt > Date.now());
   const auraEffect = ownPlayer.effects.find((effect) => effect.id === "auraMinus" && effect.expiresAt > Date.now());
   const adviceEffect = ownPlayer.effects.find((effect) => effect.id === "adviceNote" && effect.expiresAt > Date.now());
@@ -118,6 +121,10 @@ export function ProblemSheet({
   const isProblemLocked = (problem: ProblemPublic) => hardLocked && problem.difficulty < 4;
   const previousProblem = useMemo(() => findAdjacentProblem(room.exam.problems, currentIndex, -1, isProblemLocked), [currentIndex, hardLocked, room.exam.problems]);
   const nextProblem = useMemo(() => findAdjacentProblem(room.exam.problems, currentIndex, 1, isProblemLocked), [currentIndex, hardLocked, room.exam.problems]);
+  const currentSubmission = ownPlayer.submissions.find((submission) => submission.problemId === currentProblem.id);
+  const answerState: ProblemAnswerState = currentSubmission?.correct ? "correct" : currentSubmission ? "wrong" : "unanswered";
+  const answeredProblemCount = useMemo(() => new Set(ownPlayer.submissions.map((submission) => submission.problemId)).size, [ownPlayer.submissions]);
+  const showProblemPicker = problemPickerOpen || answeredProblemCount >= room.exam.problemCount;
 
   useEffect(() => {
     setTallProblem(false);
@@ -130,10 +137,13 @@ export function ProblemSheet({
 
   return (
     <div className="exam-sheet problem-sheet single-question-sheet">
-      <div className="problem-focus-head">
+      <div className={`problem-focus-head answer-${answerState}`}>
         <div>
           <span>{room.exam.title}</span>
-          <strong>{currentProblem.number}번</strong>
+          <strong>
+            {currentProblem.number}번
+            {answerState !== "unanswered" && <GradeMark state={answerState} />}
+          </strong>
         </div>
         <ItemDock room={room} ownPlayer={ownPlayer} selectedItem={selectedItem} setSelectedItem={setSelectedItem} useItem={useItem} />
         <em>난도 {currentProblem.difficulty}</em>
@@ -206,20 +216,81 @@ export function ProblemSheet({
         )}
       </div>
       <div className="problem-command-strip">
-        <button type="button" disabled={!previousProblem} onClick={() => previousProblem && socket.emit("problem:set", { problemId: previousProblem.id })}>
+        <button type="button" disabled={!previousProblem} onClick={() => previousProblem && socket.emit("problem:set", { problemId: previousProblem.id })} aria-label="이전 문제">
           <ChevronLeft size={18} />
-          이전 문제
         </button>
-        <strong>{currentProblem.number}/{room.exam.problemCount}</strong>
-        <button type="button" disabled={!nextProblem} onClick={() => nextProblem && socket.emit("problem:set", { problemId: nextProblem.id })}>
-          다음 문제
+        <button
+          type="button"
+          className={answerState !== "unanswered" ? `next-problem-cue ${answerState}` : ""}
+          disabled={!nextProblem}
+          onClick={() => nextProblem && socket.emit("problem:set", { problemId: nextProblem.id })}
+          aria-label="다음 문제"
+        >
           <ChevronRight size={18} />
         </button>
       </div>
-      <AnswerPanel currentProblem={currentProblem} answer={answer} setAnswer={setAnswer} inputLocked={inputLocked} feedback={feedback} submit={submit} />
+      <AnswerPanel
+        currentProblem={currentProblem}
+        answer={answer}
+        setAnswer={setAnswer}
+        inputLocked={inputLocked}
+        submittedAnswer={currentSubmission?.answer ?? null}
+        feedback={feedback}
+        submit={submit}
+      />
       {itemNotice && <div className="item-toast">{itemNotice}</div>}
-      <ProblemNav problems={room.exam.problems} currentProblem={currentProblem} hardLocked={hardLocked} ownPlayer={ownPlayer} room={room} />
+      <div className="problem-picker-toggle-row">
+        <button type="button" className="problem-picker-toggle" aria-expanded={showProblemPicker} onClick={() => setProblemPickerOpen((open) => !open)}>
+          <Grid2X2 size={15} />
+          문제 선택
+        </button>
+      </div>
+      {showProblemPicker && <ProblemNav problems={room.exam.problems} currentProblem={currentProblem} hardLocked={hardLocked} ownPlayer={ownPlayer} room={room} />}
     </div>
+  );
+}
+
+function GradeMark({ state }: { state: Exclude<ProblemAnswerState, "unanswered"> }) {
+  const label = state === "correct" ? "정답" : "오답";
+  const filterId = state === "correct" ? "grade-rough-correct" : "grade-rough-wrong";
+
+  return (
+    <i className={`grade-mark-ink ${state}`} aria-label={label}>
+      <svg viewBox="0 0 180 118" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+        <defs>
+          <filter id={filterId} x="-18%" y="-18%" width="136%" height="136%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.22 0.86" numOctaves="3" seed={state === "correct" ? 8 : 13} result="noise" />
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="2.15" xChannelSelector="R" yChannelSelector="G" />
+          </filter>
+        </defs>
+        {state === "correct" ? (
+          <g>
+            <path
+              className="grade-stroke grade-stroke-base"
+              pathLength={1}
+              d="M27 60 C18 34 44 15 83 13 C126 11 160 30 160 58 C160 88 126 105 82 104 C39 103 16 84 27 60"
+            />
+            <path
+              className="grade-stroke grade-stroke-edge"
+              filter={`url(#${filterId})`}
+              pathLength={1}
+              d="M27 60 C18 34 44 15 83 13 C126 11 160 30 160 58 C160 88 126 105 82 104 C39 103 16 84 27 60"
+            />
+            <path
+              className="grade-stroke grade-stroke-pressure"
+              pathLength={1}
+              d="M31 62 C24 39 48 20 84 18 C123 16 153 31 155 58 C157 85 126 99 84 99 C45 99 25 83 31 62"
+            />
+          </g>
+        ) : (
+          <g>
+            <path className="grade-stroke grade-stroke-base" pathLength={1} d="M18 101 C47 73 88 42 153 14" />
+            <path className="grade-stroke grade-stroke-edge" filter={`url(#${filterId})`} pathLength={1} d="M18 101 C47 73 88 42 153 14" />
+            <path className="grade-stroke grade-stroke-pressure" pathLength={1} d="M27 96 C59 68 94 42 145 20" />
+          </g>
+        )}
+      </svg>
+    </i>
   );
 }
 

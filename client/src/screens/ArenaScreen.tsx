@@ -38,7 +38,7 @@ export function ArenaScreen({ room, ownPlayer, onLeave }: { room: RoomPublic; ow
       setFeedback(awardNames.length > 0 ? `${awardNames.join(", ")} 획득.` : "");
       setItemNotice(awardNames.length > 0 ? `${awardNames.join(" + ")} 지급` : "");
     } else {
-      setFeedback(currentProblem.answerKind === "choice" ? "5지선다는 재시도할 수 없습니다." : "정답 시 오답 페널티 +20분.");
+      setFeedback(currentProblem.answerKind === "choice" ? "" : "정답 시 오답 페널티 +20분.");
     }
     setAnswer("");
   };

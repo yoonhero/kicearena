@@ -19,6 +19,7 @@ type RoomLookup = {
 
 const readInviteCode = () => new URLSearchParams(window.location.search).get("room")?.trim().toUpperCase() ?? "";
 const defaultFreezeForTimeLimit = (timeLimitMin: number) => Math.max(0, Math.min(timeLimitMin, Math.round(timeLimitMin / 2)));
+const REJOIN_CONNECT_TIMEOUT_MS = 2500;
 
 const writeClipboard = async (text: string) => {
   try {
@@ -36,8 +37,36 @@ const writeClipboard = async (text: string) => {
   }
 };
 
+const readSavedRoomSession = (): SavedRoomSession | null => {
+  const raw = window.localStorage.getItem(ROOM_SESSION_KEY);
+  if (!raw) return null;
+  try {
+    const saved = JSON.parse(raw) as SavedRoomSession;
+    return saved?.code && saved.playerId ? saved : null;
+  } catch {
+    return null;
+  }
+};
+
+const waitForSocketConnection = () =>
+  new Promise<boolean>((resolve) => {
+    if (socket.connected) {
+      resolve(true);
+      return;
+    }
+    const timeout = window.setTimeout(() => {
+      socket.off("connect", onConnect);
+      resolve(false);
+    }, REJOIN_CONNECT_TIMEOUT_MS);
+    const onConnect = () => {
+      window.clearTimeout(timeout);
+      resolve(true);
+    };
+    socket.once("connect", onConnect);
+  });
+
 export function App() {
-  const inviteCode = useMemo(readInviteCode, []);
+  const [inviteCode, setInviteCode] = useState(readInviteCode);
   const [exams, setExams] = useState<ExamSummary[]>([]);
   const [selectedExamId, setSelectedExamId] = useState("");
   const [timeLimitMin, setTimeLimitMin] = useState(100);
@@ -97,30 +126,25 @@ export function App() {
     const tryRejoin = async () => {
       if (rejoinAttempted.current) return;
       rejoinAttempted.current = true;
-      const raw = window.localStorage.getItem(ROOM_SESSION_KEY);
-      const lookupCode = inviteCode || roomCode;
+      let saved = readSavedRoomSession();
+      if (saved && inviteCode && saved.code !== inviteCode) {
+        window.localStorage.removeItem(ROOM_SESSION_KEY);
+        saved = null;
+      }
+      const lookupCode = inviteCode || saved?.code || "";
       try {
         if (lookupCode) {
           const lookup = await lookupRoom(lookupCode);
           if (!lookup.exists) {
             if (inviteCode) setError("초대된 방이 이미 닫혔습니다.");
-            if (raw) window.localStorage.removeItem(ROOM_SESSION_KEY);
+            if (saved) window.localStorage.removeItem(ROOM_SESSION_KEY);
             return;
           }
         }
-        if (!raw) return;
-        let saved: SavedRoomSession | null = null;
-        try {
-          saved = JSON.parse(raw) as SavedRoomSession;
-        } catch {
-          window.localStorage.removeItem(ROOM_SESSION_KEY);
-          return;
-        }
-        if (!saved?.code || !saved.playerId) {
-          return;
-        }
-        if (inviteCode && saved.code !== inviteCode) {
-          window.localStorage.removeItem(ROOM_SESSION_KEY);
+        if (!saved) return;
+        const connected = await waitForSocketConnection();
+        if (!connected) {
+          setError("이전 방을 확인했지만 서버 연결이 지연되고 있습니다.");
           return;
         }
         const response = await emitWithAck<RoomPublic>("room:rejoin", saved);
@@ -143,7 +167,7 @@ export function App() {
       socket.off("room:closed", onRoomRemoved);
       socket.off("connect", tryRejoin);
     };
-  }, [inviteCode, ownPlayerId, resetRoomSession, roomCode]);
+  }, [inviteCode, ownPlayerId, resetRoomSession]);
 
   useEffect(() => {
     if (!room?.code || !ownPlayerId) return;
@@ -206,6 +230,16 @@ export function App() {
     }
   };
 
+  const exitInviteMode = () => {
+    setError("");
+    setJoiningInvite(false);
+    setInviteCode("");
+    setRoomCode("");
+    const url = new URL(window.location.href);
+    url.searchParams.delete("room");
+    window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+  };
+
   const copyCode = async () => {
     if (!room) return;
     await writeClipboard(room.code);
@@ -253,6 +287,7 @@ export function App() {
           inviteMode={isInviteMode}
           inviteRoomCode={inviteCode}
           joiningInvite={joiningInvite}
+          exitInviteMode={exitInviteMode}
           error={error}
         />
       )}
