@@ -32,8 +32,9 @@ docker compose up -d
 ```
 
 That starts the app, Prometheus, Alertmanager, the Discord alert bridge, and
-Grafana. The bundled `prometheus.yml` already loads the scrape job,
-Alertmanager target, and rule file:
+Grafana. It also starts Prometheus exporters for Postgres and Redis. The
+bundled `prometheus.yml` already loads the scrape jobs, Alertmanager target,
+and rule file:
 
 ```yaml
 alerting:
@@ -47,7 +48,7 @@ rule_files:
 
 For an existing external Prometheus instead of the bundled compose service,
 merge `prometheus-scrape.yml` into the existing Prometheus server config,
-replace the placeholder target with the private app host and port, copy
+replace the placeholder targets with the private app/exporter hosts and ports, copy
 `rules/kice-arena-prometheus-rules.yml` into the Prometheus rules directory, add
 it to `rule_files`, then reload Prometheus.
 
@@ -60,11 +61,14 @@ dashboards automatically:
 Default local ports:
 
 - App: `http://127.0.0.1:3001`
+- Postgres exporter: `http://127.0.0.1:9187/metrics`
+- Redis exporter: `http://127.0.0.1:9121/metrics`
 - Prometheus: `http://127.0.0.1:9090`
 - Alertmanager: `http://127.0.0.1:9093`
 - Grafana: `http://127.0.0.1:3000`
 
 Override them with `HOST_PORT`, `PROMETHEUS_HOST_PORT`,
+`POSTGRES_EXPORTER_HOST_PORT`, `REDIS_EXPORTER_HOST_PORT`,
 `ALERTMANAGER_HOST_PORT`, and `GRAFANA_HOST_PORT`.
 
 Useful custom metrics:
@@ -95,6 +99,18 @@ Useful custom metrics:
 - `kice_arena_room_expiry_overdue_seconds{stat="avg|max"}`
 - `kice_arena_room_disconnect_risk_score`
 - `kice_arena_room_cleanup_pressure_score`
+
+Useful dependency exporter metrics:
+
+- `pg_up`: Postgres exporter can connect to Postgres
+- `pg_exporter_last_scrape_error`: Postgres exporter scrape failure flag
+- `pg_stat_activity_count`: Postgres connection count by state
+- `pg_database_size_bytes`: Postgres database size
+- `redis_up`: Redis exporter can connect to Redis
+- `redis_connected_clients`
+- `redis_memory_used_bytes`
+- `redis_evicted_keys_total`
+- `redis_rejected_connections_total`
 
 The bundled Alertmanager config sends alerts to the internal Discord bridge.
 The bridge returns success without sending anything when `DISCORD_WEBHOOK_URL`

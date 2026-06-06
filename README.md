@@ -31,6 +31,10 @@ DATABASE_URL=postgresql://kice_arena:kice_arena@127.0.0.1:5432/kice_arena npm ru
 
 `npm run db:seed`는 로컬 `server/exams/*/manifest.json`과 SVG/PNG/JPEG/WebP 문제 asset을 Postgres에 저장한다. 서버 런타임은 `DATABASE_URL`을 필수로 요구하며, 시험 문제와 diagram SVG는 DB에서만 읽는다. Docker Compose 배포는 `kice-arena-seed` 일회성 컨테이너로 카탈로그를 동기화한 뒤 앱을 시작한다. DB 통합 테스트는 `KICE_DB_TEST_URL=postgresql://kice_arena:kice_arena@127.0.0.1:5432/kice_arena npm test`로 실행한다.
 
+Room/gate runtime state는 Postgres `room_states`에 스냅샷으로 저장된다. 같은 room code의 상태 변경은 Postgres advisory transaction lock으로 직렬화하고, `REDIS_URL`이 설정되면 Socket.IO Redis adapter가 켜져 여러 app container의 room broadcast가 공유된다. Compose 기본 배포는 내부 `redis://redis:6379`를 사용한다.
+
+Bundled monitoring includes Prometheus exporters for Postgres and Redis. Prometheus scrapes `postgres-exporter:9187` and `redis-exporter:9121` inside Compose, while the exporter ports are bound to localhost for host-local inspection or an external Prometheus.
+
 ## GitHub Deploy Configuration
 
 `Deploy Home Server` 워크플로는 GitHub environment/repository Variables와 Secrets를 원격 서버의 `.env` 및 metrics secret 파일로 쓴 뒤 `docker compose up -d`를 실행한다. 운영 첫 배포 전에 아래 required 값을 GitHub에서 직접 정한다. 값이 없으면 배포는 실패한다.
@@ -55,15 +59,20 @@ Optional GitHub Variables:
 -   `POSTGRES_DB`: 비우면 `kice_arena`를 사용한다.
 -   `POSTGRES_USER`: 비우면 `kice_arena`를 사용한다.
 -   `POSTGRES_HOST_PORT`
+-   `REDIS_HOST_PORT`
+-   `POSTGRES_EXPORTER_HOST_PORT`
+-   `REDIS_EXPORTER_HOST_PORT`
 -   `PROMETHEUS_HOST_PORT`
 -   `ALERTMANAGER_HOST_PORT`
 -   `GRAFANA_HOST_PORT`
 -   `GRAFANA_ADMIN_USER`
 -   `CORS_ORIGINS`
+-   `REDIS_URL`: 외부 Redis를 쓸 때만 설정. 비우면 Compose 내부 Redis를 사용한다.
 
 Optional GitHub Secrets:
 
 -   `POSTGRES_DB`, `POSTGRES_USER`: Variables 대신 Secrets에 넣은 경우에도 deploy workflow가 읽는다.
+-   `REDIS_URL`: Variables 대신 Secrets에 넣은 경우에도 deploy workflow가 읽는다.
 -   `DATABASE_URL`: 외부 DB를 쓸 때만 설정. 비우면 Compose 내부 Postgres URL을 사용.
 -   `DISCORD_WEBHOOK_URL`
 

@@ -52,11 +52,15 @@ jobs:
                   POSTGRES_DB: ${{ vars.POSTGRES_DB || secrets.POSTGRES_DB || 'kice_arena' }}
                   POSTGRES_USER: ${{ vars.POSTGRES_USER || secrets.POSTGRES_USER || 'kice_arena' }}
                   POSTGRES_HOST_PORT: ${{ vars.POSTGRES_HOST_PORT }}
+                  REDIS_HOST_PORT: ${{ vars.REDIS_HOST_PORT }}
+                  POSTGRES_EXPORTER_HOST_PORT: ${{ vars.POSTGRES_EXPORTER_HOST_PORT }}
+                  REDIS_EXPORTER_HOST_PORT: ${{ vars.REDIS_EXPORTER_HOST_PORT }}
                   PROMETHEUS_HOST_PORT: ${{ vars.PROMETHEUS_HOST_PORT }}
                   ALERTMANAGER_HOST_PORT: ${{ vars.ALERTMANAGER_HOST_PORT }}
                   GRAFANA_HOST_PORT: ${{ vars.GRAFANA_HOST_PORT }}
                   GRAFANA_ADMIN_USER: ${{ vars.GRAFANA_ADMIN_USER }}
                   CORS_ORIGINS: ${{ vars.CORS_ORIGINS }}
+                  REDIS_URL: ${{ vars.REDIS_URL || secrets.REDIS_URL }}
                   DATABASE_URL: ${{ secrets.DATABASE_URL }}
                   POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
                   ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
@@ -115,7 +119,11 @@ jobs:
                   add_env POSTGRES_USER "${POSTGRES_USER:-}"
                   add_env POSTGRES_PASSWORD "${POSTGRES_PASSWORD:-}"
                   add_env POSTGRES_HOST_PORT "${POSTGRES_HOST_PORT:-}"
+                  add_env REDIS_HOST_PORT "${REDIS_HOST_PORT:-}"
+                  add_env POSTGRES_EXPORTER_HOST_PORT "${POSTGRES_EXPORTER_HOST_PORT:-}"
+                  add_env REDIS_EXPORTER_HOST_PORT "${REDIS_EXPORTER_HOST_PORT:-}"
                   add_env DATABASE_URL "${DATABASE_URL:-}"
+                  add_env REDIS_URL "${REDIS_URL:-}"
                   add_env ADMIN_TOKEN "${ADMIN_TOKEN:-}"
                   add_env CORS_ORIGINS "${CORS_ORIGINS:-}"
                   add_env PROMETHEUS_HOST_PORT "${PROMETHEUS_HOST_PORT:-}"

@@ -17,6 +17,47 @@ services:
       retries: 5
     restart: unless-stopped
 
+  redis:
+    image: redis:7-alpine
+    container_name: kice-arena-redis
+    command: redis-server --appendonly yes
+    ports:
+      - "127.0.0.1:${REDIS_HOST_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  postgres-exporter:
+    image: quay.io/prometheuscommunity/postgres-exporter:latest
+    container_name: kice-arena-postgres-exporter
+    environment:
+      DATA_SOURCE_URI: postgres:5432/${POSTGRES_DB:-kice_arena}?sslmode=disable
+      DATA_SOURCE_USER: ${POSTGRES_USER:-kice_arena}
+      DATA_SOURCE_PASS: ${POSTGRES_PASSWORD:-kice_arena}
+    ports:
+      - "127.0.0.1:${POSTGRES_EXPORTER_HOST_PORT:-9187}:9187"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: kice-arena-redis-exporter
+    environment:
+      REDIS_ADDR: ${REDIS_URL:-redis://redis:6379}
+    ports:
+      - "127.0.0.1:${REDIS_EXPORTER_HOST_PORT:-9121}:9121"
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
   kice-arena:
     image: ghcr.io/yoonhero/kicearena:${TAG:-latest}
     container_name: kice-arena
@@ -24,6 +65,7 @@ services:
       NODE_ENV: production
       PORT: 3001
       DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-kice_arena}:${POSTGRES_PASSWORD:-kice_arena}@postgres:5432/${POSTGRES_DB:-kice_arena}}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       ADMIN_TOKEN: ${ADMIN_TOKEN:-}
       CORS_ORIGINS: ${CORS_ORIGINS:-}
       METRICS_BEARER_TOKEN: ${METRICS_BEARER_TOKEN:-}
@@ -34,6 +76,8 @@ services:
       - kice_arena_metrics_token
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
       kice-arena-seed:
         condition: service_completed_successfully
@@ -81,6 +125,10 @@ services:
     depends_on:
       kice-arena:
         condition: service_healthy
+      postgres-exporter:
+        condition: service_started
+      redis-exporter:
+        condition: service_started
       alertmanager:
         condition: service_started
     restart: unless-stopped
@@ -136,6 +184,7 @@ secrets:
 
 volumes:
   postgres-data:
+  redis-data:
   prometheus-data:
   alertmanager-data:
   grafana-data:

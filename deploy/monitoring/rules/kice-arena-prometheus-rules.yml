@@ -249,3 +249,73 @@ groups:
         annotations:
           summary: "KICE Arena gameplay submissions appear stalled"
           description: "There are playing rooms but no answer submissions for 10 minutes. Check socket delivery, room timers, and client connectivity."
+
+      - alert: KiceArenaPostgresExporterDown
+        expr: up{job="postgres"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: postgres
+        annotations:
+          summary: "KICE Arena Postgres exporter is down"
+          description: "Prometheus cannot scrape postgres-exporter for 2 minutes. Check the exporter container and Compose network."
+
+      - alert: KiceArenaRedisExporterDown
+        expr: up{job="redis"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: redis
+        annotations:
+          summary: "KICE Arena Redis exporter is down"
+          description: "Prometheus cannot scrape redis-exporter for 2 minutes. Check the exporter container and Compose network."
+
+      - alert: KiceArenaPostgresDown
+        expr: pg_up == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: postgres
+        annotations:
+          summary: "KICE Arena Postgres is not reachable"
+          description: "postgres-exporter cannot connect to Postgres for 2 minutes. Check the database container, credentials, and volume state."
+
+      - alert: KiceArenaPostgresScrapeError
+        expr: pg_exporter_last_scrape_error > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: postgres
+        annotations:
+          summary: "KICE Arena Postgres exporter scrape has errors"
+          description: "postgres-exporter reports scrape errors for 5 minutes. Check exporter logs and Postgres permissions."
+
+      - alert: KiceArenaRedisDown
+        expr: redis_up == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: redis
+        annotations:
+          summary: "KICE Arena Redis is not reachable"
+          description: "redis-exporter cannot connect to Redis for 2 minutes. Socket.IO cross-instance broadcasts may be unavailable."
+
+      - alert: KiceArenaRedisRejectedConnections
+        expr: increase(redis_rejected_connections_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: redis
+        annotations:
+          summary: "KICE Arena Redis is rejecting connections"
+          description: "Redis rejected one or more connections in the last 5 minutes. Check maxclients, connection churn, and Redis memory pressure."
+
+      - alert: KiceArenaRedisEvictions
+        expr: increase(redis_evicted_keys_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: redis
+        annotations:
+          summary: "KICE Arena Redis evicted keys"
+          description: "Redis evicted keys in the last 5 minutes. Check maxmemory policy and memory usage before Socket.IO adapter state is affected."

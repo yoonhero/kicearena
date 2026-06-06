@@ -19,3 +19,13 @@ scrape_configs:
     static_configs:
       - targets:
           - kice-arena:3001
+
+  - job_name: postgres
+    static_configs:
+      - targets:
+          - postgres-exporter:9187
+
+  - job_name: redis
+    static_configs:
+      - targets:
+          - redis-exporter:9121
