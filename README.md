@@ -35,11 +35,6 @@ DATABASE_URL=postgresql://kice_arena:kice_arena@127.0.0.1:5432/kice_arena npm ru
 
 `Deploy Home Server` 워크플로는 GitHub environment/repository Variables와 Secrets를 원격 서버의 `.env` 및 metrics secret 파일로 쓴 뒤 `docker compose up -d`를 실행한다. 운영 첫 배포 전에 아래 required 값을 GitHub에서 직접 정한다. 값이 없으면 배포는 실패한다.
 
-Required GitHub Variables:
-
--   `POSTGRES_DB`
--   `POSTGRES_USER`
-
 Required GitHub Secrets:
 
 -   `DEPLOY_HOST`
@@ -57,6 +52,8 @@ Required GitHub Secrets:
 Optional GitHub Variables:
 
 -   `HOST_PORT`
+-   `POSTGRES_DB`: 비우면 `kice_arena`를 사용한다.
+-   `POSTGRES_USER`: 비우면 `kice_arena`를 사용한다.
 -   `POSTGRES_HOST_PORT`
 -   `PROMETHEUS_HOST_PORT`
 -   `ALERTMANAGER_HOST_PORT`
@@ -66,6 +63,7 @@ Optional GitHub Variables:
 
 Optional GitHub Secrets:
 
+-   `POSTGRES_DB`, `POSTGRES_USER`: Variables 대신 Secrets에 넣은 경우에도 deploy workflow가 읽는다.
 -   `DATABASE_URL`: 외부 DB를 쓸 때만 설정. 비우면 Compose 내부 Postgres URL을 사용.
 -   `DISCORD_WEBHOOK_URL`
 

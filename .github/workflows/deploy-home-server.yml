@@ -49,8 +49,8 @@ jobs:
                   DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
                   DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
                   HOST_PORT: ${{ vars.HOST_PORT }}
-                  POSTGRES_DB: ${{ vars.POSTGRES_DB }}
-                  POSTGRES_USER: ${{ vars.POSTGRES_USER }}
+                  POSTGRES_DB: ${{ vars.POSTGRES_DB || secrets.POSTGRES_DB || 'kice_arena' }}
+                  POSTGRES_USER: ${{ vars.POSTGRES_USER || secrets.POSTGRES_USER || 'kice_arena' }}
                   POSTGRES_HOST_PORT: ${{ vars.POSTGRES_HOST_PORT }}
                   PROMETHEUS_HOST_PORT: ${{ vars.PROMETHEUS_HOST_PORT }}
                   ALERTMANAGER_HOST_PORT: ${{ vars.ALERTMANAGER_HOST_PORT }}
@@ -79,8 +79,6 @@ jobs:
                   require_env DEPLOY_HOST "$DEPLOY_HOST"
                   require_env DEPLOY_USER "$DEPLOY_USER"
                   require_env DEPLOY_PATH "$DEPLOY_PATH"
-                  require_env POSTGRES_DB "${POSTGRES_DB:-}"
-                  require_env POSTGRES_USER "${POSTGRES_USER:-}"
                   require_env POSTGRES_PASSWORD "${POSTGRES_PASSWORD:-}"
                   require_env ADMIN_TOKEN "${ADMIN_TOKEN:-}"
                   require_env METRICS_BEARER_TOKEN "${METRICS_BEARER_TOKEN:-}"
