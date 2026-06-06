@@ -38,7 +38,7 @@ describe("exam serialization", () => {
     expect(publicExam.problems[0]).toMatchObject({
       id: "p1",
       pointValue: 3,
-      imageUrl: "/exams/mock-exam/problems/p1.png"
+      imageUrl: "/api/exams/mock-exam/assets/problems/p1.png"
     });
     expect(publicExam.problems[0]).not.toHaveProperty("answer");
   });
@@ -62,7 +62,7 @@ describe("exam serialization", () => {
       imageUrl: undefined,
       body: [
         { kind: "paragraph", text: "{}의 값은?", inlineMath: ["x^2"] },
-        { kind: "diagram", src: "/exams/mock-exam/diagrams/graph.svg", alt: "그래프" }
+        { kind: "diagram", src: "/api/exams/mock-exam/assets/diagrams/graph.svg", alt: "그래프" }
       ]
     });
     expect(publicExam.problems[0]).not.toHaveProperty("answer");

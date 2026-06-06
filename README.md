@@ -21,6 +21,54 @@ npm run build
 npm test
 ```
 
+문제 카탈로그 DB:
+
+```bash
+docker compose up -d postgres
+DATABASE_URL=postgresql://kice_arena:kice_arena@127.0.0.1:5432/kice_arena npm run db:seed
+DATABASE_URL=postgresql://kice_arena:kice_arena@127.0.0.1:5432/kice_arena npm run dev:server
+```
+
+`npm run db:seed`는 로컬 `server/exams/*/manifest.json`과 SVG/PNG/JPEG/WebP 문제 asset을 Postgres에 저장한다. 서버 런타임은 `DATABASE_URL`을 필수로 요구하며, 시험 문제와 diagram SVG는 DB에서만 읽는다. Docker Compose 배포는 `kice-arena-seed` 일회성 컨테이너로 카탈로그를 동기화한 뒤 앱을 시작한다. DB 통합 테스트는 `KICE_DB_TEST_URL=postgresql://kice_arena:kice_arena@127.0.0.1:5432/kice_arena npm test`로 실행한다.
+
+## GitHub Deploy Configuration
+
+`Deploy Home Server` 워크플로는 GitHub environment/repository Variables와 Secrets를 원격 서버의 `.env` 및 metrics secret 파일로 쓴 뒤 `docker compose up -d`를 실행한다. 운영 첫 배포 전에 아래 required 값을 GitHub에서 직접 정한다. 값이 없으면 배포는 실패한다.
+
+Required GitHub Variables:
+
+-   `POSTGRES_DB`
+-   `POSTGRES_USER`
+
+Required GitHub Secrets:
+
+-   `DEPLOY_HOST`
+-   `DEPLOY_USER`
+-   `DEPLOY_PATH`
+-   `DEPLOY_SSH_KEY`
+-   `DEPLOY_KNOWN_HOSTS`
+-   `POSTGRES_PASSWORD`
+-   `ADMIN_TOKEN`
+-   `METRICS_BEARER_TOKEN`
+-   `GRAFANA_ADMIN_PASSWORD`
+
+`POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`는 Postgres volume 최초 초기화 때 적용된다. 운영 서버에서 이미 `postgres-data` volume이 만들어진 뒤 값을 바꾸려면 DB 마이그레이션 또는 volume 재생성이 필요하다.
+
+Optional GitHub Variables:
+
+-   `HOST_PORT`
+-   `POSTGRES_HOST_PORT`
+-   `PROMETHEUS_HOST_PORT`
+-   `ALERTMANAGER_HOST_PORT`
+-   `GRAFANA_HOST_PORT`
+-   `GRAFANA_ADMIN_USER`
+-   `CORS_ORIGINS`
+
+Optional GitHub Secrets:
+
+-   `DATABASE_URL`: 외부 DB를 쓸 때만 설정. 비우면 Compose 내부 Postgres URL을 사용.
+-   `DISCORD_WEBHOOK_URL`
+
 테스트 위치 규칙:
 
 -   단위 테스트는 대상 파일과 같은 디렉토리에 둔다. 예: `server/scoring.ts` -> `server/scoring.test.ts`.

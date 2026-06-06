@@ -48,13 +48,43 @@ jobs:
                   DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
                   DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
                   DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+                  HOST_PORT: ${{ vars.HOST_PORT }}
+                  POSTGRES_DB: ${{ vars.POSTGRES_DB }}
+                  POSTGRES_USER: ${{ vars.POSTGRES_USER }}
+                  POSTGRES_HOST_PORT: ${{ vars.POSTGRES_HOST_PORT }}
+                  PROMETHEUS_HOST_PORT: ${{ vars.PROMETHEUS_HOST_PORT }}
+                  ALERTMANAGER_HOST_PORT: ${{ vars.ALERTMANAGER_HOST_PORT }}
+                  GRAFANA_HOST_PORT: ${{ vars.GRAFANA_HOST_PORT }}
+                  GRAFANA_ADMIN_USER: ${{ vars.GRAFANA_ADMIN_USER }}
+                  CORS_ORIGINS: ${{ vars.CORS_ORIGINS }}
+                  DATABASE_URL: ${{ secrets.DATABASE_URL }}
+                  POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+                  ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+                  METRICS_BEARER_TOKEN: ${{ secrets.METRICS_BEARER_TOKEN }}
+                  GRAFANA_ADMIN_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
+                  DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
                   TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || 'latest' }}
                   BRANCH: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || github.event.workflow_run.head_branch }}
               run: |
                   set -euo pipefail
-                  test -n "$DEPLOY_HOST"
-                  test -n "$DEPLOY_USER"
-                  test -n "$DEPLOY_PATH"
+                  require_env() {
+                    local key="$1"
+                    local value="$2"
+                    if [ -z "$value" ]; then
+                      echo "Missing required GitHub deploy setting: $key" >&2
+                      exit 1
+                    fi
+                  }
+
+                  require_env DEPLOY_HOST "$DEPLOY_HOST"
+                  require_env DEPLOY_USER "$DEPLOY_USER"
+                  require_env DEPLOY_PATH "$DEPLOY_PATH"
+                  require_env POSTGRES_DB "${POSTGRES_DB:-}"
+                  require_env POSTGRES_USER "${POSTGRES_USER:-}"
+                  require_env POSTGRES_PASSWORD "${POSTGRES_PASSWORD:-}"
+                  require_env ADMIN_TOKEN "${ADMIN_TOKEN:-}"
+                  require_env METRICS_BEARER_TOKEN "${METRICS_BEARER_TOKEN:-}"
+                  require_env GRAFANA_ADMIN_PASSWORD "${GRAFANA_ADMIN_PASSWORD:-}"
 
                   case "$TAG" in
                     *[!A-Za-z0-9._-]* | "") echo "Invalid image tag: $TAG" >&2; exit 1 ;;
@@ -68,6 +98,39 @@ jobs:
                   Q_BRANCH=$(printf '%q' "$BRANCH")
                   Q_TAG=$(printf '%q' "$TAG")
 
+                  ENV_FILE="$(mktemp)"
+                  METRICS_TOKEN_FILE="$(mktemp)"
+                  add_env() {
+                    local key="$1"
+                    local value="$2"
+                    if [ -n "$value" ]; then
+                      value="${value//\\/\\\\}"
+                      value="${value//\"/\\\"}"
+                      value="${value//\$/\\\$}"
+                      value="${value//\`/\\\`}"
+                      printf '%s="%s"\n' "$key" "$value" >> "$ENV_FILE"
+                    fi
+                  }
+
+                  add_env HOST_PORT "${HOST_PORT:-}"
+                  add_env POSTGRES_DB "${POSTGRES_DB:-}"
+                  add_env POSTGRES_USER "${POSTGRES_USER:-}"
+                  add_env POSTGRES_PASSWORD "${POSTGRES_PASSWORD:-}"
+                  add_env POSTGRES_HOST_PORT "${POSTGRES_HOST_PORT:-}"
+                  add_env DATABASE_URL "${DATABASE_URL:-}"
+                  add_env ADMIN_TOKEN "${ADMIN_TOKEN:-}"
+                  add_env CORS_ORIGINS "${CORS_ORIGINS:-}"
+                  add_env PROMETHEUS_HOST_PORT "${PROMETHEUS_HOST_PORT:-}"
+                  add_env ALERTMANAGER_HOST_PORT "${ALERTMANAGER_HOST_PORT:-}"
+                  add_env GRAFANA_HOST_PORT "${GRAFANA_HOST_PORT:-}"
+                  add_env GRAFANA_ADMIN_USER "${GRAFANA_ADMIN_USER:-}"
+                  add_env GRAFANA_ADMIN_PASSWORD "${GRAFANA_ADMIN_PASSWORD:-}"
+                  add_env DISCORD_WEBHOOK_URL "${DISCORD_WEBHOOK_URL:-}"
+                  if [ -n "${METRICS_BEARER_TOKEN:-}" ]; then
+                    add_env METRICS_TOKEN_FILE ./secrets/kice-arena-metrics-token
+                    printf '%s' "$METRICS_BEARER_TOKEN" > "$METRICS_TOKEN_FILE"
+                  fi
+
                   ssh \
                     -i ~/.ssh/deploy_key \
                     -p 222 \
@@ -76,7 +139,29 @@ jobs:
                     -o PasswordAuthentication=no \
                     -o StrictHostKeyChecking=yes \
                     "$DEPLOY_USER@$DEPLOY_HOST" \
-                    "bash -s -- $Q_DEPLOY_PATH $Q_BRANCH $Q_TAG" <<'REMOTE'
+                    "cat > $Q_DEPLOY_PATH/.env" < "$ENV_FILE"
+
+                  if [ -n "${METRICS_BEARER_TOKEN:-}" ]; then
+                    ssh \
+                      -i ~/.ssh/deploy_key \
+                      -p 222 \
+                      -o IdentitiesOnly=yes \
+                      -o PreferredAuthentications=publickey \
+                      -o PasswordAuthentication=no \
+                      -o StrictHostKeyChecking=yes \
+                      "$DEPLOY_USER@$DEPLOY_HOST" \
+                      "mkdir -p $Q_DEPLOY_PATH/secrets && cat > $Q_DEPLOY_PATH/secrets/kice-arena-metrics-token && chmod 600 $Q_DEPLOY_PATH/secrets/kice-arena-metrics-token" < "$METRICS_TOKEN_FILE"
+                  fi
+
+                  ssh \
+                      -i ~/.ssh/deploy_key \
+                      -p 222 \
+                      -o IdentitiesOnly=yes \
+                      -o PreferredAuthentications=publickey \
+                      -o PasswordAuthentication=no \
+                      -o StrictHostKeyChecking=yes \
+                      "$DEPLOY_USER@$DEPLOY_HOST" \
+                      "bash -s -- $Q_DEPLOY_PATH $Q_BRANCH $Q_TAG" <<'REMOTE'
                   set -euo pipefail
 
                   DEPLOY_PATH="$1"

@@ -3,7 +3,7 @@ import path from "node:path";
 import type { ExamManifest, ExamPublic, ExamSummary } from "../shared/game.js";
 import { getProblemPointValue } from "../shared/game.js";
 
-const ACTIVE_EXAM_IDS = new Set(["preliminary-day"]);
+export const ACTIVE_EXAM_IDS = new Set(["preliminary-day"]);
 
 export const readExams = (examsDir: string): ExamManifest[] => {
   if (!fs.existsSync(examsDir)) return [];
@@ -34,7 +34,9 @@ export const toExamSummary = (exam: ExamManifest): ExamSummary => ({
   problemCount: exam.problems.length
 });
 
-export const toExamPublic = (exam: ExamManifest): ExamPublic => ({
+const defaultAssetUrl = (examId: string, assetPath: string) => `/api/exams/${encodeURIComponent(examId)}/assets/${assetPath.split("/").map(encodeURIComponent).join("/")}`;
+
+export const toExamPublic = (exam: ExamManifest, assetUrl = defaultAssetUrl): ExamPublic => ({
   ...toExamSummary(exam),
   captureSummary: exam.captureSummary,
   problems: exam.problems.map((problem) => ({
@@ -44,8 +46,8 @@ export const toExamPublic = (exam: ExamManifest): ExamPublic => ({
     answerKind: problem.answerKind,
     difficulty: problem.difficulty,
     pointValue: getProblemPointValue(problem),
-    imageUrl: problem.image ? `/exams/${exam.id}/problems/${problem.image}` : undefined,
-    body: problem.body?.map((block) => (block.kind === "diagram" ? { ...block, src: `/exams/${exam.id}/${block.src}` } : block)),
+    imageUrl: problem.image ? assetUrl(exam.id, `problems/${problem.image}`) : undefined,
+    body: problem.body?.map((block) => (block.kind === "diagram" ? { ...block, src: assetUrl(exam.id, block.src) } : block)),
     text: problem.text,
     sourceNumber: problem.sourceNumber,
     sourcePage: problem.sourcePage,

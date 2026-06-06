@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ITEM_DEFINITIONS, type ItemAward, type ItemDefinition, type ItemId, type PlayerPublic, type RoomPublic } from "../../../shared/game";
 import { useCountdown } from "../hooks/useCountdown";
+import { isEditableShortcutTarget } from "../lib/keyboard";
 import { emitWithAck } from "../lib/socket";
 import { ArenaTopbar } from "../components/arena/ArenaTopbar";
 import { ProblemSheet } from "../components/arena/ProblemSheet";
@@ -20,6 +21,7 @@ export function ArenaScreen({ room, ownPlayer, onLeave }: { room: RoomPublic; ow
   const covered = hasEffect("cover") || hasEffect("blur");
   const problemRotated = hasEffect("rotateProblem");
   const solvedCount = ownPlayer.scoreBreakdown.solved;
+  const currentSubmission = ownPlayer.submissions.find((submission) => submission.problemId === currentProblem.id);
 
   const submit = async (selectedAnswer = answer) => {
     setFeedback("");
@@ -42,6 +44,58 @@ export function ArenaScreen({ room, ownPlayer, onLeave }: { room: RoomPublic; ow
     }
     setAnswer("");
   };
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey || event.isComposing || isEditableShortcutTarget(event.target)) return;
+
+      const shortcutKey = event.key.toLowerCase();
+      if (shortcutKey === "r") {
+        event.preventDefault();
+        setView((current) => (current === "rankings" ? "problem" : "rankings"));
+        return;
+      }
+      if (shortcutKey === "escape" && view === "rankings") {
+        event.preventDefault();
+        setView("problem");
+        return;
+      }
+      if (view !== "problem" || selectedItem || inputLocked) return;
+
+      if (currentProblem.answerKind === "choice") {
+        const choiceCount = currentProblem.body?.find((block) => block.kind === "choices")?.choices.length ?? 5;
+        const chosenByNumber = /^[1-9]$/.test(event.key) ? Number(event.key) : 0;
+        if (chosenByNumber >= 1 && chosenByNumber <= choiceCount && !currentSubmission) {
+          event.preventDefault();
+          setAnswer(event.key);
+          return;
+        }
+        if (event.key === "Enter" && answer && !currentSubmission && !event.repeat) {
+          event.preventDefault();
+          void submit(answer);
+        }
+        return;
+      }
+
+      if (/^\d$/.test(event.key)) {
+        event.preventDefault();
+        setAnswer((current) => `${current}${event.key}`);
+        return;
+      }
+      if (event.key === "Backspace" && answer) {
+        event.preventDefault();
+        setAnswer((current) => current.slice(0, -1));
+        return;
+      }
+      if (event.key === "Enter" && answer.trim() && !event.repeat) {
+        event.preventDefault();
+        void submit(answer);
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [answer, currentProblem, currentSubmission, inputLocked, selectedItem, submit, view]);
 
   const useItem = async (itemId: ItemId, targetPlayerId: string) => {
     const target = room.players.find((player) => player.id === targetPlayerId);

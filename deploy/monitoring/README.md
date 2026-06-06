@@ -117,6 +117,10 @@ DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
 docker compose up -d
 ```
 
+When deploying through GitHub Actions, set `DISCORD_WEBHOOK_URL` as a
+GitHub secret instead of editing `.env` by hand. The deploy workflow writes the
+remote `.env` file before running Docker Compose.
+
 Optional Alertmanager webhook example:
 
 - `../alertmanager/kice-arena-alertmanager-hook.example.yml`

@@ -12,18 +12,22 @@ import {
   ITEM_DEFINITIONS,
   type ItemAward,
   type ItemId,
+  type ExamManifest,
+  type ProblemBodyBlock,
   type ProblemManifest,
   type RoomPublic,
   ROOM_GUARDRAILS,
   type ServerResponse,
   WRONG_ANSWER_PENALTY_MS,
+  isProblemBody,
   normalizeAnswer
 } from "../shared/game.js";
 import { sanitizeNickname } from "../shared/nickname.js";
 import { makeScoreboardRevealState } from "../shared/reveal.js";
 import { getRoomLeaveAction, shouldCloseRoomForNoConnectedPlayers, validateLobbyKick, validateRoomJoin } from "../shared/roomLifecycle.js";
 import { runtimeMetricSamples, summarizeRoomMetrics } from "../shared/runtimeMetrics.js";
-import { isExamReleased, readExams, toExamPublic, toExamSummary } from "./exams.js";
+import { createExamCatalogPool, createExamInDatabase, createProblemInDatabase, migrateExamCatalog, readAdminExamsFromDatabase, readExamAssetFromDatabase, readExamsFromDatabase, saveExamAssetInDatabase, updateExamSettingsInDatabase, updateProblemInDatabase } from "./examDatabase.js";
+import { isExamReleased, toExamPublic, toExamSummary } from "./exams.js";
 import { activeEffectForItem, cleanupEffects, findAdviceNoteProblem, maybeAwardItems, randomWeakDebuff, validateItemTarget } from "./items.js";
 import { shouldRateLimit as shouldRateLimitEvent } from "./rateLimit.js";
 import { derivePlayerScoreState, formatPenaltyMinutes, makeStandings, normalizeSubmissionPenalty, scoreForAccepted } from "./scoring.js";
@@ -31,7 +35,6 @@ import type { PlayerState, RoomState } from "./types.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..");
-const examsDir = path.join(__dirname, "exams");
 const port = Number(process.env.PORT ?? 3001);
 const readMetricsBearerToken = () => {
   const inlineToken = process.env.METRICS_BEARER_TOKEN?.trim();
@@ -48,6 +51,7 @@ const readMetricsBearerToken = () => {
   }
 };
 const metricsBearerToken = readMetricsBearerToken();
+const adminToken = process.env.ADMIN_TOKEN?.trim() ?? "";
 const allowedOrigins = (process.env.CORS_ORIGINS ?? "")
   .split(",")
   .map((origin) => origin.trim())
@@ -104,6 +108,11 @@ const hasValidMetricsBearerToken = (authorization: string | undefined) => {
   const expected = Buffer.from(metricsBearerToken);
   const supplied = Buffer.from(suppliedToken);
   return expected.length === supplied.length && crypto.timingSafeEqual(expected, supplied);
+};
+
+const hasAdminAccess = (req: express.Request) => {
+  if (adminToken) return req.get("x-admin-token")?.trim() === adminToken;
+  return process.env.NODE_ENV !== "production" && isPrivateNetworkAddress(req.socket.remoteAddress);
 };
 
 collectDefaultMetrics({
@@ -327,8 +336,21 @@ const RATE_LIMIT_MS = {
   revealNext: 250
 } as const;
 
-const exams = readExams(examsDir);
-const examById = new Map(exams.map((exam) => [exam.id, exam]));
+let exams: ExamManifest[] = [];
+let examById = new Map<string, ExamManifest>();
+let examCatalogPool: ReturnType<typeof createExamCatalogPool> | null = null;
+
+const refreshExamCatalog = async () => {
+  const databaseUrl = process.env.DATABASE_URL?.trim();
+  if (!databaseUrl) {
+    throw new Error("DATABASE_URL is required. Seed the exam catalog with `npm run db:seed` before starting the server.");
+  }
+
+  examCatalogPool = createExamCatalogPool(databaseUrl);
+  await migrateExamCatalog(examCatalogPool);
+  exams = await readExamsFromDatabase(examCatalogPool);
+  examById = new Map(exams.map((exam) => [exam.id, exam]));
+};
 
 const getProblem = (room: RoomState, problemId: string): ProblemManifest | undefined =>
   room.exam.problems.find((problem) => problem.id === problemId);
@@ -358,6 +380,27 @@ const readPositiveSeconds = (value: unknown, fallback: number, min: number, max:
 };
 
 const readString = (value: unknown, maxLength: number) => (typeof value === "string" ? value.trim().slice(0, maxLength) : "");
+const sanitizeAssetFileName = (value: string) => {
+  const safeName = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 96);
+  const withExtension = safeName.endsWith(".svg") ? safeName : `${safeName || "asset"}.svg`;
+  return withExtension.replace(/\.{2,}/g, ".");
+};
+const assetUrlPath = (assetPath: string) => assetPath.split("/").map((part) => encodeURIComponent(part)).join("/");
+const makeUploadedSvgPath = (fileName: string) => `diagrams/${Date.now()}-${crypto.randomUUID().slice(0, 8)}-${sanitizeAssetFileName(fileName)}`;
+const isLikelySafeSvg = (body: Buffer) => {
+  const text = body.toString("utf8");
+  return /<svg[\s>]/i.test(text) && !/<script[\s>]/i.test(text) && !/\son[a-z]+\s*=/i.test(text) && !/javascript:/i.test(text);
+};
+const readOptionalBodyBlocks = (value: unknown): ProblemBodyBlock[] | null | undefined => {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  return isProblemBody(value) ? value : undefined;
+};
 
 const activeRoomCount = () => [...rooms.values()].filter((room) => room.status !== "finished").length;
 
@@ -518,19 +561,34 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use("/exams/:examId", (req, res, next) => {
+app.use(express.json({ limit: "256kb" }));
+
+app.get("/api/exams/:examId/assets/*assetPath", async (req, res) => {
+  if (!examCatalogPool) {
+    res.sendStatus(503);
+    return;
+  }
+
   const exam = examById.get(readString(req.params.examId, 80));
-  if (exam && !isExamReleased(exam)) {
+  const assetPath = readString((req.params as { assetPath?: string[] }).assetPath?.join("/") ?? "", 240);
+  if (!exam || !isExamReleased(exam) || !assetPath || assetPath.includes("..")) {
     res.sendStatus(404);
     return;
   }
-  next();
+
+  const asset = await readExamAssetFromDatabase(examCatalogPool, exam.id, assetPath);
+  if (!asset) {
+    res.sendStatus(404);
+    return;
+  }
+
+  res.set("Content-Type", asset.contentType);
+  res.set("Cache-Control", "public, max-age=31536000, immutable");
+  res.send(asset.body);
 });
 
-app.use("/exams", express.static(examsDir));
-
 app.get("/api/health", (_req, res) => {
-  res.json({ ok: true, exams: exams.length });
+  res.json({ ok: true, exams: exams.length, problemStorage: "postgres" });
 });
 
 app.get("/metrics", async (req, res) => {
@@ -556,6 +614,255 @@ app.get("/metrics", async (req, res) => {
 
 app.get("/api/exams", (_req, res) => {
   res.json(exams.filter((exam) => isExamReleased(exam)).map(toExamSummary));
+});
+
+app.get("/api/admin/exams", async (req, res) => {
+  if (!hasAdminAccess(req)) {
+    res.sendStatus(adminToken ? 401 : 403);
+    return;
+  }
+  if (!examCatalogPool) {
+    res.sendStatus(503);
+    return;
+  }
+
+  res.json(await readAdminExamsFromDatabase(examCatalogPool));
+});
+
+app.get("/api/admin/exams/:examId/assets/*assetPath", async (req, res) => {
+  if (!hasAdminAccess(req)) {
+    res.sendStatus(adminToken ? 401 : 403);
+    return;
+  }
+  if (!examCatalogPool) {
+    res.sendStatus(503);
+    return;
+  }
+
+  const examId = readString(req.params.examId, 80);
+  const assetPath = readString((req.params as { assetPath?: string[] }).assetPath?.join("/") ?? "", 240);
+  if (!examId || !assetPath || assetPath.includes("..")) {
+    res.sendStatus(404);
+    return;
+  }
+
+  const asset = await readExamAssetFromDatabase(examCatalogPool, examId, assetPath, false);
+  if (!asset) {
+    res.sendStatus(404);
+    return;
+  }
+
+  res.set("Content-Type", asset.contentType);
+  res.set("Cache-Control", "no-store");
+  res.send(asset.body);
+});
+
+app.post(
+  "/api/admin/exams/:examId/assets",
+  express.raw({ type: ["image/svg+xml", "application/octet-stream"], limit: "1mb" }),
+  async (req, res) => {
+    if (!hasAdminAccess(req)) {
+      res.sendStatus(adminToken ? 401 : 403);
+      return;
+    }
+    if (!examCatalogPool) {
+      res.sendStatus(503);
+      return;
+    }
+
+    const examId = readString(req.params.examId, 80);
+    const fileName = readString(req.get("x-file-name") ?? "asset.svg", 120);
+    const body = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
+    if (!examId || body.length === 0 || body.length > 1024 * 1024 || !isLikelySafeSvg(body)) {
+      res.status(400).json({ error: "Invalid SVG asset." });
+      return;
+    }
+
+    const assetPath = makeUploadedSvgPath(fileName);
+    const asset = await saveExamAssetInDatabase(examCatalogPool, {
+      examId,
+      path: assetPath,
+      contentType: "image/svg+xml; charset=utf-8",
+      body
+    });
+    if (!asset) {
+      res.sendStatus(404);
+      return;
+    }
+
+    res.status(201).json({
+      path: asset.path,
+      src: `/api/admin/exams/${encodeURIComponent(examId)}/assets/${assetUrlPath(asset.path)}`
+    });
+  }
+);
+
+app.post("/api/admin/exams", async (req, res) => {
+  if (!hasAdminAccess(req)) {
+    res.sendStatus(adminToken ? 401 : 403);
+    return;
+  }
+  if (!examCatalogPool) {
+    res.sendStatus(503);
+    return;
+  }
+
+  const id = readString(req.body?.id, 80);
+  const title = readString(req.body?.title, 120);
+  const subtitle = readString(req.body?.subtitle, 160);
+  const timeLimitSec = Number(req.body?.timeLimitSec);
+  const active = req.body?.active === true;
+
+  if (!/^[a-z0-9][a-z0-9-]{1,78}[a-z0-9]$/.test(id) || !title || !subtitle || !Number.isInteger(timeLimitSec) || timeLimitSec < 60 || timeLimitSec > 24 * 60 * 60) {
+    res.status(400).json({ error: "Invalid exam payload." });
+    return;
+  }
+
+  try {
+    const exam = await createExamInDatabase(examCatalogPool, { id, title, subtitle, timeLimitSec, active });
+    exams = await readExamsFromDatabase(examCatalogPool);
+    examById = new Map(exams.map((candidate) => [candidate.id, candidate]));
+    res.status(201).json(exam);
+  } catch (error) {
+    const code = typeof error === "object" && error && "code" in error ? String((error as { code?: unknown }).code) : "";
+    if (code === "23505") {
+      res.status(409).json({ error: "Exam id already exists." });
+      return;
+    }
+    throw error;
+  }
+});
+
+app.patch("/api/admin/exams/:examId", async (req, res) => {
+  if (!hasAdminAccess(req)) {
+    res.sendStatus(adminToken ? 401 : 403);
+    return;
+  }
+  if (!examCatalogPool) {
+    res.sendStatus(503);
+    return;
+  }
+
+  const examId = readString(req.params.examId, 80);
+  const title = readString(req.body?.title, 120);
+  const subtitle = readString(req.body?.subtitle, 160);
+  const timeLimitSec = Number(req.body?.timeLimitSec);
+  const active = req.body?.active === true;
+  const releaseAtRaw = req.body?.releaseAt;
+  const releaseAt = typeof releaseAtRaw === "string" && releaseAtRaw.trim() ? releaseAtRaw.trim() : null;
+
+  if (!examId || !title || !subtitle || !Number.isInteger(timeLimitSec) || timeLimitSec < 60 || timeLimitSec > 24 * 60 * 60) {
+    res.status(400).json({ error: "Invalid exam settings payload." });
+    return;
+  }
+  if (releaseAt && Number.isNaN(Date.parse(releaseAt))) {
+    res.status(400).json({ error: "Invalid release date." });
+    return;
+  }
+
+  const exam = await updateExamSettingsInDatabase(examCatalogPool, examId, { title, subtitle, timeLimitSec, active, releaseAt });
+  if (!exam) {
+    res.sendStatus(404);
+    return;
+  }
+
+  exams = await readExamsFromDatabase(examCatalogPool);
+  examById = new Map(exams.map((candidate) => [candidate.id, candidate]));
+  const refreshed = (await readAdminExamsFromDatabase(examCatalogPool)).find((candidate) => candidate.id === exam.id) ?? exam;
+  res.json(refreshed);
+});
+
+app.post("/api/admin/exams/:examId/problems", async (req, res) => {
+  if (!hasAdminAccess(req)) {
+    res.sendStatus(adminToken ? 401 : 403);
+    return;
+  }
+  if (!examCatalogPool) {
+    res.sendStatus(503);
+    return;
+  }
+
+  const examId = readString(req.params.examId, 80);
+  const title = readString(req.body?.title, 120) || "새 문항";
+  const answerKind = req.body?.answerKind === "choice" ? "choice" : "short";
+  const answer = readString(req.body?.answer, 40) || "1";
+  const difficulty = Number(req.body?.difficulty ?? 1);
+  const pointValueRaw = req.body?.pointValue;
+  const pointValue = pointValueRaw === null || pointValueRaw === "" || pointValueRaw === undefined ? null : Number(pointValueRaw);
+  const body = req.body?.body === undefined ? ([{ kind: "paragraph", text: "" }] as ProblemBodyBlock[]) : readOptionalBodyBlocks(req.body?.body);
+
+  if (!examId || !Number.isInteger(difficulty) || difficulty < 1 || difficulty > 5 || body === undefined) {
+    res.status(400).json({ error: "Invalid problem payload." });
+    return;
+  }
+  if (pointValue !== null && (!Number.isInteger(pointValue) || pointValue < 1 || pointValue > 100)) {
+    res.status(400).json({ error: "Invalid point value." });
+    return;
+  }
+
+  const problem = await createProblemInDatabase(examCatalogPool, examId, {
+    title,
+    answerKind,
+    answer,
+    difficulty: difficulty as ProblemManifest["difficulty"],
+    pointValue,
+    body
+  });
+  if (!problem) {
+    res.sendStatus(404);
+    return;
+  }
+
+  exams = await readExamsFromDatabase(examCatalogPool);
+  examById = new Map(exams.map((candidate) => [candidate.id, candidate]));
+  res.status(201).json(problem);
+});
+
+app.patch("/api/admin/exams/:examId/problems/:problemId", async (req, res) => {
+  if (!hasAdminAccess(req)) {
+    res.sendStatus(adminToken ? 401 : 403);
+    return;
+  }
+  if (!examCatalogPool) {
+    res.sendStatus(503);
+    return;
+  }
+
+  const examId = readString(req.params.examId, 80);
+  const problemId = readString(req.params.problemId, 80);
+  const title = readString(req.body?.title, 120);
+  const answerKind = req.body?.answerKind === "short" ? "short" : req.body?.answerKind === "choice" ? "choice" : "";
+  const answer = readString(req.body?.answer, 40);
+  const difficulty = Number(req.body?.difficulty);
+  const pointValueRaw = req.body?.pointValue;
+  const pointValue = pointValueRaw === null || pointValueRaw === "" || pointValueRaw === undefined ? null : Number(pointValueRaw);
+  const body = readOptionalBodyBlocks(req.body?.body);
+
+  if (!title || !answerKind || !answer || !Number.isInteger(difficulty) || difficulty < 1 || difficulty > 5 || body === undefined) {
+    res.status(400).json({ error: "Invalid problem payload." });
+    return;
+  }
+  if (pointValue !== null && (!Number.isInteger(pointValue) || pointValue < 1 || pointValue > 100)) {
+    res.status(400).json({ error: "Invalid point value." });
+    return;
+  }
+
+  const problem = await updateProblemInDatabase(examCatalogPool, examId, problemId, {
+    title,
+    answerKind,
+    answer,
+    difficulty: difficulty as ProblemManifest["difficulty"],
+    pointValue,
+    body
+  });
+  if (!problem) {
+    res.sendStatus(404);
+    return;
+  }
+
+  exams = await readExamsFromDatabase(examCatalogPool);
+  examById = new Map(exams.map((exam) => [exam.id, exam]));
+  res.json(problem);
 });
 
 app.get("/api/rooms/:code", (req, res) => {
@@ -1088,6 +1395,26 @@ io.on("connection", (socket) => {
   });
 });
 
-httpServer.listen(port, () => {
-  console.log(`KICE arena server listening on http://localhost:${port}`);
+const startServer = async () => {
+  await refreshExamCatalog();
+  httpServer.listen(port, () => {
+    console.log(`KICE arena server listening on http://localhost:${port}`);
+  });
+};
+
+const shutdown = async () => {
+  await examCatalogPool?.end();
+  process.exit(0);
+};
+
+process.once("SIGINT", () => {
+  void shutdown();
+});
+process.once("SIGTERM", () => {
+  void shutdown();
+});
+
+startServer().catch((error) => {
+  console.error("Unable to start KICE arena server.", error);
+  process.exit(1);
 });
