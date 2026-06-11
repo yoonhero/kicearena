@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 import { ChevronDown, Gamepad2, LogIn, LogOut, SlidersHorizontal } from "lucide-react";
-import { ROOM_GUARDRAILS, type ExamSummary } from "../../../shared/game";
+import { ROOM_GUARDRAILS, type ExamSummary, type RoomMode } from "../../../shared/game";
 import { composeHangulSyllable, composeNickname, createRandomNicknameParts, NICKNAME_FINALS, NICKNAME_INITIALS, NICKNAME_VOWELS, sanitizeNickname, type NicknameJamo } from "../../../shared/nickname";
 import { formatReportDate } from "../lib/format";
 
@@ -19,6 +19,8 @@ export function HomeScreen(props: {
   setTimeLimitMin: (value: number) => void;
   freezeBeforeMin: number;
   setFreezeBeforeMin: (value: number) => void;
+  roomMode: RoomMode;
+  setRoomMode: (mode: RoomMode) => void;
   nickname: string;
   setNickname: (value: string) => void;
   roomCode: string;
@@ -89,7 +91,7 @@ export function HomeScreen(props: {
           </>
         )}
         <div className="omr-entry">
-          <div className="identity-card">
+          <div className="identity-card entry-zone entry-zone-identity">
             <div className="omr-name-maker" aria-label="성명 OMR 입력">
               <div className="omr-maker-head">
                 <strong>성명</strong>
@@ -159,7 +161,7 @@ export function HomeScreen(props: {
           </div>
           {!props.inviteMode && (
             <div className="entry-flow-stack">
-              <div className="exam-choice-list exam-cover-shelf" role="radiogroup" aria-label="문제지 선택">
+              <div className="exam-choice-list exam-cover-shelf entry-zone entry-zone-paper" role="radiogroup" aria-label="문제지 선택">
                 <span>문제지 선택</span>
                 <div className="exam-choice-grid">
                   {props.exams.map((exam) => (
@@ -191,10 +193,22 @@ export function HomeScreen(props: {
                 </button>
               </div>
               {entryMode === "create" ? (
-                <div className={`entry-action-panel creator-panel ${showOptions ? "options-open" : ""}`}>
+                <div className={`entry-action-panel creator-panel entry-zone entry-zone-action ${showOptions ? "options-open" : ""}`}>
                   <div className="entry-panel-title">
                     <span>방 생성</span>
-                    <strong>{selectedExam ? `${selectedExam.problemCount}문항 · ${props.timeLimitMin}분 / 프리즈 ${props.freezeBeforeMin}분` : "시험지를 고른 뒤 시작"}</strong>
+                    <strong>
+                      {selectedExam
+                        ? `${props.roomMode === "contest" ? "콘테스트" : "캐주얼"} · ${selectedExam.problemCount}문항 · ${props.timeLimitMin}분 / 프리즈 ${props.freezeBeforeMin}분`
+                        : "시험지를 고른 뒤 시작"}
+                    </strong>
+                  </div>
+                  <div className="entry-mode-toggle room-mode-toggle" role="tablist" aria-label="방 모드">
+                    <button type="button" className={props.roomMode === "casual" ? "active" : ""} onClick={() => props.setRoomMode("casual")} role="tab" aria-selected={props.roomMode === "casual"}>
+                      캐주얼
+                    </button>
+                    <button type="button" className={props.roomMode === "contest" ? "active" : ""} onClick={() => props.setRoomMode("contest")} role="tab" aria-selected={props.roomMode === "contest"}>
+                      콘테스트 200
+                    </button>
                   </div>
                   <div className="quick-preset-list" role="radiogroup" aria-label="시험 시간 프리셋">
                     <span>시간 / 프리즈</span>
@@ -293,7 +307,7 @@ export function HomeScreen(props: {
                   </button>
                 </div>
               ) : (
-                <div className="entry-action-panel join-panel">
+                <div className="entry-action-panel join-panel entry-zone entry-zone-action">
                   <div className="entry-panel-title">
                     <span>기존 방 입장</span>
                     <strong>방 코드만 입력</strong>

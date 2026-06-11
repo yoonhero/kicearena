@@ -3,8 +3,9 @@ import { performance } from "node:perf_hooks";
 
 const TARGET = process.env.TARGET ?? "https://kice.mmeme.org";
 const EXAM_ID = process.env.EXAM_ID ?? "kice-2026-june-math-geometry";
-const ROOMS = Number(process.env.ROOMS ?? 2);
-const PLAYERS_PER_ROOM = Number(process.env.PLAYERS_PER_ROOM ?? 60);
+const ROOMS = Number(process.env.ROOMS ?? 1);
+const PLAYERS_PER_ROOM = Number(process.env.PLAYERS_PER_ROOM ?? 200);
+const MODE = process.env.MODE ?? "contest";
 const ANSWERS = Number(process.env.ANSWERS ?? 1);
 const ACK_TIMEOUT_MS = Number(process.env.ACK_TIMEOUT_MS ?? 20_000);
 const JOIN_BATCH_SIZE = Number(process.env.JOIN_BATCH_SIZE ?? 120);
@@ -145,7 +146,8 @@ const createRoom = async (roomIndex) => {
     nickname: `h${roomIndex}`.slice(0, 6),
     timeLimitSec: 60,
     freezeBeforeSec: 0,
-    itemEnabled: false
+    itemEnabled: MODE !== "contest",
+    mode: MODE
   });
   client.roomCode = room.code;
   client.problemId = room.exam.problems[0].id;
@@ -174,7 +176,8 @@ const submitAnswer = async (client) => {
   for (let answerIndex = 0; answerIndex < ANSWERS; answerIndex += 1) {
     await emitAck(client, "answer:submit", {
       problemId: client.problemId,
-      answer: "1"
+      answer: "1",
+      idempotencyKey: `${client.label}-${answerIndex}`
     });
   }
 };
@@ -233,6 +236,7 @@ console.log(
       requested: {
         rooms: ROOMS,
         playersPerRoom: PLAYERS_PER_ROOM,
+        mode: MODE,
         totalSockets: ROOMS * PLAYERS_PER_ROOM,
         answersPerPlayer: ANSWERS
       },

@@ -5,7 +5,7 @@ import { afterAll, beforeAll } from "vitest";
 import type { ExamManifest } from "../shared/game.js";
 import type { PlayerState, RoomState } from "./types.js";
 import { migrateExamCatalog, seedExamCatalog } from "./examDatabase.js";
-import { deleteRoomState, deserializeRoomState, migrateRoomState, readRoomState, saveRoomState, serializeRoomState } from "./roomDatabase.js";
+import { deleteRoomState, deserializeRoomState, migrateRoomState, readContestSubmissionByIdempotency, readRoomState, saveContestSubmission, saveRoomState, serializeRoomState } from "./roomDatabase.js";
 
 const exam: ExamManifest = {
   id: "persisted-exam",
@@ -18,6 +18,7 @@ const exam: ExamManifest = {
 const player = (overrides: Partial<PlayerState> = {}): PlayerState => ({
   id: "player",
   socketId: "socket-1",
+  socketToken: "socket-token-1",
   nickname: "민재",
   score: 4,
   penaltyMs: 0,
@@ -39,6 +40,9 @@ const room = (): RoomState => ({
   code: "ABCDE",
   hostId: "player",
   exam,
+  mode: "casual",
+  maxPlayers: 60,
+  version: 3,
   status: "playing",
   timeLimitSec: 600,
   freezeBeforeSec: 60,
@@ -60,6 +64,7 @@ describe("room state persistence", () => {
     expect(serialized.players[0]).toMatchObject({
       id: "player",
       socketId: "",
+      socketToken: "socket-token-1",
       connected: false,
       submissions: [{ problemId: "p1", correct: true }]
     });
@@ -68,6 +73,9 @@ describe("room state persistence", () => {
     expect(restored).toMatchObject({
       code: "ABCDE",
       hostId: "player",
+      mode: "casual",
+      maxPlayers: 60,
+      version: 3,
       status: "playing",
       startedAt: 1000,
       endsAt: 601000
@@ -75,6 +83,7 @@ describe("room state persistence", () => {
     expect(restored.players.get("player")).toMatchObject({
       nickname: "민재",
       socketId: "",
+      socketToken: "socket-token-1",
       connected: false,
       inventory: ["cover"],
       submissions: [{ problemId: "p1", correct: true }]
@@ -116,16 +125,73 @@ describePostgres("postgres room state persistence", () => {
     expect(restored).toMatchObject({
       code: original.code,
       hostId: original.hostId,
+      mode: "casual",
+      maxPlayers: 60,
+      version: 3,
       status: "playing",
       startedAt: original.startedAt
     });
     expect(restored?.players.get("player")).toMatchObject({
       nickname: "민재",
       connected: false,
-      socketId: ""
+      socketId: "",
+      socketToken: "socket-token-1"
     });
 
     await deleteRoomState(pool, original.code);
     await expect(readRoomState(pool, original.code, new Map([[exam.id, exam]]))).resolves.toBeNull();
+  });
+
+  it("assigns ordered contest submission sequences and reuses duplicate idempotency keys", async () => {
+    const original = { ...room(), code: "ORDER", mode: "contest" as const, maxPlayers: 200 };
+    await saveRoomState(pool, original);
+
+    const first = await saveContestSubmission(pool, {
+      id: "submission-1",
+      roomCode: original.code,
+      playerId: "player",
+      problemId: "p1",
+      answer: "1",
+      submittedAt: 1100,
+      correct: true,
+      scoreAwarded: 2,
+      penaltyMs: 60_000,
+      attempts: 1,
+      idempotencyKey: "key-1"
+    });
+    const duplicate = await saveContestSubmission(pool, {
+      id: "submission-duplicate",
+      roomCode: original.code,
+      playerId: "player",
+      problemId: "p1",
+      answer: "1",
+      submittedAt: 1200,
+      correct: false,
+      scoreAwarded: 0,
+      penaltyMs: 0,
+      attempts: 2,
+      idempotencyKey: "key-1"
+    });
+    const second = await saveContestSubmission(pool, {
+      id: "submission-2",
+      roomCode: original.code,
+      playerId: "player",
+      problemId: "p1",
+      answer: "2",
+      submittedAt: 1300,
+      correct: false,
+      scoreAwarded: 0,
+      penaltyMs: 0,
+      attempts: 2,
+      idempotencyKey: "key-2"
+    });
+
+    expect(first).toMatchObject({ reused: false, submission: { id: "submission-1", sequence: 1, correct: true } });
+    expect(duplicate).toMatchObject({ reused: true, submission: { id: "submission-1", sequence: 1, correct: true } });
+    expect(second).toMatchObject({ reused: false, submission: { id: "submission-2", sequence: 2, correct: false } });
+    await expect(readContestSubmissionByIdempotency(pool, original.code, "player", "key-1")).resolves.toMatchObject({ id: "submission-1", sequence: 1 });
+
+    await deleteRoomState(pool, original.code);
+    await expect(readContestSubmissionByIdempotency(pool, original.code, "player", "key-1")).resolves.toBeNull();
   });
 });

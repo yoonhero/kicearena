@@ -1,5 +1,6 @@
 import type { QueryResult } from "pg";
-import type { ArenaLog, ExamManifest, StandingPublic } from "../shared/game.js";
+import type { ArenaLog, ExamManifest, StandingPublic, SubmissionPublic } from "../shared/game.js";
+import { ROOM_GUARDRAILS } from "../shared/game.js";
 import type { PlayerState, RoomState } from "./types.js";
 
 export interface RoomDatabase {
@@ -8,6 +9,7 @@ export interface RoomDatabase {
 
 type PersistedPlayerState = Omit<PlayerState, "socketId" | "connected"> & {
   socketId?: string;
+  socketToken?: string;
   connected?: boolean;
 };
 
@@ -15,6 +17,9 @@ type PersistedRoomState = {
   code: string;
   hostId: string;
   examId: string;
+  mode?: RoomState["mode"];
+  maxPlayers?: number;
+  version?: number;
   status: RoomState["status"];
   timeLimitSec: number;
   freezeBeforeSec: number;
@@ -36,6 +41,64 @@ type RoomRow = {
   state: PersistedRoomState;
 };
 
+export type ContestSubmissionInput = {
+  id: string;
+  roomCode: string;
+  playerId: string;
+  problemId: string;
+  answer: string;
+  submittedAt: number;
+  correct: boolean;
+  scoreAwarded: number;
+  penaltyMs: number;
+  attempts: number;
+  idempotencyKey: string;
+};
+
+export type ContestSubmissionRecord = ContestSubmissionInput & {
+  sequence: number;
+};
+
+type ContestSubmissionRow = {
+  id: string;
+  room_code: string;
+  player_id: string;
+  problem_id: string;
+  answer: string;
+  submitted_at_ms: string;
+  sequence: number;
+  correct: boolean;
+  score_awarded: number;
+  penalty_ms: number;
+  attempts: number;
+  idempotency_key: string;
+};
+
+const rowToContestSubmission = (row: ContestSubmissionRow): ContestSubmissionRecord => ({
+  id: row.id,
+  roomCode: row.room_code,
+  playerId: row.player_id,
+  problemId: row.problem_id,
+  answer: row.answer,
+  submittedAt: Number(row.submitted_at_ms),
+  sequence: Number(row.sequence),
+  correct: row.correct,
+  scoreAwarded: Number(row.score_awarded),
+  penaltyMs: Number(row.penalty_ms),
+  attempts: Number(row.attempts),
+  idempotencyKey: row.idempotency_key
+});
+
+export const contestSubmissionToPublic = (submission: Pick<ContestSubmissionRecord, "problemId" | "answer" | "correct" | "submittedAt" | "scoreAwarded" | "penaltyMs" | "attempts">): SubmissionPublic => ({
+  problemId: submission.problemId,
+  answer: submission.answer,
+  correct: submission.correct,
+  submittedAt: submission.submittedAt,
+  scoreAwarded: submission.scoreAwarded,
+  penaltyMs: submission.penaltyMs,
+  attempts: submission.attempts
+});
+
 export const migrateRoomState = async (db: RoomDatabase) => {
   await db.query(
     `CREATE TABLE IF NOT EXISTS room_states (
@@ -48,12 +111,36 @@ export const migrateRoomState = async (db: RoomDatabase) => {
     )`
   );
   await db.query("CREATE INDEX IF NOT EXISTS room_states_status_updated_idx ON room_states(status, updated_at)");
+  await db.query(
+    `CREATE TABLE IF NOT EXISTS contest_submissions (
+      id text PRIMARY KEY,
+      room_code text NOT NULL,
+      player_id text NOT NULL,
+      problem_id text NOT NULL,
+      answer text NOT NULL,
+      submitted_at timestamptz NOT NULL,
+      submitted_at_ms bigint NOT NULL,
+      sequence integer NOT NULL,
+      correct boolean NOT NULL,
+      score_awarded integer NOT NULL,
+      penalty_ms integer NOT NULL,
+      attempts integer NOT NULL,
+      idempotency_key text NOT NULL,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      UNIQUE (room_code, sequence),
+      UNIQUE (room_code, player_id, idempotency_key)
+    )`
+  );
+  await db.query("CREATE INDEX IF NOT EXISTS contest_submissions_room_player_idx ON contest_submissions(room_code, player_id, sequence)");
 };
 
 export const serializeRoomState = (room: RoomState): PersistedRoomState => ({
   code: room.code,
   hostId: room.hostId,
   examId: room.exam.id,
+  mode: room.mode,
+  maxPlayers: room.maxPlayers,
+  version: room.version,
   status: room.status,
   timeLimitSec: room.timeLimitSec,
   freezeBeforeSec: room.freezeBeforeSec,
@@ -77,6 +164,9 @@ export const deserializeRoomState = (state: PersistedRoomState, exam: ExamManife
   code: state.code,
   hostId: state.hostId,
   exam,
+  mode: state.mode ?? "casual",
+  maxPlayers: state.maxPlayers ?? ROOM_GUARDRAILS.maxPlayersPerRoom,
+  version: state.version ?? 0,
   status: state.status,
   timeLimitSec: state.timeLimitSec,
   freezeBeforeSec: state.freezeBeforeSec,
@@ -92,6 +182,7 @@ export const deserializeRoomState = (state: PersistedRoomState, exam: ExamManife
       {
         ...player,
         socketId: "",
+        socketToken: player.socketToken ?? "",
         connected: player.connected === true
       }
     ])
@@ -116,6 +207,7 @@ export const saveRoomState = async (db: RoomDatabase, room: RoomState) => {
 };
 
 export const deleteRoomState = async (db: RoomDatabase, code: string) => {
+  await db.query("DELETE FROM contest_submissions WHERE room_code = $1", [code]);
   await db.query("DELETE FROM room_states WHERE code = $1", [code]);
 };
 
@@ -158,4 +250,52 @@ export const readRoomStateCodes = async (db: RoomDatabase): Promise<string[]> =>
 export const countActiveRoomStates = async (db: RoomDatabase): Promise<number> => {
   const result = await db.query<{ count: string }>("SELECT count(*)::text AS count FROM room_states WHERE status <> 'finished'");
   return Number(result.rows[0]?.count ?? 0);
+};
+
+export const saveContestSubmission = async (
+  db: RoomDatabase,
+  input: ContestSubmissionInput
+): Promise<{ submission: ContestSubmissionRecord; reused: boolean }> => {
+  const existingSubmission = await readContestSubmissionByIdempotency(db, input.roomCode, input.playerId, input.idempotencyKey);
+  if (existingSubmission) return { submission: existingSubmission, reused: true };
+
+  const sequenceResult = await db.query<{ sequence: number }>(
+    "SELECT COALESCE(MAX(sequence), 0) + 1 AS sequence FROM contest_submissions WHERE room_code = $1",
+    [input.roomCode]
+  );
+  const sequence = Number(sequenceResult.rows[0]?.sequence ?? 1);
+  const inserted = await db.query<ContestSubmissionRow>(
+    `INSERT INTO contest_submissions (
+       id, room_code, player_id, problem_id, answer, submitted_at, submitted_at_ms,
+       sequence, correct, score_awarded, penalty_ms, attempts, idempotency_key
+     )
+     VALUES ($1, $2, $3, $4, $5, to_timestamp($6 / 1000.0), $6, $7, $8, $9, $10, $11, $12)
+     RETURNING id, room_code, player_id, problem_id, answer, submitted_at_ms::text, sequence, correct, score_awarded, penalty_ms, attempts, idempotency_key`,
+    [
+      input.id,
+      input.roomCode,
+      input.playerId,
+      input.problemId,
+      input.answer,
+      input.submittedAt,
+      sequence,
+      input.correct,
+      input.scoreAwarded,
+      input.penaltyMs,
+      input.attempts,
+      input.idempotencyKey
+    ]
+  );
+
+  return { submission: rowToContestSubmission(inserted.rows[0]!), reused: false };
+};
+
+export const readContestSubmissionByIdempotency = async (db: RoomDatabase, roomCode: string, playerId: string, idempotencyKey: string): Promise<ContestSubmissionRecord | null> => {
+  const existing = await db.query<ContestSubmissionRow>(
+    `SELECT id, room_code, player_id, problem_id, answer, submitted_at_ms::text, sequence, correct, score_awarded, penalty_ms, attempts, idempotency_key
+     FROM contest_submissions
+     WHERE room_code = $1 AND player_id = $2 AND idempotency_key = $3`,
+    [roomCode, playerId, idempotencyKey]
+  );
+  return existing.rows[0] ? rowToContestSubmission(existing.rows[0]) : null;
 };

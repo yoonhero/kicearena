@@ -53,6 +53,7 @@ export function ItemDock({
     const solvedByTarget = new Set(player.submissionHistory.filter((submission) => submission.correct).map((submission) => submission.problemId));
     return [...ownSolvedProblemIds].some((problemId) => !solvedByTarget.has(problemId));
   };
+  if (!room.itemEnabled) return null;
 
   return (
     <section className={`item-dock ${selectedItem ? "aiming" : ""}`}>

@@ -59,7 +59,7 @@ export function LobbyScreen({
               <Users size={20} />
               입실 현황
             </h2>
-            <span>{room.players.length}명</span>
+            <span>{room.players.length}/{room.maxPlayers}명 · {room.mode === "contest" ? "콘테스트" : "캐주얼"}</span>
           </div>
           <div className="player-list">
             {room.players.map((player) => (

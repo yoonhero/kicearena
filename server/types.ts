@@ -2,12 +2,16 @@ import type { ArenaLog, ExamManifest, PlayerPublic, RoomPublic, StandingPublic }
 
 export interface PlayerState extends PlayerPublic {
   socketId: string;
+  socketToken: string;
 }
 
 export interface RoomState {
   code: string;
   hostId: string;
   exam: ExamManifest;
+  mode: RoomPublic["mode"];
+  maxPlayers: number;
+  version: number;
   status: RoomPublic["status"];
   timeLimitSec: number;
   freezeBeforeSec: number;

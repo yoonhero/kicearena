@@ -380,11 +380,13 @@ export function ResultsScreen({ room, ownPlayer, onLeave }: { room: RoomPublic; 
   return (
     <main className="results-layout">
       <section className="exam-sheet result-sheet final-report-sheet">
+        <div className="report-watermark" aria-hidden="true">
+          <div className="release-stamp">공개</div>
+        </div>
         <div className="exam-head final-report-head">
           <span>채점 완료</span>
           <strong>성적통지표</strong>
         </div>
-        <div className="release-stamp" aria-hidden="true">공개</div>
         <div className="score-report-title">
           <strong>{formatReportDate()} 시행 성적통지표</strong>
           <em>{room.exam.title}</em>

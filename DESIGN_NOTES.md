@@ -16,3 +16,11 @@
 - Solving view should prioritize one immersive problem page. Ranking, logs, and competition analysis should live on a separate scoreboard view rather than beside the problem.
 - Problem navigation should communicate crowd progress through gray fill percentage per problem, with the current problem and personal solves using stronger marks.
 - Scoreboard should use a DOMjudge-like grid: player rows, problem columns, accepted time, and attempt count.
+
+## 2026-06 Visual Balance Rule
+
+- One page should have one dominant visual job. Entrance screens collect identity and room intent, solving screens show one problem, reveal screens track rank movement, and report screens read like a final document.
+- Reduce content entropy before adding decoration. Dense controls must be grouped by workflow, with quiet separators and stable spacing instead of competing cards, shadows, or badges.
+- Exam motifs are structural, not decorative. OMR marks, stamps, paper covers, and ruled lines must support the current task and must never overlap primary controls, tables, or report titles.
+- Use one main UI accent: `--ui-accent: #2f6473`. Apply it to selected controls, focus affordances, compact active states, and timing controls.
+- Keep color roles narrow: red is for grading marks, stamps, and errors; green is for correctness/success; yellow is for reveal/live emphasis. Avoid introducing extra accent families on the entrance page.

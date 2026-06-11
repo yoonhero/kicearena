@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ROOM_GUARDRAILS, type ExamSummary, type PlayerPublic, type RoomPublic } from "../../shared/game";
+import { ROOM_GUARDRAILS, type ExamSummary, type PlayerPublic, type RoomMode, type RoomPublic } from "../../shared/game";
 import { ArenaScreen } from "./screens/ArenaScreen";
 import { HomeScreen } from "./screens/HomeScreen";
 import { LobbyScreen } from "./screens/LobbyScreen";
@@ -71,6 +71,7 @@ export function App() {
   const [selectedExamId, setSelectedExamId] = useState("");
   const [timeLimitMin, setTimeLimitMin] = useState(100);
   const [freezeBeforeMin, setFreezeBeforeMin] = useState(10);
+  const [roomMode, setRoomMode] = useState<RoomMode>("casual");
   const [nickname, setNickname] = useState("");
   const [roomCode, setRoomCode] = useState(inviteCode);
   const [room, setRoom] = useState<RoomPublic | null>(null);
@@ -108,7 +109,7 @@ export function App() {
 
   useEffect(() => {
     const onRoomUpdate = (nextRoom: RoomPublic) => {
-      setRoom(nextRoom);
+      setRoom((current) => (current && current.code === nextRoom.code && current.version > nextRoom.version ? current : nextRoom));
       if (ownPlayerId && !nextRoom.players.some((player) => player.id === ownPlayerId)) {
         resetRoomSession("");
       }
@@ -197,7 +198,8 @@ export function App() {
       nickname,
       timeLimitSec: safeTimeLimitMin * 60,
       freezeBeforeSec: safeFreezeBeforeMin * 60,
-      itemEnabled: true
+      itemEnabled: roomMode === "casual",
+      mode: roomMode
     });
     if (!response.ok || !response.data) {
       setError(response.error ?? "방 생성 실패");
@@ -277,6 +279,8 @@ export function App() {
           setTimeLimitMin={setTimeLimitMin}
           freezeBeforeMin={freezeBeforeMin}
           setFreezeBeforeMin={setFreezeBeforeMin}
+          roomMode={roomMode}
+          setRoomMode={setRoomMode}
           nickname={nickname}
           setNickname={setNickname}
           roomCode={roomCode}

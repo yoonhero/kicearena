@@ -176,7 +176,7 @@ test("host can queue rapid reveal presses without losing steps or showing rate-l
 
   const guest = await connectReadyGuest(roomCode, "연타");
   try {
-    await expect(page.getByText("2명")).toBeVisible();
+    await expect(page.getByText("2/60명")).toBeVisible();
     await page.getByRole("button", { name: "타종" }).click();
     await expect(page.getByRole("button", { name: "순위표 보기" })).toBeVisible();
 

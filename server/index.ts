@@ -19,6 +19,7 @@ import {
   type ExamManifest,
   type ProblemBodyBlock,
   type ProblemManifest,
+  type RoomMode,
   type RoomPublic,
   ROOM_GUARDRAILS,
   type ServerResponse,
@@ -28,13 +29,14 @@ import {
 } from "../shared/game.js";
 import { sanitizeNickname } from "../shared/nickname.js";
 import { makeScoreboardRevealState } from "../shared/reveal.js";
+import { itemEnabledForRoomMode, maxPlayersForRoomMode, normalizeRoomMode } from "../shared/roomConfig.js";
 import { getRoomLeaveAction, shouldCloseRoomForNoConnectedPlayers, validateLobbyKick, validateRoomJoin } from "../shared/roomLifecycle.js";
 import { runtimeMetricSamples, summarizeRoomMetrics } from "../shared/runtimeMetrics.js";
 import { createExamCatalogPool, createExamInDatabase, createProblemInDatabase, migrateExamCatalog, readAdminExamsFromDatabase, readExamAssetFromDatabase, readExamsFromDatabase, saveExamAssetInDatabase, updateExamSettingsInDatabase, updateProblemInDatabase } from "./examDatabase.js";
 import { isExamReleased, toExamPublic, toExamSummary } from "./exams.js";
 import { activeEffectForItem, cleanupEffects, findAdviceNoteProblem, maybeAwardItems, randomWeakDebuff, validateItemTarget } from "./items.js";
 import { shouldRateLimit as shouldRateLimitEvent } from "./rateLimit.js";
-import { countActiveRoomStates, deleteRoomState, migrateRoomState, readRoomState, readRoomStateCodes, readRoomStates, saveRoomState } from "./roomDatabase.js";
+import { contestSubmissionToPublic, countActiveRoomStates, deleteRoomState, migrateRoomState, readContestSubmissionByIdempotency, readRoomState, readRoomStateCodes, readRoomStates, saveContestSubmission, saveRoomState } from "./roomDatabase.js";
 import { derivePlayerScoreState, formatPenaltyMinutes, makeStandings, normalizeSubmissionPenalty, scoreForAccepted } from "./scoring.js";
 import type { PlayerState, RoomState } from "./types.js";
 
@@ -76,9 +78,9 @@ const io = new Server(httpServer, {
 });
 
 const rooms = new Map<string, RoomState>();
-const socketToPlayer = new Map<string, { roomCode: string; playerId: string }>();
-type SocketPlayerRef = { roomCode: string; playerId: string };
-type RoomSocketCleanupPayload = { roomCode: string; playerIds?: string[]; socketIds?: string[] };
+type SocketPlayerRef = { roomCode: string; playerId: string; socketToken: string };
+const socketToPlayer = new Map<string, SocketPlayerRef>();
+type RoomSocketCleanupPayload = { roomCode: string; playerIds?: string[]; socketIds?: string[]; excludeSocketIds?: string[] };
 const socketEventTimestamps = new Map<string, Map<string, number>>();
 const metricsRegistry = new Registry();
 const EXPIRED_EFFECT_NOTICE_MS = 3000;
@@ -411,6 +413,15 @@ const makeAvailableCode = async (): Promise<string> => {
 };
 
 const makeId = () => Math.random().toString(36).slice(2, 10);
+const makeSocketToken = () => crypto.randomUUID();
+const makeSubmissionId = () => crypto.randomUUID();
+
+const isCurrentPlayerSocket = (player: PlayerState | undefined, ref: SocketPlayerRef | undefined): player is PlayerState =>
+  Boolean(player && ref && player.socketToken && player.socketToken === ref.socketToken);
+
+const bumpRoomVersion = (room: RoomState) => {
+  room.version += 1;
+};
 
 const addLog = (room: RoomState, kind: ArenaLog["kind"], message: string) => {
   room.logs.unshift({ id: makeId(), kind, message, createdAt: Date.now() });
@@ -452,6 +463,7 @@ const setSocketPlayer = (socket: Socket, ref: SocketPlayerRef) => {
   socketToPlayer.set(socket.id, ref);
   socket.data.roomCode = ref.roomCode;
   socket.data.playerId = ref.playerId;
+  socket.data.socketToken = ref.socketToken;
 };
 
 const clearLocalSocketPlayer = (socketId: string) => {
@@ -460,12 +472,15 @@ const clearLocalSocketPlayer = (socketId: string) => {
   if (!socket) return;
   delete socket.data.roomCode;
   delete socket.data.playerId;
+  delete socket.data.socketToken;
 };
 
-const cleanupLocalRoomSockets = ({ roomCode, playerIds, socketIds }: RoomSocketCleanupPayload) => {
+const cleanupLocalRoomSockets = ({ roomCode, playerIds, socketIds, excludeSocketIds }: RoomSocketCleanupPayload) => {
   const playerIdSet = playerIds ? new Set(playerIds) : null;
   const socketIdSet = socketIds ? new Set(socketIds) : null;
+  const excludedSocketIds = new Set(excludeSocketIds ?? []);
   for (const [socketId, ref] of socketToPlayer.entries()) {
+    if (excludedSocketIds.has(socketId)) continue;
     if (ref.roomCode !== roomCode) continue;
     if ((playerIdSet || socketIdSet) && !playerIdSet?.has(ref.playerId) && !socketIdSet?.has(socketId)) continue;
     io.sockets.sockets.get(socketId)?.leave(roomCode);
@@ -486,6 +501,7 @@ const markSocketPresence = (room: RoomState, ref: Partial<SocketPlayerRef>, sock
   if (ref.roomCode !== room.code || !ref.playerId) return;
   const player = room.players.get(ref.playerId);
   if (!player) return;
+  if (!ref.socketToken || player.socketToken !== ref.socketToken) return;
   player.socketId = socketId;
   player.connected = true;
 };
@@ -622,12 +638,6 @@ const persistRoom = (room: RoomState) => {
   });
 };
 
-const persistRoomNow = async (room: RoomState) => {
-  const db = roomDatabase();
-  if (!db) return;
-  await saveRoomState(db, room);
-};
-
 const removePersistedRoom = (code: string) => {
   const db = roomDatabase();
   if (!db) return;
@@ -670,6 +680,22 @@ const closeRoomIfNoConnectedPlayers = (room: RoomState) => {
   return true;
 };
 
+const applySubmissionToPlayer = (player: PlayerState, submission: ReturnType<typeof contestSubmissionToPublic>) => {
+  player.submissions = player.submissions.filter((existing) => existing.problemId !== submission.problemId);
+  player.submissions.push(submission);
+  player.submissionHistory.push(submission);
+  if (submission.correct) {
+    player.score += submission.scoreAwarded;
+    player.penaltyMs += submission.penaltyMs;
+    player.scoreBreakdown.solved += 1;
+    player.scoreBreakdown.difficultyBonus += 0;
+    player.scoreBreakdown.timeBonus += 0;
+    player.consecutiveWrong = 0;
+  } else {
+    player.consecutiveWrong += 1;
+  }
+};
+
 const shouldRateLimit = (socketId: string, eventName: string, minIntervalMs: number) => {
   return shouldRateLimitEvent(socketEventTimestamps, socketId, eventName, minIntervalMs);
 };
@@ -689,6 +715,9 @@ const publicRoom = (room: RoomState): RoomPublic => ({
   code: room.code,
   hostId: room.hostId,
   exam: toExamPublic(room.exam),
+  mode: room.mode,
+  maxPlayers: room.maxPlayers,
+  version: room.version,
   status: room.status,
   timeLimitSec: room.timeLimitSec,
   freezeBeforeSec: room.freezeBeforeSec,
@@ -697,9 +726,9 @@ const publicRoom = (room: RoomState): RoomPublic => ({
   endsAt: room.endsAt,
   scoreboardFrozen: isScoreboardFrozen(room),
   scoreboardFrozenAt: room.scoreboardFrozenAt,
-  frozenStandings: room.frozenStandings.length > 0 ? makeStandings(room, [...room.players.values()], room.scoreboardFrozenAt) : room.frozenStandings,
+  frozenStandings: room.frozenStandings,
   scoreboardRevealCount: room.scoreboardRevealCount,
-  players: [...room.players.values()].map(({ socketId: _socketId, ...player }) => {
+  players: [...room.players.values()].map(({ socketId: _socketId, socketToken: _socketToken, ...player }) => {
     const derived = derivePlayerScoreState(room, player);
     return {
       ...player,
@@ -719,17 +748,20 @@ const publicRoom = (room: RoomState): RoomPublic => ({
   logs: room.logs
 });
 
-const emitRoom = (room: RoomState) => {
+const emitRoom = (room: RoomState): RoomPublic => {
   maybeFreezeScoreboard(room);
+  bumpRoomVersion(room);
   persistRoom(room);
-  io.to(room.code).emit("room:update", publicRoom(room));
+  const snapshot = publicRoom(room);
+  io.to(room.code).emit("room:update", snapshot);
+  return snapshot;
 };
 
 const isFinished = (room: RoomState) =>
   room.status === "playing" && room.endsAt !== null && Date.now() >= room.endsAt;
 
 const finishRoom = (room: RoomState, reason = "시험 종료. 답안지를 걷습니다.") => {
-  if (room.status !== "playing") return;
+  if (room.status !== "playing") return null;
   maybeFreezeScoreboard(room);
   if (room.frozenStandings.length === 0) room.frozenStandings = makeStandings(room);
   room.scoreboardRevealCount = 0;
@@ -737,7 +769,7 @@ const finishRoom = (room: RoomState, reason = "시험 종료. 답안지를 걷�
   touchRoom(room);
   addLog(room, "system", "채점 완료. 프리즈 이후 비공개 시도 공개를 시작합니다.");
   addLog(room, "system", reason);
-  emitRoom(room);
+  return emitRoom(room);
 };
 
 const runRoomMaintenance = async () => {
@@ -1125,22 +1157,23 @@ io.on("connection", (socket) => {
     }
 
     const previousSocketId = player.socketId;
+    const socketToken = makeSocketToken();
     player.socketId = socket.id;
+    player.socketToken = socketToken;
     player.connected = true;
     io.sockets.sockets.get(previousSocketId)?.leave(code);
     socket.join(code);
-    clearLocalSocketPlayer(previousSocketId);
-    setSocketPlayer(socket, { roomCode: code, playerId: player.id });
+    cleanupRoomSocketsAcrossCluster({ roomCode: code, playerIds: [player.id], socketIds: previousSocketId ? [previousSocketId] : [], excludeSocketIds: [socket.id] });
+    setSocketPlayer(socket, { roomCode: code, playerId: player.id, socketToken });
     touchRoom(room);
     socket.emit("player:you", player.id);
     addLog(room, "system", `${player.nickname} 재입실. 기존 수험번호를 복구했습니다.`);
-    await persistRoomNow(room);
-    replyAfterRoomCommit(reply, { ok: true, data: publicRoom(room) });
-    emitRoom(room);
+    const snapshot = emitRoom(room);
+    replyAfterRoomCommit(reply, { ok: true, data: snapshot });
     });
   });
 
-  socket.on("room:create", async (payload: { examId: string; nickname: string; timeLimitSec?: number; freezeBeforeSec?: number; itemEnabled: boolean }, reply: (response: ServerResponse<RoomPublic>) => void) => {
+  socket.on("room:create", async (payload: { examId: string; nickname: string; timeLimitSec?: number; freezeBeforeSec?: number; itemEnabled: boolean; mode?: RoomMode }, reply: (response: ServerResponse<RoomPublic>) => void) => {
     await withRoomMutation("__room_create__", async () => {
     if ((await activeRoomCount()) >= ROOM_GUARDRAILS.maxActiveRooms) {
       replyAfterRoomCommit(reply, { ok: false, error: "현재 생성 가능한 방 수를 초과했습니다. 잠시 후 다시 시도하세요." });
@@ -1165,12 +1198,16 @@ io.on("connection", (socket) => {
 
     const timeLimitSec = readPositiveSeconds(payload?.timeLimitSec, exam.timeLimitSec, ROOM_GUARDRAILS.minTimeLimitSec, ROOM_GUARDRAILS.maxTimeLimitSec);
     const freezeBeforeSec = readPositiveSeconds(payload?.freezeBeforeSec, ROOM_GUARDRAILS.defaultFreezeBeforeSec, 0, timeLimitSec);
+    const mode = normalizeRoomMode(payload?.mode);
+    const maxPlayers = maxPlayersForRoomMode(mode);
     const code = await makeAvailableCode();
     const playerId = makeId();
+    const socketToken = makeSocketToken();
     const firstProblemId = exam.problems[0]?.id ?? "";
     const host: PlayerState = {
       id: playerId,
       socketId: socket.id,
+      socketToken,
       nickname,
       score: 0,
       penaltyMs: 0,
@@ -1190,10 +1227,13 @@ io.on("connection", (socket) => {
       code,
       hostId: playerId,
       exam,
+      mode,
+      maxPlayers,
+      version: 0,
       status: "lobby",
       timeLimitSec,
       freezeBeforeSec,
-      itemEnabled: payload?.itemEnabled === true,
+      itemEnabled: itemEnabledForRoomMode(mode, payload?.itemEnabled === true),
       startedAt: null,
       endsAt: null,
       scoreboardFrozenAt: null,
@@ -1208,12 +1248,11 @@ io.on("connection", (socket) => {
     rooms.set(code, room);
     roomsCreatedCounter.inc();
     socket.join(code);
-    setSocketPlayer(socket, { roomCode: code, playerId });
+    setSocketPlayer(socket, { roomCode: code, playerId, socketToken });
     socket.emit("player:you", playerId);
-    addLog(room, "system", `${nickname} 출제위원장이 방을 열었습니다.`);
-    await persistRoomNow(room);
-    replyAfterRoomCommit(reply, { ok: true, data: publicRoom(room) });
-    emitRoom(room);
+    addLog(room, "system", mode === "contest" ? `${nickname} 감독관이 200인 콘테스트 방을 열었습니다.` : `${nickname} 출제위원장이 방을 열었습니다.`);
+    const snapshot = emitRoom(room);
+    replyAfterRoomCommit(reply, { ok: true, data: snapshot });
     });
   });
 
@@ -1235,15 +1274,17 @@ io.on("connection", (socket) => {
       replyAfterRoomCommit(reply, { ok: false, error: "닉네임을 입력하세요." });
       return;
     }
-    if (room.players.size >= ROOM_GUARDRAILS.maxPlayersPerRoom) {
-      replyAfterRoomCommit(reply, { ok: false, error: `입실 정원 ${ROOM_GUARDRAILS.maxPlayersPerRoom}명을 초과했습니다.` });
+    if (room.players.size >= room.maxPlayers) {
+      replyAfterRoomCommit(reply, { ok: false, error: `입실 정원 ${room.maxPlayers}명을 초과했습니다.` });
       return;
     }
 
     const playerId = makeId();
+    const socketToken = makeSocketToken();
     const player: PlayerState = {
       id: playerId,
       socketId: socket.id,
+      socketToken,
       nickname,
       score: 0,
       penaltyMs: 0,
@@ -1262,13 +1303,12 @@ io.on("connection", (socket) => {
     room.players.set(playerId, player);
     playersJoinedCounter.inc();
     socket.join(code);
-    setSocketPlayer(socket, { roomCode: code, playerId });
+    setSocketPlayer(socket, { roomCode: code, playerId, socketToken });
     socket.emit("player:you", playerId);
     touchRoom(room);
     addLog(room, "system", room.status === "playing" ? `${nickname} 지각 입실. 시험지와 답안지를 받았습니다.` : `${nickname} 입실. 컴싸 확인 완료.`);
-    await persistRoomNow(room);
-    replyAfterRoomCommit(reply, { ok: true, data: publicRoom(room) });
-    emitRoom(room);
+    const snapshot = emitRoom(room);
+    replyAfterRoomCommit(reply, { ok: true, data: snapshot });
     });
   });
 
@@ -1279,7 +1319,7 @@ io.on("connection", (socket) => {
     await withRoomMutation(ref.roomCode, async () => {
     const room = await getPersistedRoom(ref.roomCode);
     const player = room?.players.get(ref.playerId);
-    if (!room || !player || room.status !== "lobby") return;
+    if (!room || !isCurrentPlayerSocket(player, ref) || room.status !== "lobby") return;
     player.ready = payload.ready;
     touchRoom(room);
     addLog(room, "system", `${player.nickname}${payload.ready ? " 준비 완료" : " 준비 취소"}`);
@@ -1292,7 +1332,8 @@ io.on("connection", (socket) => {
     if (!ref) return;
     await withRoomMutation(ref.roomCode, async () => {
     const room = await getPersistedRoom(ref.roomCode);
-    if (!room || room.hostId !== ref.playerId || room.status !== "lobby") return;
+    const player = room?.players.get(ref.playerId);
+    if (!room || !isCurrentPlayerSocket(player, ref) || room.hostId !== ref.playerId || room.status !== "lobby") return;
     room.status = "playing";
     room.startedAt = Date.now();
     room.endsAt = room.startedAt + room.timeLimitSec * 1000;
@@ -1302,7 +1343,6 @@ io.on("connection", (socket) => {
     for (const player of room.players.values()) player.ready = true;
     touchRoom(room);
     addLog(room, "system", "타종. 1교시 수학 영역을 시작합니다.");
-    await persistRoomNow(room);
     emitRoom(room);
     });
   });
@@ -1315,7 +1355,8 @@ io.on("connection", (socket) => {
     }
     await withRoomMutation(ref.roomCode, async () => {
     const room = await getPersistedRoom(ref.roomCode);
-    if (!room || room.hostId !== ref.playerId) {
+    const player = room?.players.get(ref.playerId);
+    if (!room || !isCurrentPlayerSocket(player, ref) || room.hostId !== ref.playerId) {
       replyAfterRoomCommit(reply, { ok: false, error: "방장만 시험을 종료할 수 있습니다." });
       return;
     }
@@ -1324,9 +1365,8 @@ io.on("connection", (socket) => {
       return;
     }
 
-    finishRoom(room, "방장이 시험을 조기 종료했습니다. 답안지를 걷습니다.");
-    touchRoom(room);
-    replyAfterRoomCommit(reply, { ok: true, data: publicRoom(room) });
+    const snapshot = finishRoom(room, "방장이 시험을 조기 종료했습니다. 답안지를 걷습니다.") ?? publicRoom(room);
+    replyAfterRoomCommit(reply, { ok: true, data: snapshot });
     });
   });
 
@@ -1342,7 +1382,8 @@ io.on("connection", (socket) => {
     }
     await withRoomMutation(ref.roomCode, async () => {
     const room = await getPersistedRoom(ref.roomCode);
-    if (!room || room.hostId !== ref.playerId) {
+    const player = room?.players.get(ref.playerId);
+    if (!room || !isCurrentPlayerSocket(player, ref) || room.hostId !== ref.playerId) {
       replyAfterRoomCommit(reply, { ok: false, error: "방장만 순위표를 공개할 수 있습니다." });
       return;
     }
@@ -1359,8 +1400,8 @@ io.on("connection", (socket) => {
     room.scoreboardRevealCount = Math.min(total, room.scoreboardRevealCount + 1);
     addLog(room, "system", "프리즈 이후 비공개 시도의 정답 여부를 한 건 공개했습니다.");
     touchRoom(room);
-    emitRoom(room);
-    replyAfterRoomCommit(reply, { ok: true, data: publicRoom(room) });
+    const snapshot = emitRoom(room);
+    replyAfterRoomCommit(reply, { ok: true, data: snapshot });
     });
   });
 
@@ -1373,6 +1414,11 @@ io.on("connection", (socket) => {
     await withRoomMutation(ref.roomCode, async () => {
     const room = await getPersistedRoom(ref.roomCode);
     const player = room?.players.get(ref.playerId);
+    if (room && player && !isCurrentPlayerSocket(player, ref)) {
+      clearLocalSocketPlayer(socket.id);
+      replyAfterRoomCommit(reply, { ok: true });
+      return;
+    }
     const action = getRoomLeaveAction(room ?? undefined, player?.id);
 
     if (room && player && action === "close-room") {
@@ -1408,6 +1454,12 @@ io.on("connection", (socket) => {
     }
     await withRoomMutation(ref.roomCode, async () => {
     const room = ref ? await getPersistedRoom(ref.roomCode) : undefined;
+    const player = room?.players.get(ref.playerId);
+    if (room && !isCurrentPlayerSocket(player, ref)) {
+      clearLocalSocketPlayer(socket.id);
+      replyAfterRoomCommit(reply, { ok: false, error: "참가자 정보를 찾을 수 없습니다." });
+      return;
+    }
     const targetPlayerId = readString(payload?.targetPlayerId, 32);
     const validation = validateLobbyKick(room ?? undefined, ref?.playerId, targetPlayerId);
 
@@ -1448,7 +1500,7 @@ io.on("connection", (socket) => {
     const room = await getPersistedRoom(ref.roomCode);
     const player = room?.players.get(ref.playerId);
     const problemId = readString(payload?.problemId, 80);
-    if (!room || !player || !getProblem(room, problemId)) return;
+    if (!room || !isCurrentPlayerSocket(player, ref) || !getProblem(room, problemId)) return;
     const hasHardLock = player.effects.some((effect) => effect.id === "hardFirst" && effect.expiresAt > Date.now());
     const problem = getProblem(room, problemId);
     if (hasHardLock && problem && problem.difficulty < 4) return;
@@ -1459,11 +1511,7 @@ io.on("connection", (socket) => {
     });
   });
 
-  socket.on("answer:submit", async (payload: { problemId: string; answer: string }, reply: (response: ServerResponse<{ correct: boolean; itemAwarded: ItemId | null; itemAwards: ItemAward[] }>) => void) => {
-    if (shouldRateLimit(socket.id, "answer:submit", RATE_LIMIT_MS.answerSubmit)) {
-      replyAfterRoomCommit(reply, { ok: false, error: "답안 제출 간격이 너무 짧습니다." });
-      return;
-    }
+  socket.on("answer:submit", async (payload: { problemId: string; answer: string; idempotencyKey?: string }, reply: (response: ServerResponse<{ correct: boolean; itemAwarded: ItemId | null; itemAwards: ItemAward[] }>) => void) => {
     const ref = socketToPlayer.get(socket.id);
     if (!ref) {
       replyAfterRoomCommit(reply, { ok: false, error: "참가자 정보를 찾을 수 없습니다." });
@@ -1472,7 +1520,7 @@ io.on("connection", (socket) => {
     await withRoomMutation(ref.roomCode, async () => {
     const room = await getPersistedRoom(ref.roomCode);
     const player = room?.players.get(ref.playerId);
-    if (!room || !player || room.status !== "playing") {
+    if (!room || !isCurrentPlayerSocket(player, ref) || room.status !== "playing") {
       replyAfterRoomCommit(reply, { ok: false, error: "진행 중인 시험이 아닙니다." });
       return;
     }
@@ -1498,6 +1546,18 @@ io.on("connection", (socket) => {
     }
     const acceptedAt = Date.now();
     const correct = normalizeAnswer(answer) === normalizeAnswer(problem.answer);
+    const idempotencyKey = readString(payload?.idempotencyKey, 120) || makeSubmissionId();
+    if (room.mode === "contest") {
+      const existingSubmission = await readContestSubmissionByIdempotency(roomDatabase()!, room.code, player.id, idempotencyKey);
+      if (existingSubmission) {
+        replyAfterRoomCommit(reply, { ok: true, data: { correct: existingSubmission.correct, itemAwarded: null, itemAwards: [] } });
+        return;
+      }
+    }
+    if (shouldRateLimit(socket.id, "answer:submit", RATE_LIMIT_MS.answerSubmit)) {
+      replyAfterRoomCommit(reply, { ok: false, error: "답안 제출 간격이 너무 짧습니다." });
+      return;
+    }
     answersSubmittedCounter.inc({ correct: String(correct) });
     const previousCorrect = player.submissions.some((submission) => submission.problemId === problem.id && submission.correct);
     const previousSubmission = player.submissions.find((submission) => submission.problemId === problem.id);
@@ -1515,6 +1575,38 @@ io.on("connection", (socket) => {
     const scoreAwarded = correct && !previousCorrect ? scoreForAccepted(problem) : 0;
     const rawSubmission = { problemId: problem.id, answer, correct, submittedAt: acceptedAt, scoreAwarded, penaltyMs: 0, attempts };
     const submission = normalizeSubmissionPenalty(room, rawSubmission);
+
+    if (room.mode === "contest") {
+      const saved = await saveContestSubmission(roomDatabase()!, {
+        id: makeSubmissionId(),
+        roomCode: room.code,
+        playerId: player.id,
+        problemId: problem.id,
+        answer,
+        submittedAt: submission.submittedAt,
+        correct: submission.correct,
+        scoreAwarded: submission.scoreAwarded,
+        penaltyMs: submission.penaltyMs,
+        attempts: submission.attempts,
+        idempotencyKey
+      });
+      if (saved.reused) {
+        replyAfterRoomCommit(reply, { ok: true, data: { correct: saved.submission.correct, itemAwarded: null, itemAwards: [] } });
+        return;
+      }
+      const durableSubmission = contestSubmissionToPublic(saved.submission);
+      applySubmissionToPlayer(player, durableSubmission);
+      if (durableSubmission.correct) {
+        addLog(room, "submit", `${player.nickname} ${problem.number}번 정답 +${durableSubmission.scoreAwarded}점, 페널티 +${formatPenaltyMinutes(durableSubmission.penaltyMs)}분.`);
+      } else {
+        addLog(room, "submit", `${player.nickname} ${problem.number}번 오답. 정답 시 오답 페널티 +${Math.round(WRONG_ANSWER_PENALTY_MS / 60000)}분, 연속 ${player.consecutiveWrong}회.`);
+      }
+      replyAfterRoomCommit(reply, { ok: true, data: { correct: durableSubmission.correct, itemAwarded: null, itemAwards: [] } });
+      touchRoom(room);
+      emitRoom(room);
+      return;
+    }
+
     player.submissions.push(submission);
     player.submissionHistory.push(submission);
 
@@ -1573,7 +1665,7 @@ io.on("connection", (socket) => {
     const target = room?.players.get(readString(payload?.targetPlayerId, 32));
     const itemId = readString(payload?.itemId, 32) as ItemId;
     const item = ITEM_DEFINITIONS[itemId];
-    if (!room || !player || !target || room.status !== "playing" || !item) {
+    if (!room || !isCurrentPlayerSocket(player, ref) || !target || room.status !== "playing" || !item || !room.itemEnabled) {
       replyAfterRoomCommit(reply, { ok: false, error: "아이템을 사용할 수 없습니다." });
       return;
     }
@@ -1641,6 +1733,10 @@ io.on("connection", (socket) => {
     const room = await getPersistedRoom(ref.roomCode);
     const player = room?.players.get(ref.playerId);
     if (!room || !player) {
+      clearLocalSocketPlayer(socket.id);
+      return;
+    }
+    if (!isCurrentPlayerSocket(player, ref)) {
       clearLocalSocketPlayer(socket.id);
       return;
     }

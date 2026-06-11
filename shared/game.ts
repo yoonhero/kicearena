@@ -1,5 +1,6 @@
 export type AnswerKind = "choice" | "short";
 export type RoomStatus = "lobby" | "playing" | "finished";
+export type RoomMode = "casual" | "contest";
 export const ITEM_IDS = ["cover", "rotateProblem", "hardFirst", "meme", "penLock", "bannedSong", "auraMinus", "adviceNote"] as const;
 export type ItemId = (typeof ITEM_IDS)[number];
 export type DebuffId = "blur" | "slowInput" | "hideAssist";
@@ -318,6 +319,9 @@ export interface RoomPublic {
   code: string;
   hostId: string;
   exam: ExamPublic;
+  mode: RoomMode;
+  maxPlayers: number;
+  version: number;
   status: RoomStatus;
   timeLimitSec: number;
   freezeBeforeSec: number;
@@ -343,6 +347,7 @@ export const ROOM_GUARDRAILS = {
   maxTimeLimitSec: 120 * 60,
   defaultFreezeBeforeSec: 10 * 60,
   maxPlayersPerRoom: 60,
+  maxContestPlayersPerRoom: 200,
   maxNicknameLength: 6,
   maxActiveRooms: 200
 } as const;

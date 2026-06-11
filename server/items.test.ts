@@ -18,6 +18,7 @@ const exam: ExamManifest = {
 const player = (overrides: Partial<PlayerState>): PlayerState => ({
   id: "player",
   socketId: "socket",
+  socketToken: "socket-token",
   nickname: "Player",
   score: 0,
   penaltyMs: 0,
@@ -39,6 +40,9 @@ const room = (players: PlayerState[], overrides: Partial<RoomState> = {}): RoomS
   code: "ROOM1",
   hostId: players[0]?.id ?? "host",
   exam,
+  mode: "casual",
+  maxPlayers: 60,
+  version: 0,
   status: "playing",
   timeLimitSec: 600,
   freezeBeforeSec: 60,

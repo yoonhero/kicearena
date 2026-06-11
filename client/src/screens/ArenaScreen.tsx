@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ITEM_DEFINITIONS, type ItemAward, type ItemDefinition, type ItemId, type PlayerPublic, type RoomPublic } from "../../../shared/game";
 import { useCountdown } from "../hooks/useCountdown";
 import { isEditableShortcutTarget } from "../lib/keyboard";
@@ -13,6 +13,7 @@ export function ArenaScreen({ room, ownPlayer, onLeave }: { room: RoomPublic; ow
   const [itemNotice, setItemNotice] = useState("");
   const [selectedItem, setSelectedItem] = useState<ItemId | null>(null);
   const [view, setView] = useState<"problem" | "rankings">("problem");
+  const submissionKeyRef = useRef<{ problemId: string; answer: string; key: string } | null>(null);
   const timeLeft = useCountdown(room);
   const currentProblem = room.exam.problems.find((problem) => problem.id === ownPlayer.currentProblemId) ?? room.exam.problems[0];
   const hasEffect = (id: string) => ownPlayer.effects.some((effect) => effect.id === id && effect.expiresAt > Date.now());
@@ -22,14 +23,23 @@ export function ArenaScreen({ room, ownPlayer, onLeave }: { room: RoomPublic; ow
   const problemRotated = hasEffect("rotateProblem");
   const solvedCount = ownPlayer.scoreBreakdown.solved;
   const currentSubmission = ownPlayer.submissions.find((submission) => submission.problemId === currentProblem.id);
+  const makeIdempotencyKey = () => window.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-  const submit = async (selectedAnswer = answer) => {
+  const submit = useCallback(async (selectedAnswer = answer) => {
     setFeedback("");
     setItemNotice("");
+    const existingKey = submissionKeyRef.current;
+    const idempotencyKey =
+      existingKey?.problemId === currentProblem.id && existingKey.answer === selectedAnswer
+        ? existingKey.key
+        : makeIdempotencyKey();
+    submissionKeyRef.current = { problemId: currentProblem.id, answer: selectedAnswer, key: idempotencyKey };
     const response = await emitWithAck<{ correct: boolean; itemAwarded: ItemId | null; itemAwards?: ItemAward[] }>("answer:submit", {
       problemId: currentProblem.id,
-      answer: selectedAnswer
+      answer: selectedAnswer,
+      idempotencyKey
     });
+    submissionKeyRef.current = null;
     if (!response.ok) {
       setFeedback(response.error ?? "제출 실패");
       return;
@@ -43,7 +53,7 @@ export function ArenaScreen({ room, ownPlayer, onLeave }: { room: RoomPublic; ow
       setFeedback("정답 시 오답 페널티 +20분.");
     }
     setAnswer("");
-  };
+  }, [answer, currentProblem.id]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
