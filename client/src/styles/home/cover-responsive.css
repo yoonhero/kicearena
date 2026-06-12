@@ -169,8 +169,8 @@
     .kice-cover {
         min-height: clamp(82px, 15vh, 112px);
         gap: 5px;
-        margin-bottom: 10px;
-        padding-bottom: 9px;
+        margin-bottom: 6px;
+        padding-bottom: 7px;
     }
 
     .kice-cover h1 {

@@ -59,6 +59,50 @@
         border-bottom: 0;
     }
 
+    .mobile-name-strip {
+        width: 100%;
+        min-height: 48px;
+        border: 1.5px solid rgba(18, 18, 18, 0.58);
+        background: #fffef9;
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 10px;
+        padding: 0 8px 0 12px;
+    }
+
+    .mobile-name-strip span {
+        color: rgba(18, 18, 18, 0.62);
+        font-size: 12px;
+        font-weight: 1000;
+    }
+
+    .mobile-name-strip strong {
+        min-width: 0;
+        overflow: hidden;
+        color: var(--ink);
+        font-size: 18px;
+        font-weight: 1000;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .mobile-name-strip button {
+        min-height: 44px;
+        border: 0;
+        border-left: 1px solid rgba(18, 18, 18, 0.18);
+        background: transparent;
+        color: var(--ui-accent-ink);
+        padding: 0 4px 0 12px;
+        font-size: 12px;
+        font-weight: 1000;
+        touch-action: manipulation;
+    }
+
+    .identity-card:not(.name-editor-open) .omr-name-maker {
+        display: none;
+    }
+
     .omr-name-maker {
         grid-template-rows: auto auto;
         width: 100%;

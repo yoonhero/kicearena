@@ -229,17 +229,21 @@
     gap: 12px;
     align-items: baseline;
     min-width: 0;
+    justify-content: space-between;
 }
 
 .entry-panel-title span {
+    flex: 0 0 auto;
     font-size: 13px;
     font-weight: 1000;
 }
 
 .entry-panel-title strong {
+    min-width: 0;
     color: var(--muted);
     font-size: 12px;
     font-weight: 900;
+    text-align: right;
 }
 
 .omr-entry .error-text {

@@ -52,10 +52,9 @@
     }
 
     .quick-preset {
-        min-height: 62px;
+        min-height: 48px;
         border: 0;
         border-bottom: 1px solid rgba(18, 18, 18, 0.18);
-        gap: 7px;
         padding: 7px 5px;
         touch-action: manipulation;
     }
@@ -76,6 +75,7 @@
 
     .preset-mini-head em {
         font-size: 9px;
+        white-space: normal;
     }
 
     .room-option-grid {

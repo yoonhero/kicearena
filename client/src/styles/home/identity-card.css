@@ -117,6 +117,10 @@
     width: min(360px, 100%);
 }
 
+.mobile-name-strip {
+    display: none;
+}
+
 .invite-home-layout .omr-entry-sheet {
     width: min(420px, 100%);
     min-height: auto;
@@ -144,23 +148,24 @@
 .omr-maker-head {
     grid-column: 1 / -1;
     display: grid;
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(72px, 1fr) auto minmax(72px, 1fr);
     justify-items: center;
+    align-items: center;
     gap: 2px;
     position: relative;
-    padding: 4px 8px;
+    min-height: 52px;
+    padding: 4px 6px;
     border-bottom: 1px solid rgba(18, 18, 18, 0.24);
     background: rgba(47, 100, 115, 0.06);
     font-size: 12px;
 }
 
 .omr-maker-tools {
-    position: absolute;
-    right: 6px;
-    top: 50%;
+    grid-column: 3;
+    grid-row: 1;
+    justify-self: end;
     display: inline-flex;
     gap: 4px;
-    transform: translateY(-50%);
 }
 
 .omr-maker-tools button {
@@ -175,10 +180,14 @@
 }
 
 .omr-maker-head strong {
+    grid-column: 2;
+    grid-row: 1;
     font-size: 13px;
 }
 
 .omr-maker-head span {
+    grid-column: 1 / -1;
+    grid-row: 2;
     color: var(--muted);
     font-size: 11px;
     font-weight: 900;

@@ -38,6 +38,7 @@ export function HomeScreen(props: {
 }) {
   const [showOptions, setShowOptions] = useState(false);
   const [entryMode, setEntryMode] = useState<"create" | "join">("create");
+  const [nameEditorOpen, setNameEditorOpen] = useState(false);
   const [activeSlot, setActiveSlot] = useState<0 | 1>(0);
   const [nameParts, setNameParts] = useState<[NicknameJamo, NicknameJamo]>(() => createRandomNicknameParts());
   const nameSlots = 2;
@@ -46,6 +47,7 @@ export function HomeScreen(props: {
   const maxTimeLimitMin = Math.round(ROOM_GUARDRAILS.maxTimeLimitSec / 60);
   const selectedExam = props.exams.find((exam) => exam.id === props.selectedExamId);
   const selectedPreset = QUICK_PRESETS.find((preset) => preset.timeLimitMin === props.timeLimitMin && preset.freezeBeforeMin === props.freezeBeforeMin);
+  const createSummary = selectedExam ? `${selectedExam.problemCount}문항 · ${props.timeLimitMin}분` : "문제지를 고르세요";
   const freezeStartMin = Math.max(0, props.timeLimitMin - props.freezeBeforeMin);
   const timelineTicks = Array.from({ length: 5 }, (_, index) => Math.round((maxTimeLimitMin / 4) * index));
   const timeSliderStyle = {
@@ -106,7 +108,14 @@ export function HomeScreen(props: {
           </>
         )}
         <div className="omr-entry">
-          <div className="identity-card entry-zone entry-zone-identity">
+          <div className={`identity-card entry-zone entry-zone-identity ${nameEditorOpen ? "name-editor-open" : ""}`}>
+            <div className="mobile-name-strip">
+              <span>성명</span>
+              <strong>{trimmedNickname || "이름 선택"}</strong>
+              <button type="button" onClick={() => setNameEditorOpen((value) => !value)} aria-expanded={nameEditorOpen}>
+                {nameEditorOpen ? "닫기" : "이름 수정"}
+              </button>
+            </div>
             <div className="omr-name-maker" aria-label="성명 OMR 입력">
               <div className="omr-maker-head">
                 <strong>성명</strong>
@@ -218,18 +227,14 @@ export function HomeScreen(props: {
                 </button>
                 <button type="button" className={entryMode === "join" ? "active" : ""} onClick={() => setEntryMode("join")} role="tab" aria-selected={entryMode === "join"}>
                   <LogIn size={16} />
-                  코드로 입장
+                  시험실 입장
                 </button>
               </div>
               {entryMode === "create" ? (
                 <div className={`entry-action-panel creator-panel entry-zone entry-zone-action ${showOptions ? "options-open" : ""}`}>
                   <div className="entry-panel-title">
-                    <span>시험실 만들기</span>
-                    <strong>
-                      {selectedExam
-                        ? `${props.roomMode === "contest" ? "콘테스트" : "캐주얼"} · 아이템 ${effectiveItemEnabled ? "ON" : "OFF"} · ${selectedExam.problemCount}문항 · ${props.timeLimitMin}분 / 프리즈 ${props.freezeBeforeMin}분`
-                        : "시험지를 고른 뒤 시작"}
-                    </strong>
+                    <span>시험 설정</span>
+                    <strong>{createSummary}</strong>
                   </div>
                   <div className="entry-mode-toggle room-mode-toggle" role="tablist" aria-label="방 모드">
                     <button type="button" className={props.roomMode === "casual" ? "active" : ""} onClick={() => props.setRoomMode("casual")} role="tab" aria-selected={props.roomMode === "casual"}>
@@ -256,7 +261,7 @@ export function HomeScreen(props: {
                     {props.roomMode === "contest" && <em>콘테스트는 아이템 OFF</em>}
                   </div>
                   <div className="quick-preset-list" role="radiogroup" aria-label="시험 시간 프리셋">
-                    <span>시간 / 프리즈</span>
+                    <span>시간 선택</span>
                     <div className="quick-preset-grid">
                       {QUICK_PRESETS.map((preset) => (
                         <button
@@ -278,7 +283,7 @@ export function HomeScreen(props: {
                         >
                           <span className="preset-mini-head">
                             <strong>{preset.timeLimitMin}분 종료</strong>
-                            <em>{preset.timeLimitMin - preset.freezeBeforeMin}분부터</em>
+                            <em>{preset.timeLimitMin - preset.freezeBeforeMin}분 프리즈</em>
                           </span>
                           <span className="preset-mini-track" aria-hidden="true">
                             <i className="preset-mini-freeze" />
@@ -354,8 +359,8 @@ export function HomeScreen(props: {
               ) : (
                 <div className="entry-action-panel join-panel entry-zone entry-zone-action">
                   <div className="entry-panel-title">
-                    <span>코드로 입장</span>
-                    <strong>초대받은 시험실 코드 입력</strong>
+                    <span>입장 코드</span>
+                    <strong>방 코드를 입력하세요</strong>
                   </div>
                   <div className="omr-field code-field">
                     <span>방 코드</span>
@@ -363,7 +368,7 @@ export function HomeScreen(props: {
                   </div>
                   <button className="omr-action join-action" disabled={!trimmedNickname || !trimmedRoomCode} onClick={props.joinRoom}>
                     <LogIn size={18} />
-                    입장
+                    시험실 입장
                   </button>
                 </div>
               )}
