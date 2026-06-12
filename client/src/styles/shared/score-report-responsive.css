@@ -7,10 +7,9 @@
 
     .score-report-grid {
         min-width: 0;
-        grid-template-columns: minmax(32px, 0.5fr) minmax(64px, 1.25fr) minmax(42px, 0.7fr) minmax(
-                42px,
-                0.68fr
-            ) minmax(44px, 0.72fr) minmax(48px, 0.78fr) minmax(54px, 0.88fr);
+        grid-template-columns:
+            minmax(32px, 0.5fr) minmax(64px, 1.25fr) minmax(42px, 0.7fr) minmax(42px, 0.68fr)
+            minmax(44px, 0.72fr) minmax(48px, 0.78fr) minmax(54px, 0.88fr);
         font-size: 11px;
     }
 

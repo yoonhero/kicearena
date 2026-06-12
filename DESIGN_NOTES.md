@@ -133,14 +133,14 @@ Rules:
 
 Examples:
 
-| Bad | Problem | Better |
-| --- | --- | --- |
-| `모의고사 한 장 · DOMjudge식 실시간 순위` | Repeats the concept and uses internal contest jargon. | `문제를 풀고 순위를 확인하세요` |
-| `모의고사 한 장 · DOMjudge식 실시간 순위` | Too feature-driven for a landing or entrance action. | `빠르게 맞힐수록 점수가 올라갑니다` |
-| `감독관으로 방 열기` | Can visually collapse into `방열기`; role and action are awkwardly fused. | `시험실 만들기` |
-| `감독관으로 방 열기` | Sounds like an internal mode rather than a user action. | `감독 모드 시작` |
-| `한 화면에 한 문항을 크게 띄우고...` | Describes what the system does instead of what the user experiences. | `한 문항씩 풉니다. 빨리 맞힐수록 시간 점수가 붙습니다.` |
-| `종료 10분 전에는 순위표가 멈추고 마지막 역전은 답안지 안에서만 진행됩니다.` | Dramatic but indirect. | `종료 10분 전부터 공개 순위가 고정됩니다.` |
+| Bad                                                                          | Problem                                                                   | Better                                                  |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------- |
+| `모의고사 한 장 · DOMjudge식 실시간 순위`                                    | Repeats the concept and uses internal contest jargon.                     | `문제를 풀고 순위를 확인하세요`                         |
+| `모의고사 한 장 · DOMjudge식 실시간 순위`                                    | Too feature-driven for a landing or entrance action.                      | `빠르게 맞힐수록 점수가 올라갑니다`                     |
+| `감독관으로 방 열기`                                                         | Can visually collapse into `방열기`; role and action are awkwardly fused. | `시험실 만들기`                                         |
+| `감독관으로 방 열기`                                                         | Sounds like an internal mode rather than a user action.                   | `감독 모드 시작`                                        |
+| `한 화면에 한 문항을 크게 띄우고...`                                         | Describes what the system does instead of what the user experiences.      | `한 문항씩 풉니다. 빨리 맞힐수록 시간 점수가 붙습니다.` |
+| `종료 10분 전에는 순위표가 멈추고 마지막 역전은 답안지 안에서만 진행됩니다.` | Dramatic but indirect.                                                    | `종료 10분 전부터 공개 순위가 고정됩니다.`              |
 
 Preferred forms:
 

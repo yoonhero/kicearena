@@ -12,7 +12,13 @@
 
     .lobby-actions {
         justify-items: stretch;
-        padding-top: 2px;
+        padding: 12px 0 0;
+        border-left: 0;
+        border-top: 3px solid var(--line);
+    }
+
+    .lobby-actions.host-actions {
+        border-top-color: var(--ui-accent);
     }
 
     .player-list {
@@ -20,7 +26,7 @@
     }
 
     .lobby-action-status {
-        text-align: left;
+        min-height: 0;
     }
 
     .lobby-leave-btn {

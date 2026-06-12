@@ -11,6 +11,7 @@ briefs live under `.codex/agent-briefs/`; each agent should read only its own
 brief plus the shared rules here.
 
 Role brief map:
+
 - `ui_ux_designer`: `.codex/agent-briefs/ui-ux-designer.md`
 - `browser_debugger`: `.codex/agent-briefs/browser-debugger.md`
 - `ui_ux_optimizer`: `.codex/agent-briefs/ui-ux-optimizer.md`
@@ -22,6 +23,7 @@ All agents must avoid rewriting unrelated in-progress work. Keep responses
 evidence-first and short.
 
 Shared verification:
+
 - Run relevant colocated unit tests when logic changes.
 - Add `tests/e2e/*.spec.ts` only for browser-flow regressions.
 - For visible UI changes, verify a small mobile viewport and a desktop viewport.

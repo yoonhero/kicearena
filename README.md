@@ -23,8 +23,8 @@ bun run dev:local
 
 개발 서버는 기본적으로 다음 주소를 사용한다.
 
--   Client: `http://localhost:5180/`
--   Server: `http://localhost:3001`
+- Client: `http://localhost:5180/`
+- Server: `http://localhost:3001`
 
 If port `3001` is still occupied, check it with:
 
@@ -64,56 +64,56 @@ Bundled monitoring includes Prometheus exporters for Postgres and Redis. Prometh
 
 Required GitHub Secrets:
 
--   `DEPLOY_HOST`
--   `DEPLOY_USER`
--   `DEPLOY_PATH`
--   `DEPLOY_SSH_KEY`
--   `DEPLOY_KNOWN_HOSTS`
--   `POSTGRES_PASSWORD`
--   `ADMIN_TOKEN`
--   `METRICS_BEARER_TOKEN`
--   `GRAFANA_ADMIN_PASSWORD`
+- `DEPLOY_HOST`
+- `DEPLOY_USER`
+- `DEPLOY_PATH`
+- `DEPLOY_SSH_KEY`
+- `DEPLOY_KNOWN_HOSTS`
+- `POSTGRES_PASSWORD`
+- `ADMIN_TOKEN`
+- `METRICS_BEARER_TOKEN`
+- `GRAFANA_ADMIN_PASSWORD`
 
 `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`는 Postgres volume 최초 초기화 때 적용된다. 운영 서버에서 이미 `postgres-data` volume이 만들어진 뒤 값을 바꾸려면 DB 마이그레이션 또는 volume 재생성이 필요하다.
 
 Optional GitHub Variables:
 
--   `HOST_PORT`
--   `POSTGRES_DB`: 비우면 `kice_arena`를 사용한다.
--   `POSTGRES_USER`: 비우면 `kice_arena`를 사용한다.
--   `POSTGRES_HOST_PORT`
--   `REDIS_HOST_PORT`
--   `POSTGRES_EXPORTER_HOST_PORT`
--   `REDIS_EXPORTER_HOST_PORT`
--   `PROMETHEUS_HOST_PORT`
--   `ALERTMANAGER_HOST_PORT`
--   `GRAFANA_HOST_PORT`
--   `GRAFANA_ADMIN_USER`
--   `CORS_ORIGINS`
--   `REDIS_URL`: 외부 Redis를 쓸 때만 설정. 비우면 Compose 내부 Redis를 사용한다.
+- `HOST_PORT`
+- `POSTGRES_DB`: 비우면 `kice_arena`를 사용한다.
+- `POSTGRES_USER`: 비우면 `kice_arena`를 사용한다.
+- `POSTGRES_HOST_PORT`
+- `REDIS_HOST_PORT`
+- `POSTGRES_EXPORTER_HOST_PORT`
+- `REDIS_EXPORTER_HOST_PORT`
+- `PROMETHEUS_HOST_PORT`
+- `ALERTMANAGER_HOST_PORT`
+- `GRAFANA_HOST_PORT`
+- `GRAFANA_ADMIN_USER`
+- `CORS_ORIGINS`
+- `REDIS_URL`: 외부 Redis를 쓸 때만 설정. 비우면 Compose 내부 Redis를 사용한다.
 
 Optional GitHub Secrets:
 
--   `POSTGRES_DB`, `POSTGRES_USER`: Variables 대신 Secrets에 넣은 경우에도 deploy workflow가 읽는다.
--   `REDIS_URL`: Variables 대신 Secrets에 넣은 경우에도 deploy workflow가 읽는다.
--   `DATABASE_URL`: 외부 DB를 쓸 때만 설정. 비우면 Compose 내부 Postgres URL을 사용.
--   `DISCORD_WEBHOOK_URL`
+- `POSTGRES_DB`, `POSTGRES_USER`: Variables 대신 Secrets에 넣은 경우에도 deploy workflow가 읽는다.
+- `REDIS_URL`: Variables 대신 Secrets에 넣은 경우에도 deploy workflow가 읽는다.
+- `DATABASE_URL`: 외부 DB를 쓸 때만 설정. 비우면 Compose 내부 Postgres URL을 사용.
+- `DISCORD_WEBHOOK_URL`
 
 테스트 위치 규칙:
 
--   단위 테스트는 대상 파일과 같은 디렉토리에 둔다. 예: `server/scoring.ts` -> `server/scoring.test.ts`.
--   브라우저 흐름을 검증하는 E2E 테스트만 `tests/e2e/*.spec.ts`에 둔다.
+- 단위 테스트는 대상 파일과 같은 디렉토리에 둔다. 예: `server/scoring.ts` -> `server/scoring.test.ts`.
+- 브라우저 흐름을 검증하는 E2E 테스트만 `tests/e2e/*.spec.ts`에 둔다.
 
 ## Project Layout
 
--   `client/src`: React client UI.
--   `server/index.ts`: Express and Socket.IO game server.
--   `shared`: client/server shared game types and pure helpers.
--   `docs`: implementation protocols and contributor-facing notes.
--   `deploy`: deployment and monitoring configuration.
--   `scripts`: exam/problem preparation scripts.
--   `tests/e2e`: Playwright browser-flow tests.
--   `todo.md`: active roadmap and task checklist.
+- `client/src`: React client UI.
+- `server/index.ts`: Express and Socket.IO game server.
+- `shared`: client/server shared game types and pure helpers.
+- `docs`: implementation protocols and contributor-facing notes.
+- `deploy`: deployment and monitoring configuration.
+- `scripts`: exam/problem preparation scripts.
+- `tests/e2e`: Playwright browser-flow tests.
+- `todo.md`: active roadmap and task checklist.
 
 ## Contribution Guide
 
@@ -121,10 +121,10 @@ Optional GitHub Secrets:
 
 Before changing a subsystem, read the matching notes.
 
--   UI direction: `DESIGN_NOTES.md`
--   Item additions: `docs/item-protocol.md`
--   Runtime metrics and monitoring: `deploy/monitoring/README.md`
--   Current roadmap: `todo.md`
+- UI direction: `DESIGN_NOTES.md`
+- Item additions: `docs/item-protocol.md`
+- Runtime metrics and monitoring: `deploy/monitoring/README.md`
+- Current roadmap: `todo.md`
 
 If a protocol and code disagree, update the protocol or explain why the code is intentionally changing.
 
@@ -146,28 +146,28 @@ See `docs/item-protocol.md` for the full item protocol.
 
 Client UI can guide users, but gameplay authority belongs on the server.
 
--   Validate room status, player identity, inventory, target eligibility, duplicate effects, cooldowns, and payload limits on the server.
--   Only mutate inventory or score after all validation passes.
--   Keep effects, expired effects, cooldowns, submissions, and scoreboard reveal state consistent in emitted room state.
+- Validate room status, player identity, inventory, target eligibility, duplicate effects, cooldowns, and payload limits on the server.
+- Only mutate inventory or score after all validation passes.
+- Keep effects, expired effects, cooldowns, submissions, and scoreboard reveal state consistent in emitted room state.
 
 ### 4. Preserve existing UX direction
 
 The app should feel like a competitive live mock exam, not a generic dashboard.
 
--   Keep the solving view focused on one large problem page.
--   Keep ranking and contest analysis on dedicated ranking/result screens.
--   Prefer compact exam-administration labels over explanatory marketing copy.
--   Avoid unrelated redesigns while working on gameplay logic.
--   Check mobile and desktop layouts when adding overlays, target banks, buttons, or long Korean labels.
+- Keep the solving view focused on one large problem page.
+- Keep ranking and contest analysis on dedicated ranking/result screens.
+- Prefer compact exam-administration labels over explanatory marketing copy.
+- Avoid unrelated redesigns while working on gameplay logic.
+- Check mobile and desktop layouts when adding overlays, target banks, buttons, or long Korean labels.
 
 ### 5. Keep changes scoped
 
 Make the smallest coherent change that solves the task.
 
--   Do not revert unrelated dirty files.
--   Do not mix unrelated roadmap work into one patch.
--   If a file already has user changes, preserve them and edit only the necessary lines.
--   Update `todo.md` only for work that is actually implemented and verified.
+- Do not revert unrelated dirty files.
+- Do not mix unrelated roadmap work into one patch.
+- If a file already has user changes, preserve them and edit only the necessary lines.
+- Update `todo.md` only for work that is actually implemented and verified.
 
 ### 6. Verify before marking work done
 
@@ -180,11 +180,11 @@ bun run test
 
 For frontend/gameplay changes, also run the local app and manually check the affected flow in a browser. For example:
 
--   Room creation and join.
--   Answer submission.
--   Item award, target selection, use, active state, cooldown, and expiry.
--   Scoreboard freeze/reveal behavior when touched.
--   Mobile-width layout if UI controls or overlays changed.
+- Room creation and join.
+- Answer submission.
+- Item award, target selection, use, active state, cooldown, and expiry.
+- Scoreboard freeze/reveal behavior when touched.
+- Mobile-width layout if UI controls or overlays changed.
 
 If a check cannot be run, state that explicitly in the handoff.
 

@@ -1,30 +1,3 @@
-.lobby-protocol {
-    margin-top: 28px;
-    display: grid;
-    gap: 8px;
-    max-width: 740px;
-    border-left: 5px solid var(--line);
-    padding-left: 16px;
-}
-
-.lobby-protocol span {
-    color: var(--muted);
-    font-size: 13px;
-    font-weight: 900;
-}
-
-.lobby-protocol strong {
-    font-family: "Times New Roman", "AppleMyungjo", "Apple SD Gothic Neo", serif;
-    font-size: clamp(24px, 3vw, 44px);
-}
-
-.lobby-protocol p {
-    margin: 0;
-    max-width: 680px;
-    line-height: 1.65;
-    word-break: keep-all;
-}
-
 .problem-preview-grid {
     margin-top: 14px;
     display: grid;
@@ -42,8 +15,12 @@
     gap: 4px;
     padding: 10px 12px;
     border-right: 1px solid rgba(18, 18, 18, 0.08);
+}
+
+.problem-preview-grid strong {
     font-size: 18px;
-    font-weight: 900;
+    font-weight: 1000;
+    overflow-wrap: anywhere;
 }
 
 .problem-preview-grid span:last-child {
@@ -58,11 +35,11 @@
 }
 
 .lobby-attendance {
-    margin-top: clamp(18px, 4vh, 42px);
+    margin-top: clamp(16px, 3vh, 32px);
     padding-top: clamp(16px, 2.4vw, 28px);
     border-top: 2px solid var(--line);
     display: grid;
-    grid-template-columns: minmax(180px, 0.58fr) minmax(0, 1.45fr) minmax(220px, auto);
+    grid-template-columns: minmax(176px, 0.52fr) minmax(0, 1.5fr) minmax(224px, 0.62fr);
     gap: 16px 24px;
     align-items: start;
 }
@@ -71,15 +48,46 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     justify-items: stretch;
-    gap: 10px;
+    gap: 8px;
+    padding: 10px 0 0 14px;
+    border-left: 3px solid var(--line);
+}
+
+.lobby-actions.host-actions {
+    border-left-color: var(--ui-accent);
+}
+
+.lobby-action-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    font-size: 15px;
+    font-weight: 1000;
+}
+
+.lobby-action-title svg {
+    flex: 0 0 auto;
+    color: var(--ui-accent);
 }
 
 .lobby-action-status {
+    display: grid;
+    gap: 3px;
     color: var(--ink);
-    font-size: 13px;
+    line-height: 1.35;
+    word-break: keep-all;
+}
+
+.lobby-action-status strong {
+    font-size: 14px;
     font-weight: 1000;
-    text-align: right;
-    min-height: 20px;
+}
+
+.lobby-action-status span {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 800;
 }
 
 .lobby-actions .primary-btn {
@@ -157,6 +165,10 @@
 
 .player-chip em.ready {
     color: var(--ok);
+}
+
+.player-chip em.disconnected {
+    color: var(--danger);
 }
 
 .kick-player-btn {

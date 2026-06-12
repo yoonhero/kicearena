@@ -46,10 +46,9 @@
 .score-report-grid {
     position: relative;
     display: grid;
-    grid-template-columns: minmax(42px, 0.48fr) minmax(90px, 1.25fr) minmax(62px, 0.72fr) minmax(
-            58px,
-            0.68fr
-        ) minmax(62px, 0.72fr) minmax(64px, 0.78fr) minmax(76px, 0.9fr);
+    grid-template-columns:
+        minmax(42px, 0.48fr) minmax(90px, 1.25fr) minmax(62px, 0.72fr) minmax(58px, 0.68fr)
+        minmax(62px, 0.72fr) minmax(64px, 0.78fr) minmax(76px, 0.9fr);
     border-bottom: 1px solid rgba(18, 18, 18, 0.42);
 }
 

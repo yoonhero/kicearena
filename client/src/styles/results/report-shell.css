@@ -157,10 +157,9 @@
 
 .final-report-row {
     display: grid;
-    grid-template-columns: minmax(46px, 0.55fr) minmax(88px, 1.35fr) minmax(62px, 0.75fr) minmax(
-            58px,
-            0.7fr
-        ) minmax(64px, 0.78fr) minmax(72px, 0.85fr);
+    grid-template-columns:
+        minmax(46px, 0.55fr) minmax(88px, 1.35fr) minmax(62px, 0.75fr) minmax(58px, 0.7fr)
+        minmax(64px, 0.78fr) minmax(72px, 0.85fr);
     border-bottom: 1px solid rgba(18, 18, 18, 0.42);
 }
 
