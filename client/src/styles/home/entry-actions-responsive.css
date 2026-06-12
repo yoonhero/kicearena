@@ -1,3 +1,21 @@
+@media (max-width: 760px) {
+    .creator-panel {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+            "step"
+            "title"
+            "items"
+            "action"
+            "options"
+            "preset";
+    }
+
+    .entry-action-panel .host-action {
+        justify-self: stretch;
+        width: 100%;
+    }
+}
+
 @media (max-width: 640px) {
     .invite-home-layout {
         display: block;
@@ -35,7 +53,6 @@
         grid-template-areas:
             "step"
             "title"
-            "mode"
             "items"
             "action"
             "options"

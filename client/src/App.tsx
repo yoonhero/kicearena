@@ -280,8 +280,6 @@ export function App() {
           setTimeLimitMin={setTimeLimitMin}
           freezeBeforeMin={freezeBeforeMin}
           setFreezeBeforeMin={setFreezeBeforeMin}
-          roomMode={roomMode}
-          setRoomMode={setRoomMode}
           itemEnabled={itemEnabled}
           setItemEnabled={setItemEnabled}
           nickname={nickname}

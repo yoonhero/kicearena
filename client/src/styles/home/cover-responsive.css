@@ -167,19 +167,19 @@
 
 @media (max-width: 420px) {
     .kice-cover {
-        min-height: clamp(82px, 15vh, 112px);
-        gap: 5px;
-        margin-bottom: 6px;
-        padding-bottom: 7px;
+        min-height: clamp(72px, 13vh, 96px);
+        gap: 4px;
+        margin-bottom: 4px;
+        padding-bottom: 5px;
     }
 
     .kice-cover h1 {
-        font-size: clamp(40px, 13.5vw, 50px);
+        font-size: clamp(34px, 12vw, 44px);
     }
 
     .kice-cover > strong {
-        padding: 4px 10px;
-        font-size: clamp(16px, 5vw, 20px);
+        padding: 3px 9px;
+        font-size: clamp(15px, 4.6vw, 18px);
     }
 
     .exam-cover-shelf {

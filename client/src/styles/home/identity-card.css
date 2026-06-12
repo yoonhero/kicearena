@@ -148,39 +148,20 @@
 .omr-maker-head {
     grid-column: 1 / -1;
     display: grid;
-    grid-template-columns: minmax(72px, 1fr) auto minmax(72px, 1fr);
+    grid-template-columns: 1fr;
     justify-items: center;
     align-items: center;
     gap: 2px;
     position: relative;
-    min-height: 52px;
-    padding: 4px 6px;
+    min-height: 34px;
+    padding: 4px 8px;
     border-bottom: 1px solid rgba(18, 18, 18, 0.24);
     background: rgba(47, 100, 115, 0.06);
     font-size: 12px;
 }
 
-.omr-maker-tools {
-    grid-column: 3;
-    grid-row: 1;
-    justify-self: end;
-    display: inline-flex;
-    gap: 4px;
-}
-
-.omr-maker-tools button {
-    width: 44px;
-    height: 44px;
-    border: 1px solid rgba(18, 18, 18, 0.24);
-    background: rgba(255, 254, 249, 0.86);
-    color: var(--ui-accent-ink);
-    display: grid;
-    place-items: center;
-    padding: 0;
-}
-
 .omr-maker-head strong {
-    grid-column: 2;
+    grid-column: 1;
     grid-row: 1;
     font-size: 13px;
 }
@@ -235,7 +216,7 @@
 .omr-syllable-row {
     grid-column: 1 / -1;
     display: grid;
-    grid-template-columns: 28px repeat(8, minmax(30px, 1fr));
+    grid-template-columns: repeat(8, minmax(30px, 1fr));
 }
 
 .omr-syllable-row + .omr-syllable-row {
@@ -254,19 +235,6 @@
 
 .omr-syllable-row button:first-child {
     border-left: 0;
-}
-
-.omr-row-name + button {
-    border-left: 0;
-}
-
-.omr-row-name {
-    grid-row: span 2;
-    display: grid;
-    place-items: center;
-    color: rgba(18, 18, 18, 0.58);
-    font-size: 10px;
-    font-weight: 1000;
 }
 
 .omr-syllable-row button span {

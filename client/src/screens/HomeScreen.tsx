@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
-import { ChevronDown, Eraser, Gamepad2, LogIn, LogOut, Shuffle, SlidersHorizontal, Zap } from "lucide-react";
-import { ROOM_GUARDRAILS, type ExamSummary, type RoomMode } from "../../../shared/game";
+import { ChevronDown, Gamepad2, LogIn, LogOut, SlidersHorizontal, Zap } from "lucide-react";
+import { ROOM_GUARDRAILS, type ExamSummary } from "../../../shared/game";
 import { composeNickname, createRandomNicknameParts, NICKNAME_FINALS, NICKNAME_INITIALS, NICKNAME_VOWELS, sanitizeNickname, type NicknameJamo } from "../../../shared/nickname";
 import { formatReportDate } from "../lib/format";
 
@@ -19,8 +19,6 @@ export function HomeScreen(props: {
   setTimeLimitMin: (value: number) => void;
   freezeBeforeMin: number;
   setFreezeBeforeMin: (value: number) => void;
-  roomMode: RoomMode;
-  setRoomMode: (mode: RoomMode) => void;
   itemEnabled: boolean;
   setItemEnabled: (enabled: boolean) => void;
   nickname: string;
@@ -73,20 +71,7 @@ export function HomeScreen(props: {
   };
   const nicknameLength = Array.from(trimmedNickname).length;
   const trimmedRoomCode = props.roomCode.trim();
-  const effectiveItemEnabled = props.roomMode === "casual" && props.itemEnabled;
-  const rollNickname = () => {
-    const nextParts = createRandomNicknameParts();
-    setNameParts(nextParts);
-    setActiveSlot(0);
-    props.setNickname(composeNickname(nextParts[0], nextParts[1]));
-  };
-  const clearNickname = () => {
-    const nextParts = createRandomNicknameParts();
-    setNameParts(nextParts);
-    setActiveSlot(0);
-    props.setNickname("");
-  };
-
+  const effectiveItemEnabled = props.itemEnabled;
   useEffect(() => {
     if (!props.nickname) props.setNickname(composeNickname(nameParts[0], nameParts[1]));
   }, []);
@@ -108,7 +93,7 @@ export function HomeScreen(props: {
           </>
         )}
         <div className="omr-entry">
-          <div className={`identity-card entry-zone entry-zone-identity ${nameEditorOpen ? "name-editor-open" : ""}`}>
+          <div className={`identity-card entry-zone entry-zone-identity ${nameEditorOpen || props.inviteMode ? "name-editor-open" : ""}`}>
             <div className="mobile-name-strip">
               <span>성명</span>
               <strong>{trimmedNickname || "이름 선택"}</strong>
@@ -119,14 +104,6 @@ export function HomeScreen(props: {
             <div className="omr-name-maker" aria-label="성명 OMR 입력">
               <div className="omr-maker-head">
                 <strong>성명</strong>
-                <div className="omr-maker-tools" aria-label="성명 빠른 작업">
-                  <button type="button" onClick={rollNickname} aria-label="성명 다시 뽑기" title="성명 다시 뽑기">
-                    <Shuffle size={14} />
-                  </button>
-                  <button type="button" onClick={clearNickname} aria-label="성명 지우기" title="성명 지우기">
-                    <Eraser size={14} />
-                  </button>
-                </div>
                 {props.inviteMode && <span>{`초대 방 ${props.inviteRoomCode}`}</span>}
               </div>
               <div className="omr-maker-cells" role="tablist" aria-label="수정할 이름 글자 선택">
@@ -148,7 +125,6 @@ export function HomeScreen(props: {
                 })}
               </div>
               <div className="omr-syllable-row" aria-label={`${activeSlot + 1}글자 초성 선택`}>
-                <span className="omr-row-name" aria-hidden="true">초</span>
                 {NICKNAME_INITIALS.map((jamo) => (
                   <button key={`initial-${jamo}`} type="button" className={nameParts[activeSlot].initial === jamo ? "marked" : ""} onClick={() => setNicknamePart("initial", jamo)} aria-label={`${activeSlot + 1}글자 초성 ${jamo}`}>
                     <span>{jamo}</span>
@@ -156,7 +132,6 @@ export function HomeScreen(props: {
                 ))}
               </div>
               <div className="omr-syllable-row" aria-label={`${activeSlot + 1}글자 중성 선택`}>
-                <span className="omr-row-name" aria-hidden="true">중</span>
                 {NICKNAME_VOWELS.map((jamo) => (
                   <button key={`vowel-${jamo}`} type="button" className={nameParts[activeSlot].vowel === jamo ? "marked" : ""} onClick={() => setNicknamePart("vowel", jamo)} aria-label={`${activeSlot + 1}글자 중성 ${jamo}`}>
                     <span>{jamo}</span>
@@ -164,7 +139,6 @@ export function HomeScreen(props: {
                 ))}
               </div>
               <div className="omr-syllable-row" aria-label={`${activeSlot + 1}글자 종성 선택`}>
-                <span className="omr-row-name" aria-hidden="true">종</span>
                 {NICKNAME_FINALS.map((jamo) => (
                   <button key={`final-${jamo || "none"}`} type="button" className={(nameParts[activeSlot].final ?? "") === jamo ? "marked" : ""} onClick={() => setNicknamePart("final", jamo)} aria-label={`${activeSlot + 1}글자 종성 ${jamo || "없음"}`}>
                     <span>{jamo || "없음"}</span>
@@ -236,14 +210,6 @@ export function HomeScreen(props: {
                     <span>시험 설정</span>
                     <strong>{createSummary}</strong>
                   </div>
-                  <div className="entry-mode-toggle room-mode-toggle" role="tablist" aria-label="방 모드">
-                    <button type="button" className={props.roomMode === "casual" ? "active" : ""} onClick={() => props.setRoomMode("casual")} role="tab" aria-selected={props.roomMode === "casual"}>
-                      캐주얼
-                    </button>
-                    <button type="button" className={props.roomMode === "contest" ? "active" : ""} onClick={() => props.setRoomMode("contest")} role="tab" aria-selected={props.roomMode === "contest"}>
-                      콘테스트
-                    </button>
-                  </div>
                   <div className="item-toggle-row" role="group" aria-label="아이템 설정">
                     <span>
                       <Zap size={15} />
@@ -252,13 +218,11 @@ export function HomeScreen(props: {
                     <button
                       type="button"
                       className={effectiveItemEnabled ? "active" : ""}
-                      disabled={props.roomMode === "contest"}
                       onClick={() => props.setItemEnabled(!props.itemEnabled)}
                       aria-pressed={effectiveItemEnabled}
                     >
                       {effectiveItemEnabled ? "ON" : "OFF"}
                     </button>
-                    {props.roomMode === "contest" && <em>콘테스트는 아이템 OFF</em>}
                   </div>
                   <div className="quick-preset-list" role="radiogroup" aria-label="시험 시간 프리셋">
                     <span>시간 선택</span>

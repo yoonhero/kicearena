@@ -103,6 +103,10 @@
         display: none;
     }
 
+    .invite-home-layout .identity-card:not(.name-editor-open) .omr-name-maker {
+        display: grid;
+    }
+
     .omr-name-maker {
         grid-template-rows: auto auto;
         width: 100%;
@@ -124,11 +128,6 @@
         font-size: 13px;
     }
 
-    .omr-maker-tools button {
-        width: 44px;
-        height: 44px;
-    }
-
     .omr-maker-cells {
         border-bottom: 1px solid rgba(18, 18, 18, 0.18);
     }
@@ -145,7 +144,7 @@
     }
 
     .omr-syllable-row {
-        grid-template-columns: 24px repeat(4, minmax(44px, 1fr));
+        grid-template-columns: repeat(4, minmax(44px, 1fr));
     }
 
     .omr-syllable-row button {
@@ -216,7 +215,7 @@
 
     .omr-maker-cells,
     .omr-syllable-row {
-        grid-template-columns: 24px repeat(4, minmax(44px, 1fr));
+        grid-template-columns: repeat(4, minmax(44px, 1fr));
     }
 
     .omr-maker-cells {

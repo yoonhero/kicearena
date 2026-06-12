@@ -27,7 +27,6 @@
     grid-template-areas:
         "step step"
         "title title"
-        "mode action"
         "items action"
         "options action"
         "preset preset";
@@ -105,17 +104,6 @@
     border-bottom-color: var(--ui-accent);
     background: var(--ui-accent-soft);
     color: var(--ink);
-}
-
-.room-mode-toggle {
-    grid-area: mode;
-    width: min(360px, 100%);
-    border-bottom: 0;
-}
-
-.room-mode-toggle button {
-    min-height: 44px;
-    font-size: 12px;
 }
 
 .item-toggle-row {
