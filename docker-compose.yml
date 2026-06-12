@@ -61,6 +61,7 @@ services:
     kice-arena:
         image: ghcr.io/yoonhero/kicearena:${TAG:-latest}
         container_name: kice-arena
+        command: bun server/index.ts
         environment:
             NODE_ENV: production
             PORT: 3001
@@ -86,7 +87,7 @@ services:
             test:
                 [
                     "CMD",
-                    "node",
+                    "bun",
                     "-e",
                     "fetch('http://127.0.0.1:' + (process.env.PORT || 3001) + '/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
                 ]
@@ -101,7 +102,7 @@ services:
         environment:
             NODE_ENV: production
             DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-kice_arena}:${POSTGRES_PASSWORD:-kice_arena}@postgres:5432/${POSTGRES_DB:-kice_arena}}
-        command: bun run db:seed
+        command: bun server/seedExamCatalog.ts
         depends_on:
             postgres:
                 condition: service_healthy
