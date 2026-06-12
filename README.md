@@ -90,7 +90,7 @@ Optional GitHub Variables:
 - `GRAFANA_HOST_PORT`
 - `GRAFANA_ADMIN_USER`
 - `CORS_ORIGINS`
-- `CAMPAIGN_REFERRAL_WHITELIST`: 쉼표 또는 공백으로 구분한 추천 코드 allowlist. 여기에 없는 추천 링크는 방문/가입 전환으로 인정하지 않는다.
+- `CAMPAIGN_REFERRAL_WHITELIST`: 쉼표 또는 공백으로 구분한 `추천코드:학교ID` 목록. 예: `abc234:B100000546`. 추천 코드는 지정된 학교 위치에서만 인증된다.
 - `CAMPAIGN_LOCATION_RADIUS_KM`: 추천 링크 위치 인증에서 허용할 학교 반경 km. 기본값은 `3`.
 - `REDIS_URL`: 외부 Redis를 쓸 때만 설정. 비우면 Compose 내부 Redis를 사용한다.
 

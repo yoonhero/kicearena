@@ -40,6 +40,11 @@ export type SchoolRepresentativeBadgeInput = {
     awardedAt: number;
 };
 
+export type ReferralWhitelistBinding = {
+    referralCode: string;
+    schoolId: string;
+};
+
 type HighSchoolRow = {
     id: string;
     name: string;
@@ -163,9 +168,16 @@ export const migrateCampaign = async (db: CampaignDatabase) => {
     await db.query(
         `CREATE TABLE IF NOT EXISTS campaign_referral_whitelist (
       referral_code text PRIMARY KEY,
+      school_id text REFERENCES high_schools(id) ON DELETE CASCADE,
       note text NOT NULL DEFAULT '',
       created_at timestamptz NOT NULL DEFAULT now()
     )`,
+    );
+    await db.query(
+        "ALTER TABLE campaign_referral_whitelist ADD COLUMN IF NOT EXISTS school_id text REFERENCES high_schools(id) ON DELETE CASCADE",
+    );
+    await db.query(
+        "CREATE INDEX IF NOT EXISTS campaign_referral_whitelist_school_idx ON campaign_referral_whitelist(school_id)",
     );
 };
 
@@ -296,29 +308,41 @@ export const recordReferralVisit = async (
     );
 };
 
-export const isReferralCodeWhitelisted = async (
+export const readReferralWhitelistSchool = async (
     db: CampaignDatabase,
     referralCode: string,
-): Promise<boolean> => {
-    const result = await db.query<{ exists: boolean }>(
-        `SELECT EXISTS (
-       SELECT 1
-       FROM campaign_referral_whitelist
-       WHERE referral_code = $1
-     ) AS exists`,
+): Promise<HighSchool | null> => {
+    const result = await db.query<HighSchoolRow>(
+        `SELECT school.id, school.name, school.region, school.address, school.latitude, school.longitude
+       FROM campaign_referral_whitelist whitelist
+       JOIN high_schools school ON school.id = whitelist.school_id
+       WHERE whitelist.referral_code = $1`,
         [referralCode],
     );
-    return result.rows[0]?.exists === true;
+    return result.rows[0] ? toHighSchool(result.rows[0]) : null;
 };
 
-export const syncReferralWhitelist = async (db: CampaignDatabase, referralCodes: string[]) => {
-    for (const referralCode of referralCodes) {
-        if (!/^[2-9a-z]{4,32}$/.test(referralCode)) continue;
+export const isReferralCodeWhitelisted = async (db: CampaignDatabase, referralCode: string) =>
+    Boolean(await readReferralWhitelistSchool(db, referralCode));
+
+export const parseReferralWhitelistBindings = (entries: string[]): ReferralWhitelistBinding[] =>
+    entries.flatMap((entry) => {
+        const [rawCode, rawSchoolId] = entry.split(":");
+        const referralCode = rawCode?.trim().toLowerCase() ?? "";
+        const schoolId = rawSchoolId?.trim() ?? "";
+        if (!/^[2-9a-z]{4,32}$/.test(referralCode) || !schoolId) return [];
+        return [{ referralCode, schoolId }];
+    });
+
+export const syncReferralWhitelist = async (db: CampaignDatabase, entries: string[]) => {
+    for (const binding of parseReferralWhitelistBindings(entries)) {
         await db.query(
-            `INSERT INTO campaign_referral_whitelist (referral_code, note)
-       VALUES ($1, 'env')
-       ON CONFLICT (referral_code) DO NOTHING`,
-            [referralCode],
+            `INSERT INTO campaign_referral_whitelist (referral_code, school_id, note)
+       VALUES ($1, $2, 'env')
+       ON CONFLICT (referral_code) DO UPDATE SET
+         school_id = EXCLUDED.school_id,
+         note = EXCLUDED.note`,
+            [binding.referralCode, binding.schoolId],
         );
     }
 };

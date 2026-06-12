@@ -4,6 +4,7 @@ import {
     createCampaignUser,
     type CampaignDatabase,
     migrateCampaign,
+    parseReferralWhitelistBindings,
     recordReferralVisit,
     searchHighSchools,
     syncReferralWhitelist,
@@ -11,7 +12,7 @@ import {
 } from "./campaignDatabase.js";
 import { readCampaignStats } from "./campaignStatsDatabase.js";
 import { readDefaultHighSchools } from "./defaultHighSchools.js";
-import { findNearestHighSchool } from "./highSchoolGeo.js";
+import { findHighSchoolNearLocation } from "./highSchoolGeo.js";
 
 const makeQueryResult = <T extends object>(rows: T[] = []) => ({
     command: "SELECT",
@@ -39,6 +40,8 @@ describe("campaign database persistence", () => {
         expect(joined).toContain("CREATE TABLE IF NOT EXISTS campaign_users");
         expect(joined).toContain("CREATE TABLE IF NOT EXISTS campaign_referral_events");
         expect(joined).toContain("CREATE TABLE IF NOT EXISTS campaign_referral_whitelist");
+        expect(joined).toContain("school_id text REFERENCES high_schools");
+        expect(joined).toContain("campaign_referral_whitelist_school_idx");
         expect(statements).toContain(
             "CREATE INDEX IF NOT EXISTS high_schools_name_region_idx ON high_schools(name, region)",
         );
@@ -138,7 +141,7 @@ describe("campaign database persistence", () => {
         expect(schools.every((school) => school.id && school.name && school.address)).toBe(true);
     });
 
-    it("syncs only valid referral whitelist codes", async () => {
+    it("syncs only valid referral whitelist code-school bindings", async () => {
         const queries: { text: string; values?: unknown[] }[] = [];
         const db: CampaignDatabase = {
             query: async (text, values) => {
@@ -147,14 +150,18 @@ describe("campaign database persistence", () => {
             },
         };
 
-        await syncReferralWhitelist(db, ["abc234", "BAD!", "x"]);
+        expect(
+            parseReferralWhitelistBindings(["abc234:B100000546", "abc234", "BAD!:school"]),
+        ).toEqual([{ referralCode: "abc234", schoolId: "B100000546" }]);
+        await syncReferralWhitelist(db, ["abc234:B100000546", "BAD!", "x"]);
 
         expect(queries).toHaveLength(1);
         expect(queries[0]?.text).toContain("campaign_referral_whitelist");
-        expect(queries[0]?.values).toEqual(["abc234"]);
+        expect(queries[0]?.text).toContain("school_id = EXCLUDED.school_id");
+        expect(queries[0]?.values).toEqual(["abc234", "B100000546"]);
     });
 
-    it("finds a nearby high school for location verification only within radius", async () => {
+    it("verifies only the code-bound high school within radius", async () => {
         const queries: { text: string; values?: unknown[] }[] = [];
         const db: CampaignDatabase = {
             query: async <T extends object>(text: string, values?: unknown[]) => {
@@ -173,15 +180,20 @@ describe("campaign database persistence", () => {
             },
         };
 
-        await expect(findNearestHighSchool(db, 37.5, 127, 1)).resolves.toMatchObject({
+        await expect(
+            findHighSchoolNearLocation(db, "school-1", 37.5, 127, 1),
+        ).resolves.toMatchObject({
             school: { id: "school-1", name: "KICE High" },
             distanceKm: 0.42,
         });
-        await expect(findNearestHighSchool(db, 37.5, 127, 0.1)).resolves.toBeNull();
+        await expect(
+            findHighSchoolNearLocation(db, "school-1", 37.5, 127, 0.1),
+        ).resolves.toBeNull();
         expect(queries[0]?.text).toContain("ORDER BY distance_km ASC");
-        expect(queries[0]?.text).toContain("latitude BETWEEN $3 AND $4");
-        expect(queries[0]?.values?.slice(0, 2)).toEqual([37.5, 127]);
-        expect(queries[0]?.values).toHaveLength(6);
+        expect(queries[0]?.text).toContain("WHERE id = $3");
+        expect(queries[0]?.text).toContain("latitude BETWEEN $4 AND $5");
+        expect(queries[0]?.values?.slice(0, 3)).toEqual([37.5, 127, "school-1"]);
+        expect(queries[0]?.values).toHaveLength(7);
     });
 
     it("searches schools and reads bounded admin stats", async () => {

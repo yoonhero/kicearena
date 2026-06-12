@@ -20,8 +20,9 @@ const toHighSchool = (row: HighSchoolGeoRow): HighSchool => ({
     longitude: row.longitude === null ? null : Number(row.longitude),
 });
 
-export const findNearestHighSchool = async (
+export const findHighSchoolNearLocation = async (
     db: CampaignDatabase,
+    schoolId: string,
     latitude: number,
     longitude: number,
     maxDistanceKm: number,
@@ -38,14 +39,16 @@ export const findNearestHighSchool = async (
               ))
             ) AS distance_km
      FROM high_schools
-     WHERE latitude IS NOT NULL AND longitude IS NOT NULL
-       AND latitude BETWEEN $3 AND $4
-       AND longitude BETWEEN $5 AND $6
+     WHERE id = $3
+       AND latitude IS NOT NULL AND longitude IS NOT NULL
+       AND latitude BETWEEN $4 AND $5
+       AND longitude BETWEEN $6 AND $7
      ORDER BY distance_km ASC
      LIMIT 1`,
         [
             latitude,
             longitude,
+            schoolId,
             latitude - latDelta,
             latitude + latDelta,
             longitude - lonDelta,

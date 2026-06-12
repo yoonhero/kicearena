@@ -45,16 +45,16 @@ import { normalizeStudentStatus } from "../shared/campaign.js";
 import {
     attachReferralConversion,
     createCampaignUser,
-    isReferralCodeWhitelisted,
     migrateCampaign,
     readCampaignUserByUsername,
+    readReferralWhitelistSchool,
     recordReferralVisit,
     searchHighSchools,
     seedDefaultHighSchools,
     syncReferralWhitelist,
 } from "./campaignDatabase.js";
 import { readCampaignStats } from "./campaignStatsDatabase.js";
-import { findNearestHighSchool } from "./highSchoolGeo.js";
+import { findHighSchoolNearLocation } from "./highSchoolGeo.js";
 import {
     createExamCatalogPool,
     createExamInDatabase,
@@ -118,7 +118,7 @@ const metricsBearerToken = readMetricsBearerToken();
 const adminToken = process.env.ADMIN_TOKEN?.trim() ?? "";
 const referralWhitelist = (process.env.CAMPAIGN_REFERRAL_WHITELIST ?? "")
     .split(/[\s,]+/)
-    .map((code) => code.trim().toLowerCase())
+    .map((entry) => entry.trim())
     .filter(Boolean);
 const campaignLocationRadiusKm = Math.max(
     0.2,
@@ -1078,7 +1078,7 @@ app.post("/api/campaign/referral-visit", async (req, res) => {
         res.status(400).json({ error: "Invalid referral code." });
         return;
     }
-    if (!(await isReferralCodeWhitelisted(examCatalogPool, referralCode))) {
+    if (!(await readReferralWhitelistSchool(examCatalogPool, referralCode))) {
         res.status(403).json({ error: "Referral code is not whitelisted." });
         return;
     }
@@ -1106,25 +1106,27 @@ app.post("/api/campaign/referral-location-verify", async (req, res) => {
         res.status(400).json({ error: "Invalid location verification payload." });
         return;
     }
-    if (!(await isReferralCodeWhitelisted(examCatalogPool, referralCode))) {
+    const allowedSchool = await readReferralWhitelistSchool(examCatalogPool, referralCode);
+    if (!allowedSchool) {
         res.status(403).json({ error: "Referral code is not whitelisted." });
         return;
     }
-    const nearest = await findNearestHighSchool(
+    const verified = await findHighSchoolNearLocation(
         examCatalogPool,
+        allowedSchool.id,
         latitude,
         longitude,
         campaignLocationRadiusKm,
     );
-    if (!nearest) {
-        res.status(403).json({ error: "No high school matched this location." });
+    if (!verified) {
+        res.status(403).json({ error: "This referral code is not valid for this location." });
         return;
     }
     await recordReferralVisit(examCatalogPool, referralCode, visitorFingerprint(req));
     res.json({
         referralCode,
-        school: nearest.school,
-        distanceKm: Math.round(nearest.distanceKm * 100) / 100,
+        school: verified.school,
+        distanceKm: Math.round(verified.distanceKm * 100) / 100,
         verifiedAt: new Date().toISOString(),
     });
 });
@@ -1148,9 +1150,12 @@ app.post("/api/campaign/register", async (req, res) => {
         res.status(400).json({ error: "Invalid campaign registration payload." });
         return;
     }
-    if (referredByCode && !(await isReferralCodeWhitelisted(examCatalogPool, referredByCode))) {
-        res.status(403).json({ error: "Referral code is not whitelisted." });
-        return;
+    if (referredByCode) {
+        const allowedSchool = await readReferralWhitelistSchool(examCatalogPool, referredByCode);
+        if (!allowedSchool || allowedSchool.id !== schoolId) {
+            res.status(403).json({ error: "Referral code is not valid for this school." });
+            return;
+        }
     }
 
     try {
