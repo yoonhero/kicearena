@@ -1,0 +1,154 @@
+.exam-sheet {
+    background: var(--paper);
+    border: 0;
+    box-shadow: none;
+    color: #090909;
+}
+
+.intro-sheet,
+.lobby-sheet,
+.result-sheet {
+    padding: clamp(22px, 4vw, 48px);
+}
+
+.intro-sheet {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.omr-entry-sheet {
+    width: min(1160px, 100%);
+    min-height: calc(100svh - clamp(20px, 4vw, 48px));
+    margin: 0 auto;
+    padding: clamp(14px, 1.8vw, 22px) clamp(18px, 3.6vw, 48px);
+    border-left: 1px solid rgba(18, 18, 18, 0.12);
+    border-right: 1px solid rgba(18, 18, 18, 0.12);
+}
+
+.omr-entry-sheet::before {
+    content: "";
+    display: block;
+    height: 6px;
+    margin-bottom: clamp(8px, 1.4vw, 14px);
+    border-top: 3px solid var(--line);
+    border-bottom: 1px solid var(--line);
+}
+
+.lobby-sheet {
+    width: min(1220px, 100%);
+    min-height: 100vh;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.lobby-sheet .exam-head span {
+    white-space: nowrap;
+}
+
+.exam-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: baseline;
+    padding-bottom: 9px;
+    border-bottom: 1px solid var(--line-soft);
+    font-family: "Times New Roman", "AppleMyungjo", "Apple SD Gothic Neo", serif;
+}
+
+.exam-head span {
+    font-size: 14px;
+}
+
+.exam-head strong {
+    font-size: clamp(18px, 2.4vw, 28px);
+}
+
+.cover-head strong {
+    font-size: clamp(30px, 3.2vw, 44px);
+    line-height: 1;
+}
+
+.subject-badge {
+    width: fit-content;
+    margin-top: clamp(6px, 1.1vh, 10px);
+    border: 2px solid #333;
+    border-radius: 0;
+    padding: 4px 14px;
+    font-family: "Times New Roman", "AppleMyungjo", "Apple SD Gothic Neo", serif;
+    font-size: clamp(16px, 1.5vw, 20px);
+    font-weight: 900;
+}
+
+.intro-title {
+    min-height: clamp(52px, 7.2vh, 68px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+}
+
+.intro-title h1 {
+    max-width: 760px;
+    margin: 0;
+    font-family: "Times New Roman", "AppleMyungjo", "Apple SD Gothic Neo", serif;
+    font-size: clamp(40px, 5vw, 64px);
+    line-height: 1;
+    letter-spacing: 0;
+}
+
+.kice-cover {
+    align-items: center;
+    text-align: center;
+    margin-bottom: clamp(10px, 1.8vw, 18px);
+    border-bottom: 3px double var(--line);
+}
+
+.kice-cover > strong {
+    align-self: flex-end;
+    border: 1.5px solid #333;
+    border-radius: 8px;
+    padding: 5px 12px;
+    font-size: clamp(18px, 2vw, 26px);
+    font-weight: 900;
+}
+
+.intro-copy {
+    max-width: 720px;
+    font-size: 18px;
+    line-height: 1.7;
+}
+
+.rule-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.rule-row span {
+    border: 1px solid var(--line);
+    background: #fff;
+    padding: 10px 12px;
+    font-weight: 700;
+}
+
+.entry-slip {
+    margin-top: auto;
+    padding-top: clamp(26px, 4vw, 54px);
+    display: grid;
+    gap: 18px;
+}
+
+.omr-entry {
+    margin-top: 0;
+    display: grid;
+    grid-template-columns: minmax(322px, 0.78fr) minmax(540px, 1.22fr);
+    grid-template-areas:
+        "identity flows"
+        "error error";
+    gap: 14px clamp(18px, 3.2vw, 40px);
+    align-items: start;
+    padding-top: 0;
+}

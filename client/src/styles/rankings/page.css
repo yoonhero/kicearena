@@ -1,0 +1,129 @@
+.rankings-layout {
+    min-height: 100vh;
+    padding: clamp(18px, 3vw, 40px);
+    background: var(--paper);
+}
+
+.rankings-sheet {
+    width: min(1320px, 100%);
+    margin: 0 auto;
+    position: relative;
+}
+
+.rankings-head {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 20px;
+    align-items: end;
+    padding-bottom: 18px;
+    border-bottom: 2px solid var(--line);
+}
+
+.rankings-head h1 {
+    margin: 0;
+    font-family: "Times New Roman", "AppleMyungjo", "Apple SD Gothic Neo", serif;
+    font-size: clamp(44px, 6vw, 92px);
+    line-height: 1;
+}
+
+.rankings-head span {
+    font-size: 12px;
+    font-weight: 1000;
+}
+
+.rankings-head strong {
+    font-size: clamp(28px, 4vw, 56px);
+    line-height: 1;
+}
+
+.back-link {
+    border: 0;
+    border-bottom: 2px solid var(--line);
+    background: transparent;
+    padding: 8px 2px;
+    font-weight: 1000;
+}
+
+.rankings-toolbar {
+    margin-top: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.scoreboard-state-strip {
+    margin-top: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    font-weight: 1000;
+}
+
+.scoreboard-state-strip span {
+    min-height: 30px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid rgba(18, 18, 18, 0.28);
+    background: #fffef9;
+    padding: 0 9px;
+}
+
+.scoreboard-state-strip b {
+    color: var(--line);
+    font-size: 11px;
+}
+
+.scoreboard-state-strip .live {
+    border-color: #1c6b41;
+    background: #dfeee5;
+    color: #1c6b41;
+}
+
+.scoreboard-state-strip .frozen {
+    background: #ededeb;
+    color: #3f3f3f;
+}
+
+.rankings-toolbar > span {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 1000;
+    white-space: nowrap;
+}
+
+.problem-range-tabs {
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
+    border: 2px solid var(--line);
+    background: #fffef9;
+    overflow-x: auto;
+    max-width: 100%;
+}
+
+.problem-range-tabs button {
+    min-height: 36px;
+    border: 0;
+    border-right: 1px solid rgba(18, 18, 18, 0.22);
+    background: transparent;
+    padding: 0 13px;
+    color: var(--ink);
+    font-size: 12px;
+    font-weight: 1000;
+    white-space: nowrap;
+}
+
+.problem-range-tabs button:last-child {
+    border-right: 0;
+}
+
+.problem-range-tabs button:hover,
+.problem-range-tabs button.selected {
+    background: var(--line);
+    color: #fff;
+}

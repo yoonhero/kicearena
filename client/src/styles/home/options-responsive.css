@@ -1,0 +1,97 @@
+@media (max-width: 640px) {
+    .entry-mode-toggle {
+        gap: 0;
+        padding-bottom: 0;
+        border: 1px solid rgba(18, 18, 18, 0.22);
+        background: transparent;
+    }
+
+    .entry-mode-toggle button {
+        min-height: 54px;
+        border: 0;
+        border-right: 1px solid rgba(18, 18, 18, 0.18);
+        background: transparent;
+        flex-direction: column;
+        gap: 3px;
+        padding: 6px;
+        font-size: 13px;
+        touch-action: manipulation;
+    }
+
+    .entry-mode-toggle button:last-child {
+        border-right: 0;
+    }
+
+    .entry-mode-toggle button svg {
+        width: 20px;
+        height: 20px;
+    }
+
+    .entry-mode-toggle button.active {
+        border-color: rgba(18, 18, 18, 0.22);
+        background: var(--ui-accent-soft);
+        color: var(--ink);
+        box-shadow: inset 0 -3px 0 var(--ui-accent);
+    }
+
+    .quick-preset-list {
+        gap: 6px;
+        display: none;
+    }
+
+    .creator-panel.options-open .quick-preset-list {
+        display: grid;
+    }
+
+    .quick-preset-list > span {
+        display: none;
+    }
+
+    .quick-preset-grid {
+        gap: 8px;
+    }
+
+    .quick-preset {
+        min-height: 62px;
+        border: 0;
+        border-bottom: 1px solid rgba(18, 18, 18, 0.18);
+        gap: 7px;
+        padding: 7px 5px;
+        touch-action: manipulation;
+    }
+
+    .quick-preset em {
+        display: block;
+    }
+
+    .quick-preset strong {
+        font-size: 12px;
+    }
+
+    .preset-mini-head {
+        display: grid;
+        gap: 2px;
+        justify-items: center;
+    }
+
+    .preset-mini-head em {
+        font-size: 9px;
+    }
+
+    .room-option-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .option-toggle {
+        min-height: 44px;
+        gap: 5px;
+        font-size: 12px;
+        border-bottom-width: 2px;
+    }
+}
+
+@media (max-width: 420px) {
+    .entry-mode-toggle button {
+        min-height: 44px;
+    }
+}

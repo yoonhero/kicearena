@@ -1,0 +1,140 @@
+.exam-cover-shelf {
+    grid-area: auto;
+    border-bottom: 1px solid rgba(18, 18, 18, 0.14);
+    padding-bottom: 8px;
+}
+
+.exam-cover-shelf > span {
+    color: rgba(18, 18, 18, 0.62);
+}
+
+.exam-cover-shelf .exam-choice-grid {
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(84px, 104px);
+    grid-template-columns: none;
+    gap: 9px;
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 2px 4px 9px 1px;
+    scroll-snap-type: x proximity;
+}
+
+.exam-cover-shelf .exam-choice {
+    --cover-accent: var(--ui-accent);
+    aspect-ratio: 0.88;
+    min-height: 0;
+    border: 1px solid rgba(18, 18, 18, 0.26);
+    border-bottom-width: 2px;
+    background: #fffdf7;
+    box-shadow: 3px 4px 0 rgba(18, 18, 18, 0.06);
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0;
+    overflow: hidden;
+    padding: 0;
+    scroll-snap-align: start;
+    text-align: left;
+}
+
+.exam-cover-shelf .exam-choice.selected {
+    border-color: var(--ui-accent);
+    background: #fffdf7;
+    box-shadow:
+        inset 0 -4px 0 var(--ui-accent),
+        3px 4px 0 rgba(18, 18, 18, 0.08);
+}
+
+.exam-cover-art {
+    min-width: 0;
+    height: 100%;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    gap: 4px;
+    padding: 7px;
+    background:
+        linear-gradient(
+            90deg,
+            color-mix(in srgb, var(--cover-accent) 16%, transparent) 0 9px,
+            transparent 9px
+        ),
+        linear-gradient(180deg, rgba(18, 18, 18, 0.04), transparent 32px);
+}
+
+.exam-cover-art em {
+    color: color-mix(in srgb, var(--cover-accent) 72%, #121212);
+    display: block;
+    font-style: normal;
+    font-size: 9px;
+    font-weight: 1000;
+    letter-spacing: 0;
+}
+
+.exam-cover-art strong {
+    align-self: center;
+    display: block;
+    overflow: visible;
+    white-space: normal;
+    color: var(--ink);
+    font-size: 12px;
+    line-height: 1.12;
+}
+
+.exam-cover-art small {
+    color: rgba(18, 18, 18, 0.58);
+    display: block;
+    font-size: 9px;
+    font-weight: 900;
+    line-height: 1.2;
+}
+
+.join-panel {
+    padding-top: clamp(14px, 3vw, 34px);
+}
+
+.room-option-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(120px, 1fr));
+    gap: 12px;
+}
+
+.room-option-drawer {
+    grid-area: options;
+    display: grid;
+    gap: 10px;
+}
+
+.option-toggle {
+    width: fit-content;
+    min-height: 44px;
+    border: 0;
+    border-bottom: 1.5px solid var(--line);
+    background: transparent;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0 2px;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 1000;
+}
+
+.room-option-drawer.open .option-toggle {
+    color: var(--ink);
+}
+
+.option-toggle svg:last-child {
+    transition: transform 160ms ease;
+}
+
+.room-option-drawer.open .option-toggle svg:last-child {
+    transform: rotate(180deg);
+}
+
+.room-option-grid .omr-field {
+    grid-area: auto;
+}
+
+.room-option-grid .omr-field input {
+    min-height: 38px;
+}

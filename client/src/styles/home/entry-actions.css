@@ -1,0 +1,329 @@
+.entry-flow-stack {
+    grid-area: flows;
+    display: grid;
+    align-content: start;
+    gap: 12px;
+    max-width: 620px;
+    width: 100%;
+}
+
+.entry-action-panel {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+        "step"
+        "title"
+        "field"
+        "preset"
+        "options"
+        "action";
+    gap: 10px;
+    align-items: stretch;
+    padding-bottom: 0;
+}
+
+.creator-panel {
+    grid-template-areas:
+        "step"
+        "title"
+        "mode"
+        "items"
+        "action"
+        "preset"
+        "options";
+}
+
+.entry-zone-action {
+    border-top: 1.5px solid rgba(18, 18, 18, 0.18);
+    padding-top: 12px;
+}
+
+.entry-action-panel + .entry-action-panel {
+    padding-top: 4px;
+    border-top: 1px solid rgba(18, 18, 18, 0.12);
+}
+
+.entry-action-panel > .omr-field {
+    grid-area: field;
+}
+
+.entry-action-panel .omr-action {
+    grid-area: action;
+    width: min(220px, 100%);
+    justify-self: end;
+    min-width: 116px;
+}
+
+.creator-panel .host-action {
+    width: min(260px, 100%);
+    min-height: 52px;
+    font-size: 16px;
+}
+
+.join-panel .join-action {
+    width: min(180px, 100%);
+}
+
+.entry-mode-toggle {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    padding-bottom: 2px;
+    border-bottom: 1px solid rgba(18, 18, 18, 0.12);
+}
+
+.entry-flow-stack > .entry-mode-toggle::before {
+    content: "03 입실 방식";
+    grid-column: 1 / -1;
+    color: rgba(18, 18, 18, 0.58);
+    font-size: 11px;
+    font-weight: 1000;
+    letter-spacing: 0;
+}
+
+.entry-mode-toggle button {
+    min-height: 44px;
+    border: 0;
+    border-bottom: 1.5px solid rgba(18, 18, 18, 0.18);
+    background: transparent;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 0 8px;
+    color: rgba(18, 18, 18, 0.62);
+    font-weight: 1000;
+}
+
+.option-toggle {
+    min-height: 44px;
+}
+
+.entry-mode-toggle button.active {
+    border-bottom-color: var(--ui-accent);
+    background: var(--ui-accent-soft);
+    color: var(--ink);
+}
+
+.room-mode-toggle {
+    grid-area: mode;
+    width: min(360px, 100%);
+    border-bottom: 0;
+}
+
+.room-mode-toggle button {
+    min-height: 44px;
+    font-size: 12px;
+}
+
+.item-toggle-row {
+    grid-area: items;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    padding: 2px 0 4px;
+}
+
+.item-toggle-row > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: rgba(18, 18, 18, 0.68);
+    font-size: 12px;
+    font-weight: 1000;
+}
+
+.item-toggle-row button {
+    min-width: 58px;
+    min-height: 44px;
+    border: 1.5px solid rgba(18, 18, 18, 0.28);
+    background: transparent;
+    color: rgba(18, 18, 18, 0.66);
+    font-size: 12px;
+    font-weight: 1000;
+}
+
+.item-toggle-row button.active {
+    border-color: var(--ui-accent);
+    background: var(--ui-accent);
+    color: #fffef9;
+}
+
+.item-toggle-row button:disabled {
+    background: rgba(18, 18, 18, 0.08);
+}
+
+.item-toggle-row em {
+    min-width: 0;
+    color: var(--muted);
+    font-size: 11px;
+    font-style: normal;
+    font-weight: 900;
+}
+
+.exam-choice-list,
+.quick-preset-list {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+}
+
+.exam-choice-list {
+    grid-area: field;
+}
+
+.quick-preset-list {
+    grid-area: preset;
+}
+
+.exam-choice-list > span,
+.quick-preset-list > span {
+    font-size: 13px;
+    font-weight: 900;
+}
+
+.exam-choice-grid {
+    display: grid;
+    gap: 7px;
+    max-height: min(236px, 30vh);
+    overflow: auto;
+    padding-right: 3px;
+    scrollbar-width: thin;
+}
+
+.exam-choice,
+.quick-preset {
+    border: 0;
+    border-bottom: 2px solid rgba(18, 18, 18, 0.2);
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+}
+
+.exam-choice {
+    min-height: 54px;
+    display: grid;
+    grid-template-columns: 22px minmax(0, 1fr);
+    gap: 9px;
+    align-items: center;
+    padding: 6px 2px 7px;
+    text-align: left;
+}
+
+.exam-choice svg,
+.quick-preset svg {
+    color: var(--muted);
+}
+
+.exam-choice span {
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+}
+
+.exam-choice strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 14px;
+    font-weight: 1000;
+}
+
+.exam-choice em,
+.quick-preset em {
+    color: var(--muted);
+    font-style: normal;
+    font-size: 11px;
+    font-weight: 900;
+}
+
+.exam-choice.selected,
+.quick-preset.selected {
+    border-bottom-color: var(--line);
+    background: var(--ui-accent-soft);
+}
+
+.exam-choice.selected svg,
+.quick-preset.selected svg {
+    color: var(--ui-accent-ink);
+}
+
+.quick-preset-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.quick-preset {
+    min-height: 52px;
+    display: grid;
+    grid-template-rows: auto 18px;
+    gap: 6px;
+    padding: 6px;
+}
+
+.quick-preset strong {
+    white-space: nowrap;
+    font-size: 12px;
+    font-weight: 1000;
+}
+
+.preset-mini-head {
+    min-width: 0;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 6px;
+}
+
+.preset-mini-head em {
+    color: var(--ui-accent-ink);
+    font-style: normal;
+    font-size: 10px;
+    font-weight: 1000;
+    white-space: nowrap;
+}
+
+.preset-mini-track {
+    position: relative;
+    display: block;
+    min-width: 0;
+}
+
+.preset-mini-track::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 8px;
+    height: 3px;
+    background: rgba(18, 18, 18, 0.72);
+}
+
+.preset-mini-freeze {
+    position: absolute;
+    left: calc(100% * var(--preset-freeze-ratio));
+    top: 8px;
+    width: calc(100% * (var(--preset-time-ratio) - var(--preset-freeze-ratio)));
+    height: 3px;
+    background: var(--ui-accent);
+}
+
+.preset-mini-end,
+.preset-mini-start {
+    position: absolute;
+    top: 3px;
+    width: 3px;
+    height: 13px;
+    background: var(--line);
+}
+
+.preset-mini-start {
+    left: 0;
+}
+
+.preset-mini-end {
+    left: calc(100% * var(--preset-time-ratio));
+    transform: translateX(-50%);
+}

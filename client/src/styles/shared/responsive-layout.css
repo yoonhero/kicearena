@@ -1,0 +1,64 @@
+@media (max-width: 760px) {
+    .cover-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: baseline;
+        padding-bottom: 10px;
+        border-bottom: 1px solid rgba(18, 18, 18, 0.16);
+    }
+
+    .cover-head span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 13px;
+        font-weight: 400;
+    }
+
+    .cover-head strong {
+        min-width: auto;
+        border-left: 0;
+        padding-left: 0;
+        font-size: clamp(40px, 12vw, 54px);
+        line-height: 1;
+        text-align: right;
+    }
+
+    .exam-head {
+        align-items: flex-start;
+    }
+
+    .exam-head strong {
+        text-align: right;
+    }
+}
+
+@media (max-width: 640px) {
+    .app-shell {
+        padding: 0;
+    }
+
+    body {
+        overflow-x: hidden;
+    }
+
+    .intro-sheet {
+        min-height: auto;
+        justify-content: start;
+    }
+
+    .rank-row {
+        grid-template-columns: 28px minmax(0, 1fr) auto;
+    }
+
+    .rank-row small {
+        grid-column: 2 / -1;
+    }
+}
+
+@media (max-width: 420px) {
+    .exam-head {
+        gap: 10px;
+    }
+}

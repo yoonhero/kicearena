@@ -1,0 +1,119 @@
+@media (max-width: 760px) {
+    .rankings-layout {
+        padding: 14px 8px;
+    }
+
+    .problem-range-tabs button {
+        min-height: 34px;
+        padding: 0 11px;
+    }
+}
+
+@media (max-width: 640px) {
+    .rankings-head {
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        grid-template-areas: "back title time";
+        align-items: center;
+        gap: 8px;
+        padding-bottom: 8px;
+    }
+
+    .rankings-head .back-link {
+        grid-area: back;
+        justify-self: start;
+    }
+
+    .rankings-head > div {
+        grid-area: title;
+        min-width: 0;
+    }
+
+    .rankings-head h1 {
+        overflow: hidden;
+        font-size: clamp(30px, 9vw, 42px);
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .rankings-head span {
+        font-size: 10px;
+    }
+
+    .rankings-head strong {
+        grid-area: time;
+        justify-self: end;
+        font-size: clamp(22px, 7vw, 34px);
+    }
+
+    .rankings-toolbar {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 8px;
+        margin-top: 10px;
+    }
+
+    .scoreboard-state-strip {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px;
+        margin-top: 10px;
+    }
+
+    .scoreboard-state-strip span {
+        min-width: 0;
+        justify-content: center;
+        padding-inline: 6px;
+    }
+
+    .rankings-toolbar > span {
+        width: auto;
+    }
+
+    .problem-range-tabs {
+        width: 100%;
+    }
+}
+
+@media (max-width: 420px) {
+    .rankings-head h1 {
+        font-size: clamp(26px, 8vw, 34px);
+    }
+
+    .rankings-head span {
+        font-size: 9px;
+    }
+
+    .rankings-head strong {
+        font-size: clamp(20px, 6.4vw, 28px);
+    }
+
+    .rankings-head .back-link {
+        min-height: 34px;
+        padding: 4px 0;
+        font-size: 14px;
+    }
+
+    .rankings-toolbar {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 6px;
+        margin-top: 8px;
+    }
+
+    .rankings-toolbar > span {
+        font-size: 11px;
+    }
+
+    .scoreboard-state-strip {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .scoreboard-state-strip span {
+        justify-content: flex-start;
+    }
+
+    .problem-range-tabs button {
+        min-height: 32px;
+        padding: 0 10px;
+    }
+}

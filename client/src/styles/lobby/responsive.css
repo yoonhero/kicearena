@@ -1,0 +1,78 @@
+@media (max-width: 980px) {
+    .lobby-attendance {
+        grid-template-columns: minmax(0, 1fr);
+        align-items: stretch;
+        gap: 14px;
+    }
+
+    .lobby-attendance .primary-btn {
+        width: 100%;
+        padding-inline: 16px;
+    }
+
+    .lobby-actions {
+        justify-items: stretch;
+        padding-top: 2px;
+    }
+
+    .player-list {
+        max-height: min(360px, 42svh);
+    }
+
+    .lobby-action-status {
+        text-align: left;
+    }
+
+    .lobby-leave-btn {
+        width: 100%;
+    }
+}
+
+@media (max-width: 760px) {
+    .room-code {
+        margin-top: 26px;
+        gap: 8px;
+    }
+
+    .problem-preview-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .problem-preview-grid span {
+        min-height: 54px;
+        border-bottom: 1px solid rgba(18, 18, 18, 0.08);
+    }
+
+    .problem-preview-grid span:nth-child(2n) {
+        border-right: 0;
+    }
+
+    .problem-preview-grid span:nth-last-child(-n + 2) {
+        border-bottom: 0;
+    }
+
+    .lobby-attendance {
+        margin-top: 28px;
+    }
+}
+
+@media (max-width: 640px) {
+    .room-code .room-code-copy-btn {
+        font-size: 22px;
+    }
+}
+
+@media (max-width: 420px) {
+    .room-code .room-code-copy-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .room-code .invite-link-btn {
+        font-size: 15px;
+    }
+
+    .player-list {
+        max-height: clamp(168px, 26svh, 280px);
+    }
+}

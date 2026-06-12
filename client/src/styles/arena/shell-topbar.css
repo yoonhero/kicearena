@@ -1,0 +1,158 @@
+.paper-zone {
+    min-width: 0;
+    display: grid;
+    align-content: start;
+    min-height: 100vh;
+    padding: clamp(12px, 2vw, 24px);
+}
+
+.arena-workspace {
+    width: min(1380px, 100%);
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+    align-items: start;
+}
+
+.arena-topbar {
+    display: grid;
+    grid-template-columns: minmax(168px, auto) minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    padding: 0 0 8px;
+    border-bottom: 1px solid rgba(18, 18, 18, 0.14);
+}
+
+.compact-stats,
+.topbar-actions {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.compact-stats span {
+    min-height: 28px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 6px;
+    background: transparent;
+    border-bottom: 1px solid rgba(18, 18, 18, 0.16);
+    color: rgba(18, 18, 18, 0.7);
+    font-size: 11px;
+    font-weight: 1000;
+    white-space: nowrap;
+}
+
+.topbar-actions {
+    justify-content: flex-end;
+}
+
+.arena-status {
+    display: grid;
+    gap: 8px;
+    width: 100%;
+    padding-top: 0;
+}
+
+.arena-status span {
+    background: transparent;
+    border: 0;
+    min-height: 30px;
+    padding: 0 2px 7px;
+    font-size: 13px;
+    font-weight: 900;
+}
+
+.arena-status .time-chip {
+    min-height: 42px;
+    font-size: 22px;
+    line-height: 1;
+}
+
+.kice-clock {
+    --clock-progress: 0%;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: center;
+    gap: 4px;
+    min-width: 168px;
+    padding: 5px 9px 6px;
+    border: 2px solid var(--line);
+    background:
+        linear-gradient(90deg, rgba(201, 60, 50, 0.14) var(--clock-progress), transparent 0),
+        #fffdf5;
+}
+
+.clock-face {
+    display: none;
+}
+
+.clock-label {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+}
+
+.clock-label small {
+    color: var(--muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 10px;
+    font-weight: 1000;
+}
+
+.clock-label strong {
+    font-family:
+        ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Apple SD Gothic Neo", monospace;
+    font-size: 26px;
+    line-height: 1;
+    letter-spacing: 0;
+}
+
+.arena-status .freeze-chip {
+    background: #171717;
+    color: #fff;
+    padding-inline: 8px;
+    align-items: center;
+}
+
+.status-link {
+    width: fit-content;
+    min-height: 36px;
+    border: 0;
+    border-bottom: 2px solid var(--line);
+    background: transparent;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 0 7px;
+    font-weight: 1000;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.status-link svg {
+    flex: 0 0 auto;
+}
+
+.status-link.danger-link {
+    color: var(--danger);
+    border-bottom-color: var(--danger);
+    background: rgba(201, 60, 50, 0.06);
+    padding-inline: 9px;
+}
+
+.status-link.ranking-link {
+    min-height: 38px;
+    border: 2px solid var(--line);
+    background: var(--ui-accent);
+    color: #fffef9;
+    padding-inline: 12px;
+    box-shadow: 4px 4px 0 rgba(18, 18, 18, 0.12);
+}

@@ -1,0 +1,106 @@
+@media (max-width: 640px) {
+    .invite-home-layout {
+        display: block;
+    }
+
+    .entry-row,
+    .entry-row.join-row {
+        width: 100%;
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .entry-action-panel {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+            "step"
+            "title"
+            "field"
+            "preset"
+            "options"
+            "action";
+    }
+
+    .entry-zone-action {
+        padding-top: 9px;
+    }
+
+    .host-action,
+    .join-action,
+    .invite-enter-action {
+        box-shadow: 3px 3px 0 rgba(18, 18, 18, 0.1);
+    }
+
+    .creator-panel {
+        grid-template-areas:
+            "step"
+            "title"
+            "action"
+            "mode"
+            "items"
+            "options"
+            "preset";
+    }
+
+    .entry-panel-title {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        align-items: baseline;
+        padding: 0 2px 6px;
+        border-bottom: 1px solid rgba(18, 18, 18, 0.14);
+    }
+
+    .entry-panel-title span {
+        font-size: 14px;
+    }
+
+    .entry-panel-title strong {
+        font-size: 11px;
+        line-height: 1.35;
+        overflow: hidden;
+        text-align: right;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .entry-action-panel .host-action,
+    .entry-action-panel .join-action,
+    .entry-action-panel .invite-enter-action {
+        border: 2px solid var(--line);
+        background: var(--ui-accent);
+        color: #fffef9;
+        box-shadow: 3px 3px 0 rgba(18, 18, 18, 0.1);
+    }
+
+    .entry-action-panel .host-action:disabled,
+    .entry-action-panel .join-action:disabled,
+    .entry-action-panel .invite-enter-action:disabled {
+        background: #9aa7a9;
+        color: #fffef9;
+        box-shadow: none;
+    }
+
+    .entry-flow-stack {
+        gap: 12px;
+        border: 0;
+        background: transparent;
+        padding: 6px 0 0;
+    }
+
+    .entry-action-panel {
+        gap: 9px;
+        padding-bottom: 0;
+    }
+}
+
+@media (max-width: 420px) {
+    .entry-flow-stack {
+        gap: 7px;
+        padding-top: 5px;
+    }
+
+    .entry-action-panel {
+        gap: 6px;
+    }
+}

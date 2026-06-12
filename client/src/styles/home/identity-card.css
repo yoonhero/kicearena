@@ -1,0 +1,313 @@
+.entry-zone {
+    min-width: 0;
+}
+
+.identity-card {
+    grid-area: identity;
+    display: grid;
+    align-content: start;
+    justify-items: center;
+    gap: 9px;
+    padding: 12px clamp(10px, 1.6vw, 18px) 8px 0;
+    border-right: 1px solid rgba(18, 18, 18, 0.16);
+}
+
+.identity-card,
+.entry-flow-stack {
+    position: relative;
+}
+
+.identity-card::before,
+.exam-cover-shelf::before,
+.entry-action-panel::before {
+    justify-self: stretch;
+    color: rgba(18, 18, 18, 0.58);
+    font-size: 11px;
+    font-weight: 1000;
+    letter-spacing: 0;
+}
+
+.identity-card::before {
+    content: "01 수험자";
+    width: min(360px, 100%);
+}
+
+.exam-cover-shelf::before {
+    content: "02 문제지";
+}
+
+.entry-action-panel::before {
+    content: "04 제출";
+    grid-area: step;
+}
+
+.creator-panel::before {
+    content: "04 방 설정 및 제출";
+}
+
+.join-panel::before {
+    content: "04 방 코드 및 제출";
+}
+
+.nickname-direct-field {
+    display: grid;
+    grid-template-columns: 74px minmax(0, 1fr);
+    width: min(420px, 100%);
+    min-height: 42px;
+    justify-self: center;
+    border: 2px solid var(--line);
+    background: #fffef9;
+    color: var(--ink);
+    font-size: 12px;
+    font-weight: 1000;
+}
+
+.nickname-direct-field > span {
+    display: grid;
+    place-items: center;
+    border-right: 1px solid var(--line);
+    background: var(--paper-deep);
+}
+
+.nickname-direct-field input {
+    min-width: 0;
+    height: 100%;
+    border: 0;
+    background: transparent;
+    padding: 0 12px;
+    color: var(--ink);
+    font-size: 15px;
+    font-weight: 1000;
+}
+
+.omr-field {
+    display: grid;
+    gap: 8px;
+}
+
+.omr-field span {
+    font-size: 13px;
+    font-weight: 900;
+}
+
+.omr-field input,
+.omr-field select {
+    height: 48px;
+    border: 0;
+    border-bottom: 2px solid var(--line);
+    background: transparent;
+    padding: 0 2px;
+    font-weight: 900;
+    border-radius: 0;
+}
+
+.exam-field {
+    grid-area: exam;
+}
+
+.code-field {
+    grid-area: code;
+}
+
+.omr-name-maker {
+    display: grid;
+    grid-template-columns: repeat(8, minmax(30px, 1fr));
+    border: 1.5px solid rgba(18, 18, 18, 0.82);
+    background: #fffef9;
+    width: min(360px, 100%);
+}
+
+.invite-home-layout .omr-entry-sheet {
+    width: min(420px, 100%);
+    min-height: auto;
+}
+
+.invite-home-layout .omr-entry {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+        "identity"
+        "error";
+    justify-items: center;
+    padding-top: 0;
+}
+
+.invite-home-layout .identity-card {
+    width: min(320px, 100%);
+    padding: 0;
+    border: 0;
+}
+
+.invite-home-layout .omr-name-maker {
+    width: 100%;
+}
+
+.omr-maker-head {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 1fr;
+    justify-items: center;
+    gap: 2px;
+    position: relative;
+    padding: 4px 8px;
+    border-bottom: 1px solid rgba(18, 18, 18, 0.24);
+    background: rgba(47, 100, 115, 0.06);
+    font-size: 12px;
+}
+
+.omr-maker-tools {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    display: inline-flex;
+    gap: 4px;
+    transform: translateY(-50%);
+}
+
+.omr-maker-tools button {
+    width: 44px;
+    height: 44px;
+    border: 1px solid rgba(18, 18, 18, 0.24);
+    background: rgba(255, 254, 249, 0.86);
+    color: var(--ui-accent-ink);
+    display: grid;
+    place-items: center;
+    padding: 0;
+}
+
+.omr-maker-head strong {
+    font-size: 13px;
+}
+
+.omr-maker-head span {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 900;
+}
+
+.omr-maker-cells {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(84px, 1fr));
+    border-bottom: 1.5px solid rgba(18, 18, 18, 0.52);
+}
+
+.omr-name-cell {
+    min-height: 44px;
+    border: 0;
+    display: grid;
+    place-items: center;
+    border-left: 1px solid rgba(18, 18, 18, 0.42);
+    background: #fffef9;
+    font-size: 22px;
+    font-weight: 1000;
+}
+
+.omr-name-cell:first-child {
+    border-left: 0;
+}
+
+.omr-name-cell.active {
+    background: var(--ui-accent);
+    color: #fffef9;
+    box-shadow: inset 0 -4px 0 rgba(18, 18, 18, 0.24);
+}
+
+.omr-name-cell.empty::after {
+    content: "";
+    width: 22px;
+    height: 2px;
+    background: rgba(18, 18, 18, 0.22);
+}
+
+.omr-name-cell.empty.active::after {
+    background: rgba(255, 254, 249, 0.72);
+}
+
+.omr-syllable-row {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 28px repeat(8, minmax(30px, 1fr));
+}
+
+.omr-syllable-row + .omr-syllable-row {
+    border-top: 1px solid rgba(18, 18, 18, 0.08);
+}
+
+.omr-syllable-row button {
+    min-height: 44px;
+    border: 0;
+    border-left: 1px solid rgba(18, 18, 18, 0.12);
+    background: transparent;
+    display: grid;
+    place-items: center;
+    padding: 0;
+}
+
+.omr-syllable-row button:first-child {
+    border-left: 0;
+}
+
+.omr-row-name + button {
+    border-left: 0;
+}
+
+.omr-row-name {
+    grid-row: span 2;
+    display: grid;
+    place-items: center;
+    color: rgba(18, 18, 18, 0.58);
+    font-size: 10px;
+    font-weight: 1000;
+}
+
+.omr-syllable-row button span {
+    min-width: 22px;
+    max-width: calc(100% - 4px);
+    height: 20px;
+    padding-inline: 4px;
+    border: 1.5px solid rgba(47, 100, 115, 0.52);
+    border-radius: 999px;
+    display: grid;
+    place-items: center;
+    color: var(--ui-accent-ink);
+    font-size: 10px;
+    font-weight: 900;
+    line-height: 1;
+}
+
+.omr-syllable-row button.marked span {
+    background: var(--ui-accent);
+    border-color: var(--ui-accent);
+    color: #fff;
+}
+
+.omr-action {
+    min-height: 48px;
+    border: 0;
+    border-bottom: 2px solid var(--line);
+    background: transparent;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 0 6px;
+    font-weight: 1000;
+}
+
+.host-action,
+.join-action,
+.invite-enter-action {
+    background: var(--ui-accent);
+    border: 2px solid var(--line);
+    color: #fffef9;
+    padding-inline: 16px;
+    box-shadow: 5px 5px 0 rgba(18, 18, 18, 0.12);
+}
+
+.host-action:disabled,
+.join-action:disabled,
+.invite-enter-action:disabled {
+    background: #9aa7a9;
+    color: #fffef9;
+    box-shadow: none;
+}

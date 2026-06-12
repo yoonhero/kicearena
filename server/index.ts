@@ -1591,7 +1591,6 @@ io.on("connection", (socket) => {
     }
     player.submissions = player.submissions.filter((submission) => submission.problemId !== problem.id);
     const attempts = (previousSubmission?.attempts ?? 0) + 1;
-    const elapsedMs = Math.max(0, acceptedAt - (room.startedAt ?? acceptedAt));
     const scoreAwarded = correct && !previousCorrect ? scoreForAccepted(problem) : 0;
     const rawSubmission = { problemId: problem.id, answer, correct, submittedAt: acceptedAt, scoreAwarded, penaltyMs: 0, attempts };
     const submission = normalizeSubmissionPenalty(room, rawSubmission);

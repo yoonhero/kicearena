@@ -1,0 +1,353 @@
+.problem-sheet {
+    min-height: 0;
+    width: 100%;
+    margin: 0;
+    padding: clamp(14px, 2vw, 26px);
+}
+
+.single-question-sheet {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.problem-focus-head {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, auto) auto;
+    align-items: center;
+    gap: clamp(10px, 2.2vw, 22px);
+    padding-bottom: 4px;
+    font-family: "Times New Roman", "AppleMyungjo", "Apple SD Gothic Neo", serif;
+}
+
+.problem-focus-head div {
+    min-width: 0;
+    display: grid;
+    gap: 4px;
+}
+
+.problem-focus-head span {
+    color: var(--muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family:
+        Inter,
+        ui-sans-serif,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Apple SD Gothic Neo",
+        sans-serif;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.problem-focus-head strong {
+    position: relative;
+    width: fit-content;
+    font-size: clamp(32px, 4.2vw, 64px);
+    line-height: 0.95;
+    letter-spacing: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    padding: 4px 10px 7px 0;
+}
+
+.problem-focus-head.answer-correct strong,
+.problem-focus-head.answer-wrong strong {
+    color: var(--ink);
+    box-shadow: none;
+}
+
+.problem-focus-head strong .grade-mark-ink {
+    --grade-rotation: -13deg;
+    position: absolute;
+    pointer-events: none;
+    inset: -2px -20px -12px -16px;
+    font-size: 0;
+    animation: grade-mark-pop 460ms cubic-bezier(0.2, 1.35, 0.28, 1);
+    filter: saturate(1.12) contrast(1.04);
+    mix-blend-mode: multiply;
+}
+
+.problem-focus-head strong .grade-mark-ink.correct {
+    --grade-rotation: -13deg;
+    transform: rotate(var(--grade-rotation));
+}
+
+.problem-focus-head strong .grade-mark-ink.wrong {
+    --grade-rotation: -2deg;
+    inset: -6px -24px -14px -18px;
+    transform: rotate(var(--grade-rotation));
+}
+
+.grade-mark-ink svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    overflow: visible;
+}
+
+.grade-mark-ink .grade-stroke {
+    fill: none;
+    stroke: var(--grade-mark);
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+    stroke-dasharray: 1;
+    stroke-dashoffset: 0;
+    animation: grade-stroke-draw 620ms cubic-bezier(0.21, 0.77, 0.33, 1) backwards;
+}
+
+.grade-mark-ink .grade-stroke-base {
+    stroke-width: clamp(7px, 1vw, 12px);
+    opacity: 0.36;
+}
+
+.grade-mark-ink .grade-stroke-edge {
+    stroke-width: clamp(6px, 0.9vw, 11px);
+    opacity: 0.48;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    animation-delay: 42ms;
+}
+
+.grade-mark-ink .grade-stroke-pressure {
+    stroke-width: clamp(2px, 0.34vw, 4px);
+    opacity: 0.22;
+    animation-delay: 96ms;
+}
+
+.grade-mark-ink.correct .grade-stroke-edge {
+    stroke-dasharray: 1;
+}
+
+.grade-mark-ink.wrong .grade-stroke-base {
+    stroke-width: clamp(8px, 1.08vw, 13px);
+    opacity: 0.42;
+}
+
+.grade-mark-ink.wrong .grade-stroke-edge {
+    stroke-width: clamp(7px, 1vw, 12px);
+    opacity: 0.54;
+}
+
+.grade-mark-ink.wrong .grade-stroke-pressure {
+    opacity: 0.24;
+}
+
+.problem-focus-head em {
+    flex: 0 0 auto;
+    border: 1.5px solid var(--line);
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-family:
+        Inter,
+        ui-sans-serif,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Apple SD Gothic Neo",
+        sans-serif;
+    font-size: 12px;
+    font-style: normal;
+    font-weight: 900;
+}
+
+.problem-image-wrap {
+    position: relative;
+    margin-top: 0;
+    background: var(--paper);
+    border: 0;
+    overflow: hidden;
+    flex: 1;
+    display: grid;
+    place-items: center;
+    min-height: clamp(340px, 56vh, 680px);
+}
+
+.problem-image-wrap.tall-problem {
+    place-items: start center;
+    overflow: auto;
+    max-height: clamp(360px, 58vh, 720px);
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+}
+
+.problem-image-wrap img {
+    display: block;
+    width: 100%;
+    max-height: clamp(340px, 56vh, 680px);
+    object-fit: contain;
+    background: var(--paper);
+}
+
+.kice-problem-content {
+    width: min(880px, 100%);
+    min-height: clamp(340px, 56vh, 680px);
+    padding: clamp(22px, 4vw, 48px) clamp(18px, 4vw, 54px);
+    background: #fffef9;
+    color: #0b0b0b;
+    font-family: "Times New Roman", "AppleMyungjo", "Batang", "Apple SD Gothic Neo", serif;
+    line-height: 1.82;
+}
+
+.kice-problem-body {
+    display: grid;
+    gap: 14px;
+    font-size: clamp(18px, 2.2vw, 24px);
+}
+
+.kice-problem-paragraph,
+.kice-problem-note {
+    margin: 0;
+    word-break: keep-all;
+}
+
+.kice-problem-note {
+    padding-top: 8px;
+    font-size: 0.9em;
+}
+
+.kice-display-math {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 4px 0;
+    text-align: center;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-gutter: stable both-edges;
+}
+
+.kice-problem-content .katex {
+    font-size: 1.03em;
+}
+
+.kice-math-inline {
+    display: inline-block;
+    max-width: 100%;
+    vertical-align: -0.08em;
+}
+
+.kice-math-display {
+    white-space: nowrap;
+}
+
+.kice-display-math .katex-display {
+    margin: 0;
+    min-width: max-content;
+}
+
+.kice-display-math .katex {
+    text-align: center;
+}
+
+.kice-choice-list {
+    list-style: none;
+    margin: 10px 0 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 12px 18px;
+    align-items: center;
+}
+
+.kice-choice-list li {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    min-width: 0;
+    white-space: nowrap;
+}
+
+.kice-choice-list li > span {
+    font-family: "Apple SD Gothic Neo", sans-serif;
+    font-size: 0.92em;
+}
+
+.kice-diagram {
+    margin: 4px auto 8px;
+    width: min(430px, 100%);
+    display: grid;
+    justify-items: center;
+    gap: 6px;
+}
+
+.kice-diagram img {
+    width: 100%;
+    max-height: none;
+    background: transparent;
+}
+
+.kice-diagram figcaption {
+    font-size: 13px;
+    line-height: 1.35;
+}
+
+.problem-image-wrap.tall-problem img {
+    width: max(780px, 100%);
+    max-width: none;
+    max-height: none;
+}
+
+.problem-command-strip {
+    width: fit-content;
+    max-width: 100%;
+    align-self: center;
+    display: inline-grid;
+    grid-template-columns: repeat(3, 44px);
+    align-items: center;
+    gap: 8px;
+    border: 0;
+    background: transparent;
+    padding: 0;
+}
+
+.problem-command-strip button {
+    width: 44px;
+    min-height: 44px;
+    border: 1px solid rgba(18, 18, 18, 0.18);
+    border-radius: 999px;
+    background: transparent;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    font-weight: 1000;
+}
+
+.problem-command-strip button.next-problem-cue {
+    border: 2px solid var(--line);
+    border-radius: 999px;
+    color: #fff;
+    transform: scale(1.18);
+    transform-origin: center;
+    box-shadow:
+        0 0 0 5px rgba(18, 18, 18, 0.08),
+        0 8px 0 rgba(18, 18, 18, 0.12);
+    animation: next-problem-cue-pop 680ms cubic-bezier(0.18, 1.35, 0.26, 1);
+}
+
+.problem-command-strip button.next-problem-cue.correct {
+    background: var(--correct-strong);
+}
+
+.problem-command-strip button.next-problem-cue.wrong {
+    background: var(--wrong-strong);
+}
+
+.problem-command-strip button.next-problem-cue:hover {
+    transform: scale(1.26);
+}
+
+.problem-command-strip button.next-problem-cue:disabled {
+    transform: none;
+    border-color: rgba(18, 18, 18, 0.28);
+    background: rgba(18, 18, 18, 0.08);
+    color: rgba(18, 18, 18, 0.34);
+    box-shadow: none;
+    animation: none;
+}

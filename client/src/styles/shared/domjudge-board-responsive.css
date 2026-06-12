@@ -1,0 +1,74 @@
+@media (max-width: 760px) {
+    .domjudge-row {
+        grid-template-columns: 48px 142px 56px 68px 66px 68px repeat(var(--problem-count, 6), 68px);
+    }
+
+    .domjudge-row > :nth-child(2) {
+        left: 48px;
+    }
+
+    .domjudge-row > :nth-child(3) {
+        left: 190px;
+    }
+
+    .domjudge-row > :nth-child(4) {
+        left: 246px;
+    }
+
+    .domjudge-row > :nth-child(5) {
+        left: 314px;
+    }
+
+    .domjudge-row > :nth-child(6) {
+        left: 380px;
+    }
+}
+
+@media (max-width: 640px) {
+    .domjudge-board {
+        margin-top: 8px;
+    }
+
+    .scoreboard-scroll-dots {
+        justify-content: flex-start;
+        padding: 8px 4px 0;
+    }
+
+    .domjudge-row {
+        grid-template-columns: 36px 96px 48px 48px repeat(var(--problem-count, 6), 64px);
+    }
+
+    .domjudge-row > :nth-child(3),
+    .domjudge-row > :nth-child(5) {
+        display: none;
+    }
+
+    .domjudge-row > :nth-child(2) {
+        left: 36px;
+    }
+
+    .domjudge-row > :nth-child(4) {
+        left: 132px;
+    }
+
+    .domjudge-row > :nth-child(6) {
+        left: 180px;
+    }
+
+    .domjudge-row > span,
+    .domjudge-row > strong,
+    .domjudge-row > em {
+        min-height: 50px;
+        padding: 6px 7px;
+    }
+}
+
+@media (max-width: 420px) {
+    .domjudge-board {
+        margin-top: 6px;
+    }
+
+    .scoreboard-scroll-dots {
+        padding-top: 6px;
+    }
+}

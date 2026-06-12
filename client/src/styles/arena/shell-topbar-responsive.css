@@ -1,0 +1,109 @@
+@media (max-width: 980px) {
+    .paper-zone {
+        padding: 12px;
+    }
+
+    .arena-workspace {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .kice-clock {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 760px) {
+    .paper-zone {
+        padding: 8px;
+    }
+
+    .arena-workspace {
+        gap: 8px;
+    }
+}
+
+@media (max-width: 640px) {
+    .paper-zone {
+        padding-bottom: 28px;
+    }
+
+    .arena-topbar {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+            "clock"
+            "actions";
+        gap: 8px;
+        align-items: stretch;
+    }
+
+    .arena-topbar .kice-clock {
+        grid-area: clock;
+        height: 100%;
+        align-content: center;
+    }
+
+    .compact-stats {
+        display: none;
+    }
+
+    .topbar-actions {
+        grid-area: actions;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
+        gap: 6px;
+    }
+
+    .kice-clock {
+        min-width: 0;
+    }
+
+    .clock-label strong {
+        font-size: 24px;
+    }
+
+    .status-link {
+        width: 100%;
+        min-height: 44px;
+        justify-content: center;
+        gap: 5px;
+        padding: 0 5px;
+        border-bottom: 2px solid var(--line);
+        font-size: 12px;
+    }
+
+    .status-link.danger-link {
+        border-bottom-color: var(--danger);
+        padding-inline: 5px;
+    }
+
+    .status-link.ranking-link {
+        min-height: 44px;
+    }
+}
+
+@media (max-width: 420px) {
+    .arena-status {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .arena-topbar {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+            "clock"
+            "actions";
+    }
+
+    .topbar-actions {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .status-link {
+        gap: 4px;
+        font-size: 11px;
+    }
+
+    .clock-label small {
+        white-space: normal;
+    }
+}

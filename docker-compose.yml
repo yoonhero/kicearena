@@ -101,7 +101,7 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-kice_arena}:${POSTGRES_PASSWORD:-kice_arena}@postgres:5432/${POSTGRES_DB:-kice_arena}}
-    command: npm run db:seed
+    command: bun run db:seed
     depends_on:
       postgres:
         condition: service_healthy

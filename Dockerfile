@@ -1,22 +1,22 @@
-FROM node:22-bookworm-slim AS deps
+FROM oven/bun:1.3.7-debian AS deps
 WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci
+COPY package.json bun.lock ./
+RUN HUSKY=0 bun install --frozen-lockfile
 
 FROM deps AS build
 COPY tsconfig.json vite.config.ts ./
 COPY client ./client
 COPY shared ./shared
 COPY server ./server
-RUN npm run build
-RUN npm prune --omit=dev
+RUN bun run build
+RUN HUSKY=0 bun install --frozen-lockfile --production
 
-FROM node:22-bookworm-slim AS runner
+FROM oven/bun:1.3.7-debian AS runner
 ENV NODE_ENV=production
 ENV PORT=3001
 WORKDIR /app
 
-COPY --from=build /app/package.json /app/package-lock.json ./
+COPY --from=build /app/package.json /app/bun.lock ./
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/server ./server
@@ -24,6 +24,6 @@ COPY --from=build /app/shared ./shared
 
 EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD node -e "fetch('http://127.0.0.1:' + (process.env.PORT || 3001) + '/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+  CMD bun -e "fetch('http://127.0.0.1:' + (process.env.PORT || 3001) + '/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
 
-CMD ["npm", "run", "start"]
+CMD ["bun", "run", "start"]

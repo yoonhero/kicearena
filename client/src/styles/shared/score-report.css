@@ -1,0 +1,101 @@
+.score-report-board {
+    position: relative;
+    margin-top: 18px;
+    overflow: hidden;
+    border-top: 3px solid var(--line);
+    border-bottom: 3px solid var(--line);
+}
+
+.score-report-board::before,
+.final-report-sheet::before {
+    content: "KICE";
+    position: absolute;
+    inset: 50% auto auto 50%;
+    transform: translate(-50%, -50%) rotate(-10deg);
+    color: rgba(18, 18, 18, 0.055);
+    font-size: clamp(120px, 18vw, 260px);
+    font-weight: 1000;
+    pointer-events: none;
+}
+
+.score-report-title {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 18px;
+    padding: 18px 14px;
+    border-bottom: 2px solid var(--line);
+    font-family: "Times New Roman", "AppleMyungjo", "Apple SD Gothic Neo", serif;
+}
+
+.score-report-title strong {
+    font-size: clamp(22px, 3vw, 38px);
+    line-height: 1.15;
+}
+
+.score-report-title em {
+    font-style: normal;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 1000;
+    text-align: right;
+    word-break: keep-all;
+}
+
+.score-report-grid {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(42px, 0.48fr) minmax(90px, 1.25fr) minmax(62px, 0.72fr) minmax(
+            58px,
+            0.68fr
+        ) minmax(62px, 0.72fr) minmax(64px, 0.78fr) minmax(76px, 0.9fr);
+    border-bottom: 1px solid rgba(18, 18, 18, 0.42);
+}
+
+.score-report-grid > span,
+.score-report-grid > strong,
+.score-report-grid > em,
+.score-report-grid > small {
+    min-height: 58px;
+    display: grid;
+    align-content: center;
+    padding: 8px clamp(4px, 0.8vw, 10px);
+    border-right: 1px solid rgba(18, 18, 18, 0.36);
+    font-style: normal;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.score-report-grid > :last-child {
+    border-right: 0;
+}
+
+.score-report-grid.me {
+    box-shadow: inset 0 0 0 999px rgba(232, 201, 58, 0.2);
+}
+
+.score-report-header {
+    background: #eeece4;
+    border-bottom: 2px solid var(--line);
+    font-size: 12px;
+    font-weight: 1000;
+    text-align: center;
+}
+
+.score-report-grid em,
+.score-report-grid span {
+    text-align: center;
+}
+
+.score-report-grid strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.score-report-grid small {
+    color: var(--danger);
+    font-size: 11px;
+    font-weight: 1000;
+}

@@ -1,0 +1,30 @@
+@media (max-width: 640px) {
+    .score-report-title {
+        min-width: 0;
+        grid-template-columns: 1fr;
+        gap: 6px;
+    }
+
+    .score-report-grid {
+        min-width: 0;
+        grid-template-columns: minmax(32px, 0.5fr) minmax(64px, 1.25fr) minmax(42px, 0.7fr) minmax(
+                42px,
+                0.68fr
+            ) minmax(44px, 0.72fr) minmax(48px, 0.78fr) minmax(54px, 0.88fr);
+        font-size: 11px;
+    }
+
+    .score-report-grid > span,
+    .score-report-grid > strong,
+    .score-report-grid > em,
+    .score-report-grid > small {
+        min-height: 50px;
+        padding: 6px 3px;
+    }
+}
+
+@media (max-width: 420px) {
+    .score-report-title strong {
+        font-size: 18px;
+    }
+}

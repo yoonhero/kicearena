@@ -1,0 +1,220 @@
+.reveal-domjudge-board {
+    margin-top: 18px;
+    contain: layout paint;
+}
+
+.reveal-row {
+    backface-visibility: hidden;
+    contain: layout paint style;
+    transform: translateZ(0);
+    transition:
+        transform 360ms cubic-bezier(0.16, 1, 0.3, 1),
+        background 240ms ease,
+        color 180ms ease;
+    will-change: transform;
+}
+
+.reveal-domjudge-board .reveal-row {
+    grid-template-columns: 52px 160px 132px 78px 82px 86px repeat(var(--problem-count, 6), 92px);
+}
+
+.reveal-domjudge-board .reveal-row > :nth-child(3) {
+    left: 212px;
+}
+
+.reveal-domjudge-board .reveal-row > :nth-child(4) {
+    left: 344px;
+}
+
+.reveal-domjudge-board .reveal-row > :nth-child(5) {
+    left: 422px;
+}
+
+.reveal-domjudge-board .reveal-row > :nth-child(6) {
+    left: 504px;
+}
+
+.reveal-row.locked {
+    color: rgba(18, 18, 18, 0.72);
+    background: repeating-linear-gradient(
+        -45deg,
+        rgba(18, 18, 18, 0.025),
+        rgba(18, 18, 18, 0.025) 8px,
+        rgba(18, 18, 18, 0.055) 8px,
+        rgba(18, 18, 18, 0.055) 16px
+    );
+}
+
+.reveal-domjudge-board .reveal-row.locked > :nth-child(-n + 6) {
+    background: #f3f2ec;
+}
+
+.reveal-row.revealed {
+    background: rgba(255, 255, 255, 0.92);
+}
+
+.reveal-domjudge-board .reveal-row.revealed > :nth-child(-n + 6) {
+    background: #fffef8;
+}
+
+.reveal-row.active-reveal {
+    background: rgba(232, 201, 58, 0.16);
+}
+
+.reveal-domjudge-board .reveal-row.active-reveal > :nth-child(-n + 6) {
+    background: #fff4bd;
+}
+
+.reveal-row.moved-up {
+    background: linear-gradient(
+        90deg,
+        rgba(49, 196, 107, 0.24),
+        rgba(49, 196, 107, 0.08) 42%,
+        rgba(255, 255, 255, 0.94)
+    );
+    box-shadow: inset 5px 0 0 var(--live);
+}
+
+.reveal-domjudge-board .reveal-row.moved-up > :nth-child(-n + 6) {
+    background: #dcf6e4;
+}
+
+.reveal-row.moved-up > :first-child::after {
+    content: "▲";
+    margin-left: 4px;
+    color: #0b6b31;
+    font-size: 11px;
+}
+
+.final-report-row > span,
+.final-report-row > strong,
+.final-report-row > em {
+    min-height: 58px;
+    display: grid;
+    align-content: center;
+    padding: 8px clamp(4px, 0.9vw, 12px);
+    border-right: 1px solid rgba(18, 18, 18, 0.36);
+    font-style: normal;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    text-align: center;
+}
+
+.reveal-row > .reveal-problem-cell {
+    gap: 2px;
+    justify-items: center;
+}
+
+.reveal-problem-cell b {
+    font-size: 13px;
+    line-height: 1.1;
+}
+
+.reveal-problem-cell small {
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 1000;
+    line-height: 1.1;
+}
+
+.reveal-problem-cell.accepted,
+.reveal-problem-cell.revealed-correct {
+    background: rgba(49, 196, 107, 0.2);
+    color: #0b4f24;
+}
+
+.reveal-problem-cell.tried,
+.reveal-problem-cell.revealed-wrong {
+    background: rgba(201, 60, 50, 0.1);
+    color: #7b1e17;
+}
+
+.reveal-problem-cell.frozen {
+    background: #e4e4e0;
+    color: #3f3f3f;
+}
+
+.reveal-problem-cell.empty {
+    color: rgba(18, 18, 18, 0.38);
+}
+
+.reveal-domjudge-board .focused-problem,
+.reveal-problem-cell.focused-column {
+    box-shadow: inset 0 -4px 0 rgba(232, 201, 58, 0.72);
+}
+
+.reveal-problem-cell.active-cell {
+    position: relative;
+    z-index: 1;
+    animation: reveal-cell-turn 520ms cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: inset 0 0 0 3px rgba(18, 18, 18, 0.76);
+    outline: 3px solid var(--accent);
+    outline-offset: -6px;
+    backface-visibility: hidden;
+    will-change: transform, opacity;
+}
+
+.reveal-scroll-dots {
+    justify-content: flex-end;
+}
+
+.final-report-row > :last-child {
+    border-right: 0;
+}
+
+.final-report-row-head {
+    background: #eeece4;
+    border-bottom: 2px solid var(--line);
+    font-size: 12px;
+    font-weight: 1000;
+}
+
+.final-report-row.me {
+    background: var(--ui-accent-soft);
+    box-shadow: inset 5px 0 0 var(--ui-accent);
+}
+
+.leave-report-btn {
+    position: relative;
+    margin-top: 0;
+    min-height: 44px;
+    border: 2px solid var(--line);
+    background: var(--ui-accent);
+    color: var(--paper);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 14px;
+    font-weight: 1000;
+}
+
+@keyframes reveal-spin {
+    from {
+        transform: rotate(-8deg) scale(0.92);
+    }
+    to {
+        transform: rotate(0deg) scale(1);
+    }
+}
+
+@keyframes reveal-row-pop {
+    from {
+        opacity: 0.86;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes reveal-cell-turn {
+    from {
+        opacity: 0.75;
+        transform: rotateY(90deg) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: rotateY(0deg) scale(1);
+    }
+}

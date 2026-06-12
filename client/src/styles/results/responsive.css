@@ -1,0 +1,166 @@
+@media (max-width: 640px) {
+    .reveal-dial {
+        position: relative;
+        inset: auto;
+        width: 88px;
+        height: 88px;
+        margin: 12px 0 0 auto;
+        border-width: 5px;
+    }
+
+    .reveal-dial strong {
+        margin-top: 52px;
+        font-size: 12px;
+    }
+
+    .reveal-control-strip {
+        grid-template-columns: 1fr;
+    }
+
+    .reveal-next-btn {
+        width: fit-content;
+        max-width: 100%;
+    }
+
+    .intro-sheet,
+    .lobby-sheet,
+    .result-sheet,
+    .problem-sheet {
+        padding: 14px;
+    }
+
+    .home-layout,
+    .lobby-layout,
+    .arena-layout,
+    .results-layout {
+        min-height: 100svh;
+        height: auto;
+    }
+
+    .results-layout {
+        display: block;
+        padding: 10px;
+    }
+
+    .final-report-sheet .score-report-title {
+        max-width: none;
+    }
+
+    .report-watermark {
+        top: 58px;
+        right: 12px;
+        width: 52px;
+    }
+
+    .release-stamp {
+        font-size: 16px;
+        border-width: 3px;
+        opacity: 0.14;
+    }
+
+    .result-row {
+        grid-template-columns: 54px minmax(0, 1fr);
+    }
+
+    .result-row em {
+        grid-column: 2 / -1;
+    }
+
+    .final-report-table {
+        margin-top: 18px;
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .final-report-actions {
+        align-items: stretch;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .final-report-actions .leave-report-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .final-report-row {
+        width: max-content;
+        min-width: 640px;
+    }
+
+    .reveal-row {
+        min-width: 100%;
+    }
+
+    .reveal-domjudge-board .reveal-row {
+        grid-template-columns: 36px 94px 48px 48px repeat(var(--problem-count, 6), 74px);
+    }
+
+    .reveal-domjudge-board .reveal-row > :nth-child(4) {
+        left: 130px;
+    }
+
+    .reveal-domjudge-board .reveal-row > :nth-child(6) {
+        left: 178px;
+    }
+
+    .reveal-scroll-dots {
+        justify-content: flex-start;
+    }
+}
+
+@media (max-width: 760px) {
+    .final-report-sheet {
+        border-width: 2px;
+    }
+}
+
+@media (max-width: 420px) {
+    .intro-sheet,
+    .lobby-sheet,
+    .result-sheet,
+    .problem-sheet,
+    .omr-entry-sheet {
+        padding: 10px;
+    }
+
+    .reveal-domjudge-board .reveal-row {
+        grid-template-columns: 30px 76px 42px 42px repeat(var(--problem-count, 6), 58px);
+    }
+
+    .reveal-domjudge-board .reveal-row > :nth-child(2) {
+        left: 30px;
+    }
+
+    .reveal-domjudge-board .reveal-row > :nth-child(4) {
+        left: 106px;
+    }
+
+    .reveal-domjudge-board .reveal-row > :nth-child(6) {
+        left: 148px;
+    }
+
+    .final-report-row {
+        width: 100%;
+        min-width: 100%;
+        grid-template-columns: 34px minmax(68px, 1fr) 54px 48px 56px 56px;
+        font-size: 10px;
+    }
+
+    .reveal-row {
+        grid-template-columns: 34px 72px 46px 52px 58px repeat(var(--problem-count, 6), 72px);
+        min-width: 100%;
+    }
+
+    .final-report-row > span,
+    .final-report-row > strong,
+    .final-report-row > em {
+        min-height: 46px;
+        padding: 5px 3px;
+    }
+
+    .release-stamp {
+        opacity: 0.16;
+    }
+}

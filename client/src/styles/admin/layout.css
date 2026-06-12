@@ -1,0 +1,313 @@
+.admin-shell {
+    min-height: 100vh;
+    background: var(--paper);
+    color: var(--ink);
+    padding: 20px;
+}
+
+.admin-topbar {
+    display: grid;
+    grid-template-columns: minmax(180px, 1fr) minmax(240px, 340px) auto auto;
+    gap: 12px;
+    align-items: end;
+    border-bottom: 2px solid var(--line);
+    padding-bottom: 14px;
+}
+
+.admin-topbar > div {
+    display: grid;
+    gap: 4px;
+}
+
+.admin-topbar > div span,
+.admin-section-head span {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 1000;
+}
+
+.admin-topbar > div strong {
+    font-size: 24px;
+    font-weight: 1000;
+}
+
+.admin-layout {
+    display: grid;
+    grid-template-columns: minmax(260px, 340px) minmax(560px, 1.62fr) minmax(300px, 0.82fr);
+    grid-template-areas:
+        "exams editor preview"
+        "problems editor preview";
+    gap: 18px;
+    align-items: start;
+    padding-top: 18px;
+}
+
+.admin-exam-list,
+.admin-problem-list,
+.admin-editor,
+.admin-preview {
+    display: grid;
+    gap: 12px;
+    min-width: 0;
+    align-content: start;
+}
+
+.admin-exam-list {
+    grid-area: exams;
+}
+
+.admin-problem-list {
+    grid-area: problems;
+}
+
+.admin-editor {
+    grid-area: editor;
+}
+
+.admin-preview {
+    grid-area: preview;
+}
+
+.admin-section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: 2px solid var(--line);
+    padding-bottom: 8px;
+}
+
+.admin-section-head strong {
+    font-size: 13px;
+    font-weight: 1000;
+}
+
+.admin-section-actions,
+.admin-exam-quick-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.admin-exam-quick-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.admin-icon-btn {
+    width: 34px;
+    height: 34px;
+    border: 2px solid var(--line);
+    background: var(--line);
+    color: var(--paper);
+    display: grid;
+    place-items: center;
+}
+
+.admin-exam-list > button {
+    display: grid;
+    gap: 4px;
+    border: 2px solid var(--line);
+    background: #fffdf5;
+    color: var(--ink);
+    padding: 10px 12px;
+    text-align: left;
+}
+
+.admin-new-exam,
+.admin-exam-settings {
+    display: grid;
+    gap: 9px;
+    border: 2px solid var(--line);
+    background: #fffdf5;
+    padding: 10px;
+}
+
+.admin-exam-settings {
+    border-color: rgba(18, 18, 18, 0.32);
+}
+
+.admin-new-exam-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: end;
+}
+
+.admin-visibility-btn {
+    min-height: 44px;
+    border: 2px solid rgba(18, 18, 18, 0.24);
+    background: transparent;
+    color: var(--muted);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 0 10px;
+    font-size: 12px;
+    font-weight: 1000;
+    white-space: nowrap;
+}
+
+.admin-visibility-btn.published {
+    border-color: #1c6b41;
+    background: #dfeee5;
+    color: #1c6b41;
+}
+
+.admin-subsection-head {
+    margin-top: 2px;
+}
+
+.admin-add-problem-btn {
+    justify-self: stretch;
+}
+
+.admin-exam-list > button.selected,
+.admin-problem-row.selected {
+    background: var(--ui-accent-soft);
+    box-shadow: inset 4px 0 0 var(--ui-accent);
+}
+
+.admin-exam-list > button strong {
+    font-size: 14px;
+    font-weight: 1000;
+}
+
+.admin-exam-list > button span {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.admin-problem-table {
+    display: grid;
+    border: 2px solid var(--line);
+    overflow: auto;
+    max-height: min(430px, calc(100vh - 500px));
+}
+
+.admin-problem-row {
+    display: grid;
+    grid-template-columns: 48px minmax(160px, 1fr) 92px;
+    gap: 10px;
+    align-items: center;
+    min-height: 42px;
+    border: 0;
+    border-bottom: 1px solid var(--line-soft);
+    background: #fffdf5;
+    color: var(--ink);
+    padding: 0 10px;
+    text-align: left;
+    font-weight: 900;
+}
+
+.admin-problem-row.head {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: #242424;
+    color: #fffdf5;
+    font-size: 12px;
+}
+
+.admin-problem-row span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.admin-editor {
+    border-left: 2px solid var(--line);
+    padding-left: 18px;
+}
+
+.admin-edit-state-strip {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    border: 2px solid var(--line);
+    background: #fffdf5;
+}
+
+.admin-edit-state-strip span {
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+    min-height: 52px;
+    align-content: center;
+    border-right: 1px solid rgba(18, 18, 18, 0.24);
+    padding: 8px 10px;
+    color: var(--ink);
+    font-size: 12px;
+    font-weight: 900;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.admin-edit-state-strip span:last-child {
+    border-right: 0;
+}
+
+.admin-edit-state-strip b {
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 1000;
+}
+
+.admin-edit-state-strip .valid,
+.admin-edit-state-strip .clean {
+    box-shadow: inset 0 -3px 0 #1c6b41;
+}
+
+.admin-edit-state-strip .invalid,
+.admin-edit-state-strip .dirty {
+    box-shadow: inset 0 -3px 0 var(--danger);
+}
+
+.admin-editor-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.admin-field {
+    display: grid;
+    gap: 6px;
+}
+
+.admin-segmented,
+.admin-difficulty-picks,
+.admin-answer-picks {
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+}
+
+.admin-segmented {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.admin-difficulty-picks,
+.admin-answer-picks {
+    grid-template-columns: repeat(5, minmax(34px, 1fr));
+}
+
+.admin-segmented button,
+.admin-difficulty-picks button,
+.admin-answer-picks button {
+    min-height: 42px;
+    border: 2px solid rgba(18, 18, 18, 0.2);
+    background: #fffdf5;
+    color: var(--ink);
+    font-weight: 1000;
+}
+
+.admin-segmented button.selected,
+.admin-difficulty-picks button.selected,
+.admin-answer-picks button.selected {
+    border-color: var(--ui-accent);
+    background: var(--ui-accent);
+    color: var(--paper);
+}

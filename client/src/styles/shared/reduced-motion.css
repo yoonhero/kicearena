@@ -1,0 +1,12 @@
+@media (prefers-reduced-motion: reduce) {
+    .reveal-dial,
+    .reveal-dial svg,
+    .item-toast,
+    .target-bank,
+    .reveal-row,
+    .reveal-problem-cell.active-cell {
+        animation: none;
+        transition: none;
+        will-change: auto;
+    }
+}

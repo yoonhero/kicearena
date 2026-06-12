@@ -1,0 +1,321 @@
+.coupled-time-board {
+    display: grid;
+    gap: 10px;
+    border: 1px solid rgba(18, 18, 18, 0.24);
+    background: #fffef9;
+    padding: 10px 14px 12px;
+}
+
+.timeline-status {
+    display: grid;
+    justify-content: end;
+    align-items: baseline;
+    border-bottom: 1px solid rgba(18, 18, 18, 0.14);
+    padding-bottom: 7px;
+    font-size: 11px;
+    font-weight: 1000;
+}
+
+.timeline-status strong {
+    color: var(--ink);
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.coupled-time-track {
+    display: grid;
+    min-width: 0;
+}
+
+.coupled-slider-stack {
+    position: relative;
+    height: 86px;
+    min-width: 0;
+}
+
+.coupled-axis {
+    position: absolute;
+    left: 14px;
+    right: 14px;
+    top: 42px;
+    height: 8px;
+    background: rgba(18, 18, 18, 0.86);
+    box-shadow:
+        0 0 0 1px rgba(18, 18, 18, 0.08),
+        inset 0 -2px 0 rgba(255, 255, 255, 0.18);
+}
+
+.freeze-zone {
+    position: absolute;
+    left: calc(14px + (100% - 28px) * var(--freeze-ratio));
+    top: 42px;
+    z-index: 1;
+    width: calc((100% - 28px) * (var(--time-ratio) - var(--freeze-ratio)));
+    height: 8px;
+    background: color-mix(in srgb, var(--ui-accent) 72%, #fffef9);
+    pointer-events: none;
+}
+
+.coupled-ticks {
+    position: absolute;
+    left: 14px;
+    right: 14px;
+    top: 35px;
+    height: 34px;
+    pointer-events: none;
+}
+
+.coupled-ticks span {
+    position: absolute;
+    top: 0;
+    width: 1px;
+    height: 18px;
+    background: rgba(18, 18, 18, 0.44);
+    color: rgba(18, 18, 18, 0.54);
+    display: grid;
+    justify-items: center;
+    padding-top: 22px;
+    font-size: 9px;
+    font-weight: 1000;
+    transform: translateX(-50%);
+}
+
+.coupled-ticks span:nth-child(3) {
+    width: 2px;
+    background: rgba(18, 18, 18, 0.66);
+}
+
+.axis-arrow {
+    position: absolute;
+    top: 38px;
+    z-index: 1;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+}
+
+.axis-arrow.left {
+    left: 2px;
+    border-top: 8px solid transparent;
+    border-bottom: 8px solid transparent;
+    border-right: 13px solid rgba(18, 18, 18, 0.86);
+}
+
+.axis-arrow.right {
+    right: 2px;
+    border-top: 8px solid transparent;
+    border-bottom: 8px solid transparent;
+    border-left: 13px solid rgba(18, 18, 18, 0.86);
+}
+
+.time-marker {
+    position: absolute;
+    left: calc(14px + (100% - 28px) * var(--time-ratio));
+    z-index: 3;
+    width: 72px;
+    min-height: 34px;
+    border-radius: 0;
+    background: #fffef9;
+    display: grid;
+    place-items: center;
+    gap: 0;
+    padding: 4px 5px;
+    pointer-events: none;
+    transform: translateX(-50%);
+}
+
+.time-marker span {
+    font-size: 9px;
+    font-weight: 1000;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.time-marker strong {
+    font-size: 13px;
+    font-weight: 1000;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.time-limit-marker {
+    top: 4px;
+    border: 2px solid rgba(18, 18, 18, 0.78);
+    box-shadow: 3px 3px 0 rgba(18, 18, 18, 0.08);
+}
+
+.time-limit-marker::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 32px;
+    width: 2px;
+    height: 14px;
+    background: rgba(18, 18, 18, 0.78);
+}
+
+.freeze-marker-dot {
+    left: calc(14px + (100% - 28px) * var(--freeze-ratio));
+    top: 50px;
+    border: 2px solid var(--ui-accent);
+    box-shadow: 3px 3px 0 rgba(18, 18, 18, 0.06);
+}
+
+.freeze-marker-dot span,
+.freeze-marker-dot strong {
+    color: var(--ui-accent-ink);
+}
+
+.freeze-marker-dot::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: 32px;
+    width: 2px;
+    height: 14px;
+    background: var(--ui-accent);
+}
+
+.time-range {
+    position: absolute;
+    left: 0;
+    right: 0;
+    z-index: 2;
+    width: 100%;
+    height: 40px;
+    margin: 0;
+    opacity: 0;
+    background: transparent;
+    appearance: none;
+    -webkit-appearance: none;
+}
+
+.time-limit-range {
+    top: 0;
+}
+
+.freeze-range {
+    top: 46px;
+}
+
+.time-range::-webkit-slider-runnable-track {
+    height: 40px;
+    background: transparent;
+}
+
+.time-range::-webkit-slider-thumb {
+    width: 72px;
+    height: 40px;
+    margin-top: 0;
+    appearance: none;
+    -webkit-appearance: none;
+}
+
+.time-range::-moz-range-track {
+    height: 40px;
+    background: transparent;
+}
+
+.time-range::-moz-range-thumb {
+    width: 72px;
+    height: 40px;
+    border: 0;
+    background: transparent;
+}
+
+.entry-panel-title {
+    grid-area: title;
+    display: flex;
+    gap: 12px;
+    align-items: baseline;
+    min-width: 0;
+}
+
+.entry-panel-title span {
+    font-size: 13px;
+    font-weight: 1000;
+}
+
+.entry-panel-title strong {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.omr-entry .error-text {
+    grid-area: error;
+}
+
+.invite-entry-status {
+    display: flex;
+    justify-content: center;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 1000;
+}
+
+.invite-enter-action {
+    width: 100%;
+}
+
+.invite-exit-action {
+    width: 100%;
+    min-height: 38px;
+    border: 0;
+    border-bottom: 2px solid var(--line);
+    background: transparent;
+    color: var(--muted);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 0 10px 4px;
+    font-size: 13px;
+    font-weight: 1000;
+}
+
+.invite-exit-action:hover {
+    color: var(--ink);
+    background: rgba(18, 18, 18, 0.04);
+}
+
+.entry-row {
+    display: grid;
+    grid-template-columns: minmax(150px, 0.7fr) minmax(240px, 1.4fr) auto;
+    gap: 18px;
+    align-items: end;
+}
+
+.entry-row.join-row {
+    grid-template-columns: minmax(150px, 0.7fr) auto;
+    width: min(520px, 100%);
+}
+
+.entry-slip label {
+    color: #1c1c1c;
+}
+
+.entry-slip input,
+.entry-slip select {
+    border: 0;
+    border-bottom: 2px solid var(--line);
+    background: transparent;
+    padding: 0 2px;
+    min-height: 42px;
+}
+
+.entry-slip .primary-btn,
+.entry-slip .ghost-btn {
+    min-width: 116px;
+    border-width: 0 0 2px;
+    background: transparent;
+    padding: 0 4px;
+}
+
+.entry-slip .primary-btn {
+    color: #111;
+}
+
+.entry-slip .ghost-btn {
+    color: #111;
+}
