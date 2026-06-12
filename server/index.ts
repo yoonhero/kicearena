@@ -41,6 +41,19 @@ import {
     validateRoomJoin,
 } from "../shared/roomLifecycle.js";
 import { runtimeMetricSamples, summarizeRoomMetrics } from "../shared/runtimeMetrics.js";
+import { normalizeStudentStatus } from "../shared/campaign.js";
+import {
+    attachReferralConversion,
+    createCampaignUser,
+    isReferralCodeWhitelisted,
+    migrateCampaign,
+    readCampaignUserByUsername,
+    recordReferralVisit,
+    searchHighSchools,
+    seedDefaultHighSchools,
+    syncReferralWhitelist,
+} from "./campaignDatabase.js";
+import { readCampaignStats } from "./campaignStatsDatabase.js";
 import {
     createExamCatalogPool,
     createExamInDatabase,
@@ -102,6 +115,10 @@ const readMetricsBearerToken = () => {
 };
 const metricsBearerToken = readMetricsBearerToken();
 const adminToken = process.env.ADMIN_TOKEN?.trim() ?? "";
+const referralWhitelist = (process.env.CAMPAIGN_REFERRAL_WHITELIST ?? "")
+    .split(/[\s,]+/)
+    .map((code) => code.trim().toLowerCase())
+    .filter(Boolean);
 const allowedOrigins = (process.env.CORS_ORIGINS ?? "")
     .split(",")
     .map((origin) => origin.trim())
@@ -427,6 +444,9 @@ const refreshExamCatalog = async () => {
     examCatalogPool = createExamCatalogPool(databaseUrl);
     await migrateExamCatalog(examCatalogPool);
     await migrateRoomState(examCatalogPool);
+    await migrateCampaign(examCatalogPool);
+    await seedDefaultHighSchools(examCatalogPool);
+    await syncReferralWhitelist(examCatalogPool, referralWhitelist);
     exams = await readExamsFromDatabase(examCatalogPool);
     examById = new Map(exams.map((exam) => [exam.id, exam]));
 };
@@ -509,6 +529,25 @@ const readPositiveSeconds = (value: unknown, fallback: number, min: number, max:
 
 const readString = (value: unknown, maxLength: number) =>
     typeof value === "string" ? value.trim().slice(0, maxLength) : "";
+const hashPassword = (password: string) => {
+    const salt = crypto.randomBytes(16).toString("base64url");
+    const key = crypto.scryptSync(password, salt, 64).toString("base64url");
+    return `scrypt:${salt}:${key}`;
+};
+const verifyPassword = (password: string, storedHash: string) => {
+    const [scheme, salt, key] = storedHash.split(":");
+    if (scheme !== "scrypt" || !salt || !key) return false;
+    const expected = Buffer.from(key, "base64url");
+    const supplied = crypto.scryptSync(password, salt, 64);
+    return expected.length === supplied.length && crypto.timingSafeEqual(expected, supplied);
+};
+const visitorFingerprint = (req: express.Request) =>
+    crypto
+        .createHash("sha256")
+        .update(
+            `${normalizeRemoteAddress(req.socket.remoteAddress)}:${req.get("user-agent") ?? ""}`,
+        )
+        .digest("base64url");
 const sanitizeAssetFileName = (value: string) => {
     const safeName = value
         .trim()
@@ -1013,6 +1052,120 @@ app.get("/metrics", async (req, res) => {
 
 app.get("/api/exams", (_req, res) => {
     res.json(exams.filter((exam) => isExamReleased(exam)).map(toExamSummary));
+});
+
+app.get("/api/schools", async (req, res) => {
+    if (!examCatalogPool) {
+        res.sendStatus(503);
+        return;
+    }
+    const query = readString(req.query.q, 80);
+    res.json(await searchHighSchools(examCatalogPool, query));
+});
+
+app.post("/api/campaign/referral-visit", async (req, res) => {
+    if (!examCatalogPool) {
+        res.sendStatus(503);
+        return;
+    }
+    const referralCode = readString(req.body?.referralCode, 32).toLowerCase();
+    if (!/^[2-9a-z]{4,32}$/.test(referralCode)) {
+        res.status(400).json({ error: "Invalid referral code." });
+        return;
+    }
+    if (!(await isReferralCodeWhitelisted(examCatalogPool, referralCode))) {
+        res.status(403).json({ error: "Referral code is not whitelisted." });
+        return;
+    }
+    await recordReferralVisit(examCatalogPool, referralCode, visitorFingerprint(req));
+    res.json({ ok: true });
+});
+
+app.post("/api/campaign/register", async (req, res) => {
+    if (!examCatalogPool) {
+        res.sendStatus(503);
+        return;
+    }
+    const username = readString(req.body?.username, 32).toLowerCase();
+    const password = readString(req.body?.password, 120);
+    const phone = readString(req.body?.phone, 32);
+    const schoolId = readString(req.body?.schoolId, 80);
+    const referredByCode = readString(req.body?.referredByCode, 32).toLowerCase() || null;
+    const paymentMeta =
+        req.body?.paymentMeta && typeof req.body.paymentMeta === "object"
+            ? (req.body.paymentMeta as Record<string, unknown>)
+            : {};
+
+    if (!/^[a-z0-9._-]{3,32}$/.test(username) || password.length < 8 || !phone || !schoolId) {
+        res.status(400).json({ error: "Invalid campaign registration payload." });
+        return;
+    }
+    if (referredByCode && !(await isReferralCodeWhitelisted(examCatalogPool, referredByCode))) {
+        res.status(403).json({ error: "Referral code is not whitelisted." });
+        return;
+    }
+
+    try {
+        const user = await createCampaignUser(examCatalogPool, {
+            username,
+            passwordHash: hashPassword(password),
+            studentStatus: normalizeStudentStatus(req.body?.studentStatus),
+            phone,
+            schoolId,
+            paymentMeta,
+            referredByCode,
+        });
+        if (referredByCode) {
+            await attachReferralConversion(
+                examCatalogPool,
+                referredByCode,
+                user.id,
+                visitorFingerprint(req),
+            );
+        }
+        res.status(201).json(user);
+    } catch (error) {
+        const code =
+            typeof error === "object" && error && "code" in error
+                ? String((error as { code?: unknown }).code)
+                : "";
+        if (code === "23505") {
+            res.status(409).json({ error: "Username already exists." });
+            return;
+        }
+        if (code === "23503") {
+            res.status(400).json({ error: "Unknown school." });
+            return;
+        }
+        throw error;
+    }
+});
+
+app.post("/api/campaign/login", async (req, res) => {
+    if (!examCatalogPool) {
+        res.sendStatus(503);
+        return;
+    }
+    const username = readString(req.body?.username, 32).toLowerCase();
+    const password = readString(req.body?.password, 120);
+    const record = username ? await readCampaignUserByUsername(examCatalogPool, username) : null;
+    if (!record || !verifyPassword(password, record.passwordHash)) {
+        res.status(401).json({ error: "Invalid username or password." });
+        return;
+    }
+    res.json(record.user);
+});
+
+app.get("/api/admin/campaign/stats", async (req, res) => {
+    if (!hasAdminAccess(req)) {
+        res.sendStatus(adminToken ? 401 : 403);
+        return;
+    }
+    if (!examCatalogPool) {
+        res.sendStatus(503);
+        return;
+    }
+    res.json(await readCampaignStats(examCatalogPool));
 });
 
 app.get("/api/admin/exams", async (req, res) => {

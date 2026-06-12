@@ -10,6 +10,7 @@
 
 /* Home screen */
 @import "./styles/home/identity-card.css";
+@import "./styles/home/campaign-panel.css";
 @import "./styles/home/entry-actions.css";
 @import "./styles/home/exam-cover-picker.css";
 @import "./styles/home/time-options.css";
@@ -35,6 +36,7 @@
 
 /* Admin screen */
 @import "./styles/admin/layout.css";
+@import "./styles/admin/campaign.css";
 @import "./styles/admin/editor.css";
 
 /* Responsive overrides, grouped by component owner */

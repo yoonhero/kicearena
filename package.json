@@ -12,6 +12,7 @@
         "local:db": "docker compose up -d postgres redis",
         "db:seed": "bun server/seedExamCatalog.ts",
         "db:seed:local": "DATABASE_URL=postgresql://kice_arena:kice_arena@127.0.0.1:5432/kice_arena bun run db:seed",
+        "db:schools:import": "bun scripts/import_high_schools_from_csv.ts",
         "codex:agents:validate": "conda run -n mlenv python scripts/validate_codex_agents.py",
         "prepare": "husky",
         "format": "prettier --write .",

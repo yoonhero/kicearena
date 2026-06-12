@@ -90,6 +90,7 @@ Optional GitHub Variables:
 - `GRAFANA_HOST_PORT`
 - `GRAFANA_ADMIN_USER`
 - `CORS_ORIGINS`
+- `CAMPAIGN_REFERRAL_WHITELIST`: 쉼표 또는 공백으로 구분한 추천 코드 allowlist. 여기에 없는 추천 링크는 방문/가입 전환으로 인정하지 않는다.
 - `REDIS_URL`: 외부 Redis를 쓸 때만 설정. 비우면 Compose 내부 Redis를 사용한다.
 
 Optional GitHub Secrets:

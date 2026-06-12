@@ -74,6 +74,7 @@ services:
             REDIS_URL: ${REDIS_URL:-redis://redis:6379}
             ADMIN_TOKEN: ${ADMIN_TOKEN:-}
             CORS_ORIGINS: ${CORS_ORIGINS:-}
+            CAMPAIGN_REFERRAL_WHITELIST: ${CAMPAIGN_REFERRAL_WHITELIST:-}
             METRICS_BEARER_TOKEN: ${METRICS_BEARER_TOKEN:-}
             METRICS_BEARER_TOKEN_FILE: /run/secrets/kice_arena_metrics_token
         ports:
@@ -92,7 +93,7 @@ services:
             test:
                 [
                     "CMD-SHELL",
-                    "if command -v bun >/dev/null 2>&1; then bun -e \"fetch('http://127.0.0.1:' + (process.env.PORT || 3001) + '/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))\"; else node -e \"fetch('http://127.0.0.1:' + (process.env.PORT || 3001) + '/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))\"; fi",
+                    'if command -v bun >/dev/null 2>&1; then bun -e "fetch(''http://127.0.0.1:'' + (process.env.PORT || 3001) + ''/api/health'').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"; else node -e "fetch(''http://127.0.0.1:'' + (process.env.PORT || 3001) + ''/api/health'').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"; fi',
                 ]
             interval: 30s
             timeout: 5s
