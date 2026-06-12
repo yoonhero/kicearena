@@ -191,5 +191,5 @@ jobs:
 
                   TAG="$TAG" "$DOCKER" compose pull
                   TAG="$TAG" "$DOCKER" compose up -d --remove-orphans
-                  TAG="$TAG" "$DOCKER" compose restart prometheus
+                  TAG="$TAG" "$DOCKER" compose up -d --force-recreate --no-deps prometheus
                   REMOTE
