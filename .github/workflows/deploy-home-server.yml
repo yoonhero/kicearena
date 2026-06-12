@@ -192,6 +192,14 @@ jobs:
                   git pull --ff-only origin "$BRANCH"
 
                   TAG="$TAG" "$DOCKER" compose pull
-                  TAG="$TAG" "$DOCKER" compose up -d --remove-orphans
-                  TAG="$TAG" "$DOCKER" compose up -d --force-recreate --no-deps prometheus
+                  if ! TAG="$TAG" "$DOCKER" compose up -d --remove-orphans; then
+                    TAG="$TAG" "$DOCKER" compose ps
+                    TAG="$TAG" "$DOCKER" compose logs --tail=200 kice-arena kice-arena-seed
+                    exit 1
+                  fi
+                  if ! TAG="$TAG" "$DOCKER" compose up -d --force-recreate --no-deps prometheus; then
+                    TAG="$TAG" "$DOCKER" compose ps
+                    TAG="$TAG" "$DOCKER" compose logs --tail=200 kice-arena prometheus
+                    exit 1
+                  fi
                   REMOTE
