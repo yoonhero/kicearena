@@ -55,6 +55,7 @@ import {
 } from "./campaignDatabase.js";
 import { readCampaignStats } from "./campaignStatsDatabase.js";
 import { findHighSchoolNearLocation } from "./highSchoolGeo.js";
+import { hasGymEventInvite, parseGymEventInvites } from "./gymInvites.js";
 import {
     createExamCatalogPool,
     createExamInDatabase,
@@ -67,7 +68,7 @@ import {
     updateExamSettingsInDatabase,
     updateProblemInDatabase,
 } from "./examDatabase.js";
-import { isExamReleased, toExamPublic, toExamSummary } from "./exams.js";
+import { isExamReleased, toExamPublic, toExamSummary, toGymEventSummary } from "./exams.js";
 import {
     activeEffectForItem,
     cleanupEffects,
@@ -120,6 +121,7 @@ const referralWhitelist = (process.env.CAMPAIGN_REFERRAL_WHITELIST ?? "")
     .split(/[\s,]+/)
     .map((entry) => entry.trim())
     .filter(Boolean);
+const gymEventInvites = parseGymEventInvites(process.env.GYM_EVENT_INVITES ?? "");
 const campaignLocationRadiusKm = Math.max(
     0.2,
     Math.min(20, Number(process.env.CAMPAIGN_LOCATION_RADIUS_KM) || 3),
@@ -1059,6 +1061,24 @@ app.get("/api/exams", (_req, res) => {
     res.json(exams.filter((exam) => isExamReleased(exam)).map(toExamSummary));
 });
 
+app.get("/api/events", (_req, res) => {
+    res.json(exams.map((exam) => toGymEventSummary(exam)));
+});
+
+app.get("/api/events/:eventId/problems", (req, res) => {
+    const eventId = readString(req.params.eventId, 80);
+    const exam = examById.get(eventId);
+    if (!exam) {
+        res.sendStatus(404);
+        return;
+    }
+    if (!isExamReleased(exam)) {
+        res.status(403).json({ error: "아직 문제를 공개하지 않은 이벤트입니다." });
+        return;
+    }
+    res.json(toExamPublic(exam));
+});
+
 app.get("/api/schools", async (req, res) => {
     if (!examCatalogPool) {
         res.sendStatus(503);
@@ -1665,6 +1685,13 @@ io.on("connection", (socket) => {
                     0,
                     timeLimitSec,
                 );
+                if (payload?.mode === "contest") {
+                    replyAfterRoomCommit(reply, {
+                        ok: false,
+                        error: "콘테스트는 초대받은 계정만 이벤트 등록으로 입장할 수 있습니다.",
+                    });
+                    return;
+                }
                 const mode = normalizeRoomMode(payload?.mode);
                 const maxPlayers = maxPlayersForRoomMode(mode);
                 const code = await makeAvailableCode();
@@ -1731,6 +1758,125 @@ io.on("connection", (socket) => {
     );
 
     socket.on(
+        "event:register",
+        async (
+            payload: { eventId: string; accountId: string; inviteCode: string; nickname: string },
+            reply: (response: ServerResponse<RoomPublic>) => void,
+        ) => {
+            await withRoomMutation("__event_register__", async () => {
+                if ((await activeRoomCount()) >= ROOM_GUARDRAILS.maxActiveRooms) {
+                    replyAfterRoomCommit(reply, {
+                        ok: false,
+                        error: "현재 등록 가능한 이벤트 방 수를 초과했습니다. 잠시 후 다시 시도하세요.",
+                    });
+                    return;
+                }
+
+                const eventId = readString(payload?.eventId, 80);
+                const accountId = readString(payload?.accountId, 80).toLowerCase();
+                const inviteCode = readString(payload?.inviteCode, 80);
+                const exam = examById.get(eventId);
+                if (!exam) {
+                    replyAfterRoomCommit(reply, { ok: false, error: "이벤트를 찾을 수 없습니다." });
+                    return;
+                }
+                if (!isExamReleased(exam)) {
+                    replyAfterRoomCommit(reply, {
+                        ok: false,
+                        error: "아직 등록을 시작하지 않은 이벤트입니다.",
+                    });
+                    return;
+                }
+                if (!/^[a-z0-9._-]{3,80}$/.test(accountId)) {
+                    replyAfterRoomCommit(reply, {
+                        ok: false,
+                        error: "계정 ID가 없으면 문제 관전만 가능합니다.",
+                    });
+                    return;
+                }
+                if (!examCatalogPool || !(await readCampaignUserByUsername(examCatalogPool, accountId))) {
+                    replyAfterRoomCommit(reply, {
+                        ok: false,
+                        error: "등록된 계정만 이벤트에 등록할 수 있습니다.",
+                    });
+                    return;
+                }
+                if (!hasGymEventInvite(gymEventInvites, eventId, accountId, inviteCode)) {
+                    replyAfterRoomCommit(reply, {
+                        ok: false,
+                        error: "초대된 계정만 등록할 수 있습니다.",
+                    });
+                    return;
+                }
+
+                const nickname = sanitizeNickname(
+                    readString(payload?.nickname, ROOM_GUARDRAILS.maxNicknameLength),
+                );
+                if (!nickname) {
+                    replyAfterRoomCommit(reply, { ok: false, error: "닉네임을 입력하세요." });
+                    return;
+                }
+
+                const code = await makeAvailableCode();
+                const playerId = makeId();
+                const socketToken = makeSocketToken();
+                const player: PlayerState = {
+                    id: playerId,
+                    socketId: socket.id,
+                    socketToken,
+                    nickname,
+                    score: 0,
+                    penaltyMs: 0,
+                    scoreBreakdown: { solved: 0, timeBonus: 0, difficultyBonus: 0 },
+                    ready: true,
+                    currentProblemId: exam.problems[0]?.id ?? "",
+                    consecutiveWrong: 0,
+                    inventory: [],
+                    itemCooldowns: {},
+                    effects: [],
+                    expiredEffects: [],
+                    submissions: [],
+                    submissionHistory: [],
+                    connected: true,
+                };
+                const room: RoomState = {
+                    code,
+                    hostId: playerId,
+                    exam,
+                    mode: "contest",
+                    maxPlayers: maxPlayersForRoomMode("contest"),
+                    version: 0,
+                    status: "lobby",
+                    timeLimitSec: exam.timeLimitSec,
+                    freezeBeforeSec: Math.min(
+                        ROOM_GUARDRAILS.defaultFreezeBeforeSec,
+                        exam.timeLimitSec,
+                    ),
+                    itemEnabled: false,
+                    startedAt: null,
+                    endsAt: null,
+                    scoreboardFrozenAt: null,
+                    frozenStandings: [],
+                    scoreboardRevealCount: 0,
+                    players: new Map([[playerId, player]]),
+                    logs: [],
+                    createdAt: Date.now(),
+                    lastActivityAt: Date.now(),
+                };
+
+                rooms.set(code, room);
+                roomsCreatedCounter.inc();
+                socket.join(code);
+                setSocketPlayer(socket, { roomCode: code, playerId, socketToken });
+                socket.emit("player:you", playerId);
+                addLog(room, "system", `${nickname} 등록 완료. virtual gym 대기실을 열었습니다.`);
+                const snapshot = emitRoom(room);
+                replyAfterRoomCommit(reply, { ok: true, data: snapshot });
+            });
+        },
+    );
+
+    socket.on(
         "room:join",
         async (
             payload: { code: string; nickname: string },
@@ -1748,7 +1894,11 @@ io.on("connection", (socket) => {
                 }
                 const joinValidation = validateRoomJoin(room);
                 if (!joinValidation.ok) {
-                    replyAfterRoomCommit(reply, { ok: false, error: "이미 종료된 방입니다." });
+                    const error =
+                        joinValidation.error === "contest-invite-only"
+                            ? "콘테스트는 초대받은 계정만 등록할 수 있습니다."
+                            : "이미 종료된 방입니다.";
+                    replyAfterRoomCommit(reply, { ok: false, error });
                     return;
                 }
                 if (!nickname) {

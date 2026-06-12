@@ -74,6 +74,15 @@ export interface ExamSummary {
   problemCount: number;
 }
 
+export type GymEventStatus = "upcoming" | "open";
+
+export interface GymEventSummary extends ExamSummary {
+  startsAt: string | null;
+  status: GymEventStatus;
+  registration: "invite-only";
+  spectatorAllowed: true;
+}
+
 export interface ProblemPublic {
   id: string;
   number: number;

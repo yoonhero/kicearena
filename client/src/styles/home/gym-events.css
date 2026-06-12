@@ -1,0 +1,265 @@
+.gym-layout,
+.spectator-layout {
+  width: min(1120px, calc(100vw - 32px));
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: 34px 0;
+  color: var(--ink);
+}
+
+.gym-entry-panel,
+.spectator-topbar,
+.spectator-empty {
+  border: 1px solid rgba(20, 38, 44, 0.2);
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 18px 50px rgba(22, 41, 48, 0.12);
+}
+
+.gym-entry-panel {
+  padding: 26px;
+}
+
+.gym-kicker,
+.spectator-topbar span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  color: var(--ui-accent);
+}
+
+.gym-entry-panel h1 {
+  margin: 10px 0 22px;
+  font-size: clamp(2rem, 7vw, 4.6rem);
+  line-height: 0.95;
+  letter-spacing: 0;
+}
+
+.gym-account-row,
+.gym-actions,
+.gym-event-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.gym-field {
+  display: grid;
+  gap: 7px;
+  flex: 1;
+}
+
+.gym-field span {
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.gym-field input {
+  width: 100%;
+  border: 0;
+  border-bottom: 2px solid rgba(22, 41, 48, 0.46);
+  border-radius: 0;
+  background: transparent;
+  padding: 10px 2px;
+  font: inherit;
+}
+
+.gym-event-list {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.gym-event-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: end;
+  border-top: 2px solid rgba(22, 41, 48, 0.78);
+  background: rgba(255, 255, 255, 0.62);
+  padding: 18px 4px 20px;
+}
+
+.gym-event-row h2 {
+  margin: 7px 0 4px;
+  font-size: clamp(1.35rem, 4vw, 2rem);
+  letter-spacing: 0;
+}
+
+.gym-event-row p {
+  margin: 0 0 14px;
+  color: rgba(22, 41, 48, 0.72);
+}
+
+.gym-event-row dl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  margin: 0;
+}
+
+.gym-event-row div,
+.gym-event-row dt,
+.gym-event-row dd {
+  min-width: 0;
+}
+
+.gym-event-row dt {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: rgba(22, 41, 48, 0.55);
+}
+
+.gym-event-row dd {
+  margin: 2px 0 0;
+  font-weight: 800;
+}
+
+.gym-event-status {
+  display: inline-flex;
+  border: 1px solid currentColor;
+  padding: 3px 8px;
+  font-size: 0.75rem;
+  font-weight: 900;
+}
+
+.gym-event-status.open {
+  color: #2f6473;
+}
+
+.gym-event-status.upcoming {
+  color: #7a4d1d;
+}
+
+.gym-actions button,
+.gym-event-actions button,
+.spectator-back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid rgba(22, 41, 48, 0.75);
+  background: #fff;
+  color: var(--ink);
+  min-height: 48px;
+  padding: 0 14px;
+  font: inherit;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.gym-event-actions button.primary,
+.gym-actions button:not(.ghost) {
+  background: var(--ui-accent);
+  border-color: var(--ui-accent);
+  color: #fff;
+}
+
+.gym-event-actions button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.gym-action-hint {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: rgba(22, 41, 48, 0.66);
+}
+
+.gym-empty,
+.gym-error {
+  margin-top: 16px;
+}
+
+.spectator-topbar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  padding: 16px;
+}
+
+.spectator-topbar strong {
+  display: block;
+  margin-top: 3px;
+  overflow-wrap: anywhere;
+}
+
+.spectator-topbar em {
+  font-style: normal;
+  font-weight: 850;
+}
+
+.spectator-layout .spectator-sheet {
+  --mobile-answer-offset: 24px;
+  --mobile-command-offset: 18px;
+  --mobile-command-height: 56px;
+  margin-top: 18px;
+}
+
+.spectator-layout .spectator-preview {
+  min-height: min(66vh, 720px);
+}
+
+.spectator-layout .problem-command-strip {
+  margin-inline: auto;
+}
+
+.spectator-problem-nav {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.spectator-problem-nav button {
+  aspect-ratio: 1;
+  border: 1px solid rgba(22, 41, 48, 0.3);
+  background: #fff;
+  font-weight: 900;
+}
+
+.spectator-problem-nav button.active {
+  background: var(--ui-accent);
+  color: #fff;
+}
+
+@media (max-width: 720px) {
+  .gym-layout,
+  .spectator-layout {
+    width: min(100vw - 18px, 560px);
+    padding: 14px 0 24px;
+  }
+
+  .gym-entry-panel {
+    padding: 18px;
+  }
+
+  .gym-account-row,
+  .gym-actions,
+  .gym-event-actions,
+  .gym-event-row,
+  .spectator-topbar {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .gym-event-actions {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .spectator-layout .spectator-sheet {
+    --mobile-command-offset: 18px;
+    padding-bottom: calc(var(--mobile-command-height) + 42px + env(safe-area-inset-bottom));
+  }
+
+  .spectator-layout .spectator-preview {
+    min-height: min(52svh, 520px);
+    max-height: none;
+  }
+}

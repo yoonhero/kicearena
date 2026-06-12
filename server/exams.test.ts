@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ExamManifest } from "../shared/game.js";
-import { isExamReleased, toExamPublic, toExamSummary } from "./exams.js";
+import { isExamReleased, toExamPublic, toExamSummary, toGymEventSummary } from "./exams.js";
 
 const exam: ExamManifest = {
   id: "mock-exam",
@@ -71,5 +71,19 @@ describe("exam serialization", () => {
   it("hides exams until releaseAt has passed", () => {
     expect(isExamReleased({ ...exam, releaseAt: "2026-06-05T00:00:00.000Z" }, Date.parse("2026-06-04T00:00:00.000Z"))).toBe(false);
     expect(isExamReleased({ ...exam, releaseAt: "2026-06-03T00:00:00.000Z" }, Date.parse("2026-06-04T00:00:00.000Z"))).toBe(true);
+  });
+
+  it("serializes active exams as invite-only virtual gym events", () => {
+    expect(toGymEventSummary({ ...exam, releaseAt: "2026-06-05T00:00:00.000Z" }, Date.parse("2026-06-04T00:00:00.000Z"))).toMatchObject({
+      id: "mock-exam",
+      startsAt: "2026-06-05T00:00:00.000Z",
+      status: "upcoming",
+      registration: "invite-only",
+      spectatorAllowed: true
+    });
+    expect(toGymEventSummary(exam, Date.parse("2026-06-04T00:00:00.000Z"))).toMatchObject({
+      startsAt: null,
+      status: "open"
+    });
   });
 });

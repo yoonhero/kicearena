@@ -3,6 +3,7 @@ export type RoomLifecycleStatus = "lobby" | "playing" | "finished";
 export type RoomLifecycleInput = {
   hostId: string;
   status: RoomLifecycleStatus;
+  mode?: "casual" | "contest";
 };
 
 export type ConnectedPlayerInput = {
@@ -15,7 +16,7 @@ export type LobbyKickResult =
   | { ok: true; targetPlayerId: string }
   | { ok: false; error: "not-host" | "not-lobby" | "missing-target" | "self-target" };
 
-export type RoomJoinResult = { ok: true; status: RoomLifecycleStatus } | { ok: false; error: "missing-room" | "finished" };
+export type RoomJoinResult = { ok: true; status: RoomLifecycleStatus } | { ok: false; error: "missing-room" | "finished" | "contest-invite-only" };
 
 export function getRoomLeaveAction(room: RoomLifecycleInput | undefined, playerId: string | undefined): LobbyLeaveAction {
   if (!room || !playerId) return "noop";
@@ -26,6 +27,7 @@ export function getRoomLeaveAction(room: RoomLifecycleInput | undefined, playerI
 export function validateRoomJoin(room: RoomLifecycleInput | undefined): RoomJoinResult {
   if (!room) return { ok: false, error: "missing-room" };
   if (room.status === "finished") return { ok: false, error: "finished" };
+  if (room.mode === "contest") return { ok: false, error: "contest-invite-only" };
   return { ok: true, status: room.status };
 }
 

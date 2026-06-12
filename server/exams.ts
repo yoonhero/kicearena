@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import type { ExamManifest, ExamPublic, ExamSummary } from "../shared/game.js";
+import type { ExamManifest, ExamPublic, ExamSummary, GymEventSummary } from "../shared/game.js";
 import { getProblemPointValue } from "../shared/game.js";
 
 export const ACTIVE_EXAM_IDS = new Set(["preliminary-day"]);
@@ -33,6 +33,17 @@ export const toExamSummary = (exam: ExamManifest): ExamSummary => ({
   timeLimitSec: exam.timeLimitSec,
   problemCount: exam.problems.length
 });
+
+export const toGymEventSummary = (exam: ExamManifest, now = Date.now()): GymEventSummary => {
+  const releaseAt = exam.releaseAt ? Date.parse(exam.releaseAt) : NaN;
+  return {
+    ...toExamSummary(exam),
+    startsAt: exam.releaseAt ?? null,
+    status: Number.isFinite(releaseAt) && now < releaseAt ? "upcoming" : "open",
+    registration: "invite-only",
+    spectatorAllowed: true
+  };
+};
 
 const defaultAssetUrl = (examId: string, assetPath: string) => `/api/exams/${encodeURIComponent(examId)}/assets/${assetPath.split("/").map(encodeURIComponent).join("/")}`;
 

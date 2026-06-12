@@ -1,19 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-    ROOM_GUARDRAILS,
-    type ExamSummary,
+    type ExamPublic,
+    type GymEventSummary,
     type PlayerPublic,
-    type RoomMode,
     type RoomPublic,
 } from "../../shared/game";
-import { ArenaScreen } from "./screens/ArenaScreen";
-import { ReferralSchoolGate } from "./components/ReferralSchoolGate";
-import { HomeScreen } from "./screens/HomeScreen";
-import { LobbyScreen } from "./screens/LobbyScreen";
-import { ResultsScreen } from "./screens/ResultsScreen";
+import { AppLoading, AppRoutes, type AppScreen } from "./components/AppRoutes";
 import { emitWithAck, ROOM_SESSION_KEY, socket } from "./lib/socket";
 
-type Screen = "home" | "lobby" | "arena" | "results";
+const GYM_ACCOUNT_KEY = "kice-gym-account-id";
+
 type SavedRoomSession = {
     code: string;
     playerId: string;
@@ -26,10 +22,10 @@ type RoomLookup = {
 
 const readInviteCode = () =>
     new URLSearchParams(window.location.search).get("room")?.trim().toUpperCase() ?? "";
+const readRegistrationInviteCode = () =>
+    new URLSearchParams(window.location.search).get("invite")?.trim() ?? "";
 const readReferralCode = () =>
     new URLSearchParams(window.location.search).get("c")?.trim().toLowerCase() ?? "";
-const defaultFreezeForTimeLimit = (timeLimitMin: number) =>
-    Math.max(0, Math.min(timeLimitMin, Math.round(timeLimitMin / 2)));
 const REJOIN_CONNECT_TIMEOUT_MS = 2500;
 
 const writeClipboard = async (text: string) => {
@@ -76,7 +72,7 @@ const waitForSocketConnection = () =>
         socket.once("connect", onConnect);
     });
 
-function useReferralGateState(screen: Screen) {
+function useReferralGateState(screen: AppScreen) {
     const [referralCode, setReferralCode] = useState(readReferralCode);
     const [referralGatePassed, setReferralGatePassed] = useState(() => !readReferralCode());
     const needsReferralGate = screen === "home" && Boolean(referralCode) && !referralGatePassed;
@@ -90,7 +86,8 @@ function useReferralGateState(screen: Screen) {
     return { referralCode, needsReferralGate, setReferralGatePassed, exitReferralGate };
 }
 
-const getScreen = (room: RoomPublic | null): Screen => {
+const getScreen = (room: RoomPublic | null, spectatorExam: ExamPublic | null): AppScreen => {
+    if (!room && spectatorExam) return "spectator";
     if (!room) return "home";
     if (room.status === "lobby") return "lobby";
     if (room.status === "finished") return "results";
@@ -99,12 +96,12 @@ const getScreen = (room: RoomPublic | null): Screen => {
 
 export function App() {
     const [inviteCode, setInviteCode] = useState(readInviteCode);
-    const [exams, setExams] = useState<ExamSummary[]>([]);
-    const [selectedExamId, setSelectedExamId] = useState("");
-    const [timeLimitMin, setTimeLimitMin] = useState(100);
-    const [freezeBeforeMin, setFreezeBeforeMin] = useState(10);
-    const [roomMode] = useState<RoomMode>("casual");
-    const [itemEnabled, setItemEnabled] = useState(true);
+    const [events, setEvents] = useState<GymEventSummary[]>([]);
+    const [spectatorExam, setSpectatorExam] = useState<ExamPublic | null>(null);
+    const [accountId, setAccountIdState] = useState(
+        () => window.localStorage.getItem(GYM_ACCOUNT_KEY) ?? "",
+    );
+    const [registrationInviteCode, setRegistrationInviteCode] = useState(readRegistrationInviteCode);
     const [nickname, setNickname] = useState("");
     const [roomCode, setRoomCode] = useState(inviteCode);
     const [room, setRoom] = useState<RoomPublic | null>(null);
@@ -113,9 +110,26 @@ export function App() {
     const [copied, setCopied] = useState(false);
     const [copiedLink, setCopiedLink] = useState(false);
     const [joiningInvite, setJoiningInvite] = useState(false);
+    const [pendingEventAction, setPendingEventAction] = useState<{
+        eventId: string;
+        action: "register" | "spectate";
+    } | null>(null);
     const [loadingInitialRoom, setLoadingInitialRoom] = useState(true);
-    const [examsLoaded, setExamsLoaded] = useState(false);
+    const [eventsLoaded, setEventsLoaded] = useState(false);
     const rejoinAttempted = useRef(false);
+    const spectatorRequestRef = useRef<AbortController | null>(null);
+
+    const setAccountId = useCallback((nextAccountId: string) => {
+        setAccountIdState(nextAccountId);
+    }, []);
+
+    useEffect(() => {
+        const timeout = window.setTimeout(() => {
+            if (accountId) window.localStorage.setItem(GYM_ACCOUNT_KEY, accountId);
+            else window.localStorage.removeItem(GYM_ACCOUNT_KEY);
+        }, 250);
+        return () => window.clearTimeout(timeout);
+    }, [accountId]);
 
     const resetRoomSession = useCallback((nextRoomCode = "") => {
         window.localStorage.removeItem(ROOM_SESSION_KEY);
@@ -126,21 +140,11 @@ export function App() {
     }, []);
 
     useEffect(() => {
-        fetch("/api/exams")
+        fetch("/api/events")
             .then((res) => res.json())
-            .then((data: ExamSummary[]) => {
-                setExams(data);
-                const firstExam = data[0];
-                const firstTimeLimitMin = Math.max(
-                    1,
-                    Math.round((firstExam?.timeLimitSec ?? 100 * 60) / 60),
-                );
-                setSelectedExamId(firstExam?.id ?? "");
-                setTimeLimitMin(firstTimeLimitMin);
-                setFreezeBeforeMin(defaultFreezeForTimeLimit(firstTimeLimitMin));
-            })
-            .catch(() => setError("서버의 시험 목록을 불러오지 못했습니다."))
-            .finally(() => setExamsLoaded(true));
+            .then((data: GymEventSummary[]) => setEvents(data))
+            .catch(() => setError("서버의 이벤트 목록을 불러오지 못했습니다."))
+            .finally(() => setEventsLoaded(true));
     }, []);
 
     useEffect(() => {
@@ -223,7 +227,7 @@ export function App() {
         return room.players.find((player) => player.id === ownPlayerId) ?? null;
     }, [room, ownPlayerId]);
 
-    const screen = getScreen(room);
+    const screen = getScreen(room, spectatorExam);
     const isInviteMode = screen === "home" && Boolean(inviteCode);
     const { referralCode, needsReferralGate, setReferralGatePassed, exitReferralGate } =
         useReferralGateState(screen);
@@ -233,29 +237,56 @@ export function App() {
         resetRoomSession("");
     };
 
-    const createRoom = async () => {
+    const registerForEvent = async (eventId: string, inviteCode: string) => {
+        if (pendingEventAction) return;
         setError("");
-        const maxTimeLimitMin = Math.round(ROOM_GUARDRAILS.maxTimeLimitSec / 60);
-        const safeTimeLimitMin = Number.isFinite(timeLimitMin)
-            ? Math.min(maxTimeLimitMin, Math.max(1, Math.round(timeLimitMin)))
-            : 100;
-        const safeFreezeBeforeMin = Number.isFinite(freezeBeforeMin)
-            ? Math.max(0, Math.min(Math.round(freezeBeforeMin), safeTimeLimitMin))
-            : 10;
-        const response = await emitWithAck<RoomPublic>("room:create", {
-            examId: selectedExamId,
-            nickname,
-            timeLimitSec: safeTimeLimitMin * 60,
-            freezeBeforeSec: safeFreezeBeforeMin * 60,
-            itemEnabled: roomMode === "casual" && itemEnabled,
-            mode: roomMode,
-        });
-        if (!response.ok || !response.data) {
-            setError(response.error ?? "방 생성 실패");
+        if (!accountId) {
+            await spectateEvent(eventId);
             return;
         }
-        setRoom(response.data);
-        setRoomCode(response.data.code);
+        setPendingEventAction({ eventId, action: "register" });
+        try {
+            const response = await emitWithAck<RoomPublic>("event:register", {
+                eventId,
+                accountId,
+                inviteCode,
+                nickname,
+            });
+            if (!response.ok || !response.data) {
+                setError(response.error ?? "등록 실패");
+                return;
+            }
+            setRoom(response.data);
+            setRoomCode(response.data.code);
+        } finally {
+            setPendingEventAction(null);
+        }
+    };
+
+    const spectateEvent = async (eventId: string) => {
+        if (pendingEventAction) return;
+        setError("");
+        spectatorRequestRef.current?.abort();
+        const controller = new AbortController();
+        spectatorRequestRef.current = controller;
+        setPendingEventAction({ eventId, action: "spectate" });
+        try {
+            const response = await fetch(`/api/events/${encodeURIComponent(eventId)}/problems`, {
+                signal: controller.signal,
+            });
+            if (!response.ok) {
+                setError(response.status === 403 ? "아직 공개 전인 이벤트입니다." : "문제를 불러오지 못했습니다.");
+                return;
+            }
+            setSpectatorExam((await response.json()) as ExamPublic);
+        } catch (error) {
+            if (!(error instanceof DOMException && error.name === "AbortError")) {
+                setError("문제를 불러오지 못했습니다.");
+            }
+        } finally {
+            if (spectatorRequestRef.current === controller) spectatorRequestRef.current = null;
+            setPendingEventAction(null);
+        }
     };
 
     const joinRoom = async () => {
@@ -309,92 +340,50 @@ export function App() {
         window.setTimeout(() => setCopiedLink(false), 1200);
     };
 
-    if (loadingInitialRoom || !examsLoaded) {
-        if (needsReferralGate) {
-            return (
-                <div className="app-shell">
-                    <ReferralSchoolGate
-                        referralCode={referralCode}
-                        onVerified={() => setReferralGatePassed(true)}
-                        onExit={exitReferralGate}
-                    />
-                </div>
-            );
-        }
+    if (loadingInitialRoom || !eventsLoaded) {
         return (
-            <div className="app-shell">
-                <InitialRoomLoading inviteCode={inviteCode} />
-            </div>
+            <AppLoading
+                inviteCode={inviteCode}
+                needsReferralGate={needsReferralGate}
+                referralCode={referralCode}
+                setReferralGatePassed={setReferralGatePassed}
+                exitReferralGate={exitReferralGate}
+            />
         );
     }
 
     return (
-        <div className="app-shell">
-            {needsReferralGate && (
-                <ReferralSchoolGate
-                    referralCode={referralCode}
-                    onVerified={() => setReferralGatePassed(true)}
-                    onExit={exitReferralGate}
-                />
-            )}
-
-            {screen === "home" && !needsReferralGate && (
-                <HomeScreen
-                    exams={exams}
-                    selectedExamId={selectedExamId}
-                    setSelectedExamId={setSelectedExamId}
-                    timeLimitMin={timeLimitMin}
-                    setTimeLimitMin={setTimeLimitMin}
-                    freezeBeforeMin={freezeBeforeMin}
-                    setFreezeBeforeMin={setFreezeBeforeMin}
-                    itemEnabled={itemEnabled}
-                    setItemEnabled={setItemEnabled}
-                    nickname={nickname}
-                    setNickname={setNickname}
-                    roomCode={roomCode}
-                    setRoomCode={setRoomCode}
-                    createRoom={createRoom}
-                    joinRoom={joinRoom}
-                    joinInviteRoom={joinInviteRoom}
-                    inviteMode={isInviteMode}
-                    inviteRoomCode={inviteCode}
-                    joiningInvite={joiningInvite}
-                    exitInviteMode={exitInviteMode}
-                    error={error}
-                />
-            )}
-
-            {screen === "lobby" && room && (
-                <LobbyScreen
-                    room={room}
-                    ownPlayer={ownPlayer}
-                    copyCode={copyCode}
-                    copied={copied}
-                    copyInviteLink={copyInviteLink}
-                    copiedLink={copiedLink}
-                    leaveRoom={leaveRoom}
-                />
-            )}
-
-            {screen === "arena" && room && ownPlayer && (
-                <ArenaScreen room={room} ownPlayer={ownPlayer} onLeave={leaveRoom} />
-            )}
-
-            {screen === "results" && room && (
-                <ResultsScreen room={room} ownPlayer={ownPlayer} onLeave={leaveRoom} />
-            )}
-        </div>
-    );
-}
-
-function InitialRoomLoading({ inviteCode }: { inviteCode: string }) {
-    return (
-        <main className="initial-room-loading" aria-live="polite">
-            <section>
-                <span>수험표 확인 중</span>
-                <strong>{inviteCode ? `${inviteCode} 방 조회` : "기록된 입실 정보 조회"}</strong>
-                <i />
-            </section>
-        </main>
+        <AppRoutes
+            screen={screen}
+            needsReferralGate={needsReferralGate}
+            referralCode={referralCode}
+            setReferralGatePassed={setReferralGatePassed}
+            exitReferralGate={exitReferralGate}
+            events={events}
+            accountId={accountId}
+            setAccountId={setAccountId}
+            registrationInviteCode={registrationInviteCode}
+            setRegistrationInviteCode={setRegistrationInviteCode}
+            nickname={nickname}
+            setNickname={setNickname}
+            joinInviteRoom={joinInviteRoom}
+            inviteMode={isInviteMode}
+            inviteCode={inviteCode}
+            joiningInvite={joiningInvite}
+            exitInviteMode={exitInviteMode}
+            registerForEvent={registerForEvent}
+            spectateEvent={spectateEvent}
+            pendingEventAction={pendingEventAction}
+            spectatorExam={spectatorExam}
+            exitSpectator={() => setSpectatorExam(null)}
+            room={room}
+            ownPlayer={ownPlayer}
+            copyCode={copyCode}
+            copied={copied}
+            copyInviteLink={copyInviteLink}
+            copiedLink={copiedLink}
+            leaveRoom={leaveRoom}
+            error={error}
+        />
     );
 }

@@ -4,6 +4,7 @@ import { getRoomLeaveAction, shouldCloseRoomForNoConnectedPlayers, validateLobby
 const lobbyRoom = { hostId: "host", status: "lobby" as const };
 const playingRoom = { hostId: "host", status: "playing" as const };
 const finishedRoom = { hostId: "host", status: "finished" as const };
+const contestRoom = { hostId: "host", status: "lobby" as const, mode: "contest" as const };
 
 describe("room lifecycle policy", () => {
   it("removes non-host players from a lobby when they leave", () => {
@@ -23,6 +24,10 @@ describe("room lifecycle policy", () => {
     expect(validateRoomJoin(playingRoom)).toEqual({ ok: true, status: "playing" });
     expect(validateRoomJoin(finishedRoom)).toEqual({ ok: false, error: "finished" });
     expect(validateRoomJoin(undefined)).toEqual({ ok: false, error: "missing-room" });
+  });
+
+  it("keeps contest rooms invite-only for the generic room join path", () => {
+    expect(validateRoomJoin(contestRoom)).toEqual({ ok: false, error: "contest-invite-only" });
   });
 
   it("allows host to kick another lobby player", () => {
