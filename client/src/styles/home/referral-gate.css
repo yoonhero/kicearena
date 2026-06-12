@@ -45,6 +45,7 @@
 
 .referral-school-card {
     justify-content: flex-start;
+    flex-wrap: wrap;
     padding: 14px;
     border: 1px solid var(--line);
     background: rgba(255, 255, 255, 0.72);
@@ -52,6 +53,7 @@
 
 .referral-school-card strong {
     flex: 1;
+    min-width: 160px;
 }
 
 .referral-gate-copy {

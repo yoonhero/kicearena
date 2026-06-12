@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
     attachReferralConversion,
     createCampaignUser,
-    findNearestHighSchool,
     type CampaignDatabase,
     migrateCampaign,
     recordReferralVisit,
@@ -12,6 +11,7 @@ import {
 } from "./campaignDatabase.js";
 import { readCampaignStats } from "./campaignStatsDatabase.js";
 import { readDefaultHighSchools } from "./defaultHighSchools.js";
+import { findNearestHighSchool } from "./highSchoolGeo.js";
 
 const makeQueryResult = <T extends object>(rows: T[] = []) => ({
     command: "SELECT",
@@ -35,6 +35,7 @@ describe("campaign database persistence", () => {
 
         const joined = statements.join("\n");
         expect(joined).toContain("CREATE TABLE IF NOT EXISTS high_schools");
+        expect(joined).toContain("CREATE INDEX IF NOT EXISTS high_schools_geo_idx");
         expect(joined).toContain("CREATE TABLE IF NOT EXISTS campaign_users");
         expect(joined).toContain("CREATE TABLE IF NOT EXISTS campaign_referral_events");
         expect(joined).toContain("CREATE TABLE IF NOT EXISTS campaign_referral_whitelist");
@@ -178,7 +179,9 @@ describe("campaign database persistence", () => {
         });
         await expect(findNearestHighSchool(db, 37.5, 127, 0.1)).resolves.toBeNull();
         expect(queries[0]?.text).toContain("ORDER BY distance_km ASC");
-        expect(queries[0]?.values).toEqual([37.5, 127]);
+        expect(queries[0]?.text).toContain("latitude BETWEEN $3 AND $4");
+        expect(queries[0]?.values?.slice(0, 2)).toEqual([37.5, 127]);
+        expect(queries[0]?.values).toHaveLength(6);
     });
 
     it("searches schools and reads bounded admin stats", async () => {

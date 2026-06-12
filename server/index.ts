@@ -45,7 +45,6 @@ import { normalizeStudentStatus } from "../shared/campaign.js";
 import {
     attachReferralConversion,
     createCampaignUser,
-    findNearestHighSchool,
     isReferralCodeWhitelisted,
     migrateCampaign,
     readCampaignUserByUsername,
@@ -55,6 +54,7 @@ import {
     syncReferralWhitelist,
 } from "./campaignDatabase.js";
 import { readCampaignStats } from "./campaignStatsDatabase.js";
+import { findNearestHighSchool } from "./highSchoolGeo.js";
 import {
     createExamCatalogPool,
     createExamInDatabase,

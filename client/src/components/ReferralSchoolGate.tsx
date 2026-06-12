@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { BadgeCheck, LocateFixed, LogIn, School } from "lucide-react";
 import type { ReferralLocationVerification } from "../../../shared/campaign";
 
@@ -37,15 +37,24 @@ export function ReferralSchoolGate({
     const [status, setStatus] = useState("");
     const [error, setError] = useState("");
     const [checking, setChecking] = useState(false);
+    const mountedRef = useRef(true);
     const distanceLabel = useMemo(() => {
         if (!verification) return "";
         return `${verification.distanceKm.toFixed(2)}km`;
     }, [verification]);
+    useEffect(
+        () => () => {
+            mountedRef.current = false;
+        },
+        [],
+    );
 
     const verifyLocation = async () => {
         setError("");
         setStatus("위치 확인 중");
         setChecking(true);
+        const controller = new AbortController();
+        const timeout = window.setTimeout(() => controller.abort(), 10000);
         try {
             const position = await new Promise<GeolocationPosition>((resolve, reject) => {
                 navigator.geolocation.getCurrentPosition(resolve, reject, {
@@ -57,12 +66,14 @@ export function ReferralSchoolGate({
             const response = await fetch("/api/campaign/referral-location-verify", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
+                signal: controller.signal,
                 body: JSON.stringify({
                     referralCode,
                     latitude: position.coords.latitude,
                     longitude: position.coords.longitude,
                 }),
             });
+            if (!mountedRef.current) return;
             if (!response.ok) {
                 setError(
                     response.status === 403
@@ -76,11 +87,18 @@ export function ReferralSchoolGate({
             saveVerification(nextVerification);
             setVerification(nextVerification);
             setStatus("인증 완료");
-        } catch {
-            setError("브라우저 위치 권한을 허용해야 인증할 수 있습니다.");
-            setStatus("");
+        } catch (error) {
+            if (mountedRef.current) {
+                setError(
+                    error instanceof DOMException && error.name === "AbortError"
+                        ? "인증 요청이 지연되고 있습니다. 다시 시도하세요."
+                        : "브라우저 위치 권한을 허용해야 인증할 수 있습니다.",
+                );
+                setStatus("");
+            }
         } finally {
-            setChecking(false);
+            window.clearTimeout(timeout);
+            if (mountedRef.current) setChecking(false);
         }
     };
 
@@ -90,9 +108,9 @@ export function ReferralSchoolGate({
                 <div className="referral-gate-head">
                     <span>
                         <BadgeCheck size={16} />
-                        초대 인증
+                        학교 위치 확인
                     </span>
-                    <strong>{verification ? "인증 완료" : "위치 확인 필요"}</strong>
+                    <strong>{verification ? "인증 완료" : "입장 전 확인"}</strong>
                 </div>
 
                 {verification ? (
@@ -104,8 +122,8 @@ export function ReferralSchoolGate({
                     </div>
                 ) : (
                     <div className="referral-gate-copy">
-                        <strong>초대 링크 입장 전 학교 위치를 확인합니다.</strong>
-                        <span>인증이 끝나면 기존 입장 화면으로 이동합니다.</span>
+                        <strong>학교 근처에서 입장을 확인합니다.</strong>
+                        <span>확인되면 이름을 정하고 입장합니다.</span>
                     </div>
                 )}
 
@@ -117,7 +135,7 @@ export function ReferralSchoolGate({
                         disabled={checking}
                     >
                         <LocateFixed size={18} />
-                        {checking ? "확인 중" : "위치로 인증"}
+                        {checking ? "확인 중" : "위치 확인"}
                     </button>
                 ) : (
                     <button
@@ -126,11 +144,11 @@ export function ReferralSchoolGate({
                         onClick={onVerified}
                     >
                         <LogIn size={18} />
-                        입장 화면으로
+                        이름 정하러 가기
                     </button>
                 )}
                 <button type="button" className="referral-gate-exit" onClick={onExit}>
-                    일반 입장
+                    캠페인 없이 입장
                 </button>
                 {status && <p className="campaign-status">{status}</p>}
                 {error && <p className="error-text">{error}</p>}

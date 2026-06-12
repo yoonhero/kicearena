@@ -7,10 +7,7 @@ import {
     type RoomPublic,
 } from "../../shared/game";
 import { ArenaScreen } from "./screens/ArenaScreen";
-import {
-    hasReferralLocationVerification,
-    ReferralSchoolGate,
-} from "./components/ReferralSchoolGate";
+import { ReferralSchoolGate } from "./components/ReferralSchoolGate";
 import { HomeScreen } from "./screens/HomeScreen";
 import { LobbyScreen } from "./screens/LobbyScreen";
 import { ResultsScreen } from "./screens/ResultsScreen";
@@ -81,10 +78,7 @@ const waitForSocketConnection = () =>
 
 function useReferralGateState(screen: Screen) {
     const [referralCode, setReferralCode] = useState(readReferralCode);
-    const [referralGatePassed, setReferralGatePassed] = useState(() => {
-        const code = readReferralCode();
-        return !code || hasReferralLocationVerification(code);
-    });
+    const [referralGatePassed, setReferralGatePassed] = useState(() => !readReferralCode());
     const needsReferralGate = screen === "home" && Boolean(referralCode) && !referralGatePassed;
     const exitReferralGate = () => {
         setReferralCode("");
@@ -316,6 +310,17 @@ export function App() {
     };
 
     if (loadingInitialRoom || !examsLoaded) {
+        if (needsReferralGate) {
+            return (
+                <div className="app-shell">
+                    <ReferralSchoolGate
+                        referralCode={referralCode}
+                        onVerified={() => setReferralGatePassed(true)}
+                        onExit={exitReferralGate}
+                    />
+                </div>
+            );
+        }
         return (
             <div className="app-shell">
                 <InitialRoomLoading inviteCode={inviteCode} />
