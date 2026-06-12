@@ -37,16 +37,16 @@
 }
 
 .entry-action-panel::before {
-    content: "04 제출";
+    content: "04 확인 및 제출";
     grid-area: step;
 }
 
 .creator-panel::before {
-    content: "04 방 설정 및 제출";
+    content: "04 시험실 설정";
 }
 
 .join-panel::before {
-    content: "04 방 코드 및 제출";
+    content: "04 방 코드 입력";
 }
 
 .nickname-direct-field {

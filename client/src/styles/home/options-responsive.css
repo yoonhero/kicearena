@@ -36,11 +36,6 @@
 
     .quick-preset-list {
         gap: 6px;
-        display: none;
-    }
-
-    .creator-panel.options-open .quick-preset-list {
-        display: grid;
     }
 
     .quick-preset-list > span {

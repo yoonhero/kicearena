@@ -27,9 +27,9 @@
     grid-template-areas:
         "step step"
         "title title"
+        "preset action"
         "items action"
-        "options action"
-        "preset preset";
+        "options action";
     column-gap: 18px;
 }
 
@@ -165,10 +165,6 @@
 
 .quick-preset-list {
     grid-area: preset;
-    display: none;
-}
-
-.creator-panel.options-open .quick-preset-list {
     display: grid;
 }
 

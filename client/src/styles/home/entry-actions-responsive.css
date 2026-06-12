@@ -4,10 +4,10 @@
         grid-template-areas:
             "step"
             "title"
+            "preset"
             "items"
             "action"
-            "options"
-            "preset";
+            "options";
     }
 
     .entry-action-panel .host-action {
@@ -53,10 +53,10 @@
         grid-template-areas:
             "step"
             "title"
+            "preset"
             "items"
             "action"
-            "options"
-            "preset";
+            "options";
     }
 
     .entry-panel-title {
