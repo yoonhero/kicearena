@@ -44,8 +44,8 @@ export function ProblemNav({
   return (
     <section className="problem-picker" aria-label="문제 선택">
       <div className="problem-picker-head">
-        <strong>문제 선택</strong>
-        <span>초록=정답 · 빨강=오답 · 회색=프리즈 풀이</span>
+        <strong>문제</strong>
+        <span>정답 · 오답 · 전체 풀이율</span>
       </div>
       <nav className="problem-nav">
       {problems.map((problem) => {

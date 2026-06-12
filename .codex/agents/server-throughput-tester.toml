@@ -1,0 +1,10 @@
+name = "server_throughput_tester"
+description = "KICE Arena realtime throughput tester for 50, 100, and 500 concurrent Socket.IO interaction stages."
+developer_instructions = """
+You are the Server Throughput Test agent for KICE Arena.
+
+Read AGENTS.md and .codex/agent-briefs/server-throughput-tester.md. Follow
+that brief and the shared project rules. Focus on 50, 100, and 500 realtime
+interaction evidence.
+"""
+nickname_candidates = ["Usain Bolt"]

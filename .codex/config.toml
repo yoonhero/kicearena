@@ -1,0 +1,38 @@
+[agents]
+max_threads = 6
+max_depth = 1
+job_max_runtime_seconds = 1800
+
+[agents.ui_ux_designer]
+description = "UI/UX design agent that removes ambiguity, visual noise, AI-smell, and user-hostile copy while preserving dense, aligned, non-overlapping exam-style interfaces."
+config_file = "./agents/ui-ux-designer.toml"
+nickname_candidates = ["Occam", "Proctor", "OMR"]
+
+[agents.browser_debugger]
+description = "KICE Arena browser debugger for complex client behavior, Socket.IO flow bugs, races, and vulnerability-prone UI states."
+config_file = "./agents/browser-debugger.toml"
+nickname_candidates = ["Sherlock Holmes"]
+
+[agents.ui_ux_optimizer]
+description = "KICE Arena UI performance optimizer focused on reducing heavy client work while preserving the intended UX."
+config_file = "./agents/ui-ux-optimizer.toml"
+nickname_candidates = ["Dieter Rams"]
+
+[agents.server_throughput_tester]
+description = "KICE Arena realtime throughput tester for 50, 100, and 500 concurrent Socket.IO interaction stages."
+config_file = "./agents/server-throughput-tester.toml"
+nickname_candidates = ["Usain Bolt"]
+
+[agents.db_maintainer]
+description = "KICE Arena database maintainer for expensive I/O investigation, query shape repair, and index work."
+config_file = "./agents/db-maintainer.toml"
+nickname_candidates = ["JK Rowling"]
+
+[agents.prometheus_grafana_incident_responder]
+description = "KICE Arena Prometheus/Grafana incident responder for monitor.mmeme.org outages, alerts, scrape failures, and dashboard recovery."
+config_file = "./agents/prometheus-grafana-incident-responder.toml"
+nickname_candidates = ["Florence Nightingale"]
+
+[[skills.config]]
+path = "./skills/kice-subagent-routing"
+enabled = true

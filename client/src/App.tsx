@@ -72,6 +72,7 @@ export function App() {
   const [timeLimitMin, setTimeLimitMin] = useState(100);
   const [freezeBeforeMin, setFreezeBeforeMin] = useState(10);
   const [roomMode, setRoomMode] = useState<RoomMode>("casual");
+  const [itemEnabled, setItemEnabled] = useState(true);
   const [nickname, setNickname] = useState("");
   const [roomCode, setRoomCode] = useState(inviteCode);
   const [room, setRoom] = useState<RoomPublic | null>(null);
@@ -198,7 +199,7 @@ export function App() {
       nickname,
       timeLimitSec: safeTimeLimitMin * 60,
       freezeBeforeSec: safeFreezeBeforeMin * 60,
-      itemEnabled: roomMode === "casual",
+      itemEnabled: roomMode === "casual" && itemEnabled,
       mode: roomMode
     });
     if (!response.ok || !response.data) {
@@ -281,6 +282,8 @@ export function App() {
           setFreezeBeforeMin={setFreezeBeforeMin}
           roomMode={roomMode}
           setRoomMode={setRoomMode}
+          itemEnabled={itemEnabled}
+          setItemEnabled={setItemEnabled}
           nickname={nickname}
           setNickname={setNickname}
           roomCode={roomCode}

@@ -84,7 +84,7 @@ export function RankingsScreen({ room, ownPlayer, onBack }: { room: RoomPublic; 
     <main className="rankings-layout">
       <section className="exam-sheet rankings-sheet">
         <div className="rankings-head">
-          <button className="back-link" onClick={onBack}>문제로</button>
+          <button className="back-link" onClick={onBack}>문제로 돌아가기</button>
           <div>
             <span>{room.scoreboardFrozen ? "순위 비공개" : "실시간 채점"}</span>
             <h1>순위표</h1>
@@ -94,9 +94,15 @@ export function RankingsScreen({ room, ownPlayer, onBack }: { room: RoomPublic; 
         {room.scoreboardFrozen && (
           <div className="freeze-slip">
             <EyeOff size={18} />
-            순위 비공개: 현재 표는 설정된 비공개 시작 시점의 임시 성적입니다. 실제 성적은 시험 종료 후 공개됩니다.
+            공개 순위는 고정되었습니다. 내 실제 점수는 계속 반영됩니다.
           </div>
         )}
+        <div className="scoreboard-state-strip" aria-label="순위표 상태">
+          <span className={room.scoreboardFrozen ? "frozen" : "live"}>{room.scoreboardFrozen ? "FROZEN" : "LIVE"}</span>
+          <span><b>AC</b> 정답 점수와 누적 페널티</span>
+          <span><b>WA</b> 오답 시도 수</span>
+          {room.scoreboardFrozen && <span><b>HOLD</b> 프리즈 이후 제출</span>}
+        </div>
         <div className="rankings-toolbar">
           <div className="problem-range-tabs" role="tablist" aria-label="순위표 문항 범위">
             {problemRanges.map((range) => (
@@ -121,7 +127,7 @@ export function RankingsScreen({ room, ownPlayer, onBack }: { room: RoomPublic; 
             <em>제출</em>
             <em>점수</em>
             <em>페널티</em>
-            <em>AC</em>
+            <em>정답</em>
             {visibleProblems.map((problem) => (
               <span key={problem.id} data-score-problem-id={problem.id}>P{problem.number}</span>
             ))}
@@ -240,7 +246,7 @@ function makeProblemScoreCell(player: PlayerPublic, problemId: string, startedAt
     return {
       className: "frozen-attempt",
       primary: `${hiddenAttempts}회`,
-      secondary: "프리즈",
+      secondary: "HOLD",
       title: `프리즈 이후 제출 ${hiddenAttempts}회`
     };
   }
@@ -251,7 +257,7 @@ function makeProblemScoreCell(player: PlayerPublic, problemId: string, startedAt
     return {
       className: "accepted",
       primary: `+${submission.scoreAwarded}`,
-      secondary: `${formatPenalty(visiblePenaltyMs)} · ${submission.attempts}회`,
+      secondary: `AC ${submission.attempts}회 · ${formatPenalty(visiblePenaltyMs)}`,
       title: `정답 +${submission.scoreAwarded}, 페널티 ${formatPenalty(visiblePenaltyMs)}, ${submission.attempts}회 시도`
     };
   }
@@ -259,7 +265,7 @@ function makeProblemScoreCell(player: PlayerPublic, problemId: string, startedAt
   return {
     className: hiddenAttempts > 0 ? "tried frozen-with-attempts" : "tried",
     primary: `${submission.attempts}회`,
-    secondary: hiddenAttempts > 0 ? `${hiddenAttempts}회 프리즈` : `오답 · ${formatElapsed(startedAt, submission.submittedAt)}`,
+    secondary: hiddenAttempts > 0 ? `WA · HOLD ${hiddenAttempts}회` : `WA · ${formatElapsed(startedAt, submission.submittedAt)}`,
     title:
       hiddenAttempts > 0
         ? `오답 ${submission.attempts}회, 프리즈 이후 제출 ${hiddenAttempts}회`

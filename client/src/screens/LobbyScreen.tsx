@@ -29,19 +29,19 @@ export function LobbyScreen({
     <main className="lobby-layout">
       <section className="exam-sheet lobby-sheet">
         <div className="exam-head">
-          <span>수험번호 확인</span>
+          <span>입실 확인</span>
           <strong>{room.exam.title}</strong>
         </div>
         <div className="room-code">
-          <span>방 코드</span>
-          <button onClick={copyCode} title="방 코드 복사">
-            {room.code}
+          <span>시험실 코드</span>
+          <button className="room-code-copy-btn" onClick={copyCode} title="시험실 코드 복사" aria-label={`시험실 코드 ${room.code} 복사`}>
+            <strong>{room.code}</strong>
             <Copy size={18} />
           </button>
           {copied && <em>복사됨</em>}
           <button className="invite-link-btn" onClick={copyInviteLink} title="초대 링크 복사">
             <Link size={18} />
-            링크
+            초대 링크
           </button>
           {copiedLink && <em>링크 복사됨</em>}
         </div>
@@ -57,9 +57,9 @@ export function LobbyScreen({
           <div className="attendance-head">
             <h2>
               <Users size={20} />
-              입실 현황
+              응시자
             </h2>
-            <span>{room.players.length}/{room.maxPlayers}명 · {room.mode === "contest" ? "콘테스트" : "캐주얼"}</span>
+            <span>{room.players.length}/{room.maxPlayers}명 · {room.mode === "contest" ? "콘테스트" : "캐주얼"} · 아이템 {room.itemEnabled ? "ON" : "OFF"}</span>
           </div>
           <div className="player-list">
             {room.players.map((player) => (
@@ -76,6 +76,9 @@ export function LobbyScreen({
             ))}
           </div>
           <div className="lobby-actions">
+            <span className="lobby-action-status">
+              {isHost ? (allReady ? "시작 가능" : "모두 준비하면 시작") : ownPlayer?.ready ? "내 상태: 준비" : "내 상태: 대기"}
+            </span>
             {!isHost && (
               <button className="primary-btn" onClick={() => socket.emit("player:ready", { ready: !ownPlayer?.ready })}>
                 <Flag size={18} />
@@ -85,7 +88,7 @@ export function LobbyScreen({
             {isHost && (
               <button className="primary-btn" disabled={!allReady} onClick={() => socket.emit("room:start")}>
                 <Play size={18} />
-                타종
+                시험 시작
               </button>
             )}
             <button className="secondary-btn lobby-leave-btn" type="button" onClick={() => void leaveRoom()}>

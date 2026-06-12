@@ -1,6 +1,6 @@
-import katex from "katex";
 import { Send } from "lucide-react";
 import type { ProblemPublic } from "../../../../shared/game";
+import { MathHtml } from "../common/MathHtml";
 
 const fallbackChoices = ["1", "2", "3", "4", "5"];
 
@@ -24,6 +24,7 @@ export function AnswerPanel({
   const activeChoice = submittedAnswer || answer || "";
   const choiceLocked = inputLocked || Boolean(submittedAnswer);
   const canSubmitChoice = currentProblem.answerKind === "choice" && Boolean(answer) && !choiceLocked;
+  const canSubmitShortAnswer = currentProblem.answerKind !== "choice" && Boolean(answer.trim()) && !inputLocked;
   const choiceTexts = currentProblem.body?.find((block) => block.kind === "choices")?.choices ?? fallbackChoices;
 
   return (
@@ -73,29 +74,13 @@ export function AnswerPanel({
               placeholder="숫자"
             />
           </label>
-          <button className="primary-btn" disabled={inputLocked} onClick={() => void submit()}>
+          <button className="primary-btn" disabled={!canSubmitShortAnswer} onClick={() => void submit()}>
             <Send size={18} />
             답안 제출
           </button>
         </>
       )}
-      {feedback && <span className="feedback">{feedback}</span>}
+      {feedback && <span className="feedback" aria-live="polite">{feedback}</span>}
     </div>
-  );
-}
-
-function MathHtml({ latex }: { latex: string }) {
-  return (
-    <span
-      dangerouslySetInnerHTML={{
-        __html: katex.renderToString(latex, {
-          displayMode: false,
-          output: "html",
-          throwOnError: false,
-          strict: "ignore",
-          trust: false
-        })
-      }}
-    />
   );
 }

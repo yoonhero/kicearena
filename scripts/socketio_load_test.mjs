@@ -172,7 +172,7 @@ const joinPlayer = async (room, roomIndex, playerIndex) => {
 };
 
 const submitAnswer = async (client) => {
-  if (!client.socket.connected || !client.problemId) return;
+  if (!client.socket.connected || !client.problemId || client.latestRoom?.status !== "playing") return;
   for (let answerIndex = 0; answerIndex < ANSWERS; answerIndex += 1) {
     await emitAck(client, "answer:submit", {
       problemId: client.problemId,
@@ -180,6 +180,13 @@ const submitAnswer = async (client) => {
       idempotencyKey: `${client.label}-${answerIndex}`
     });
   }
+};
+
+const startRoom = async (room) => {
+  const startedRoom = await emitAck(room.host, "room:start", {});
+  room.host.latestRoom = startedRoom;
+  room.host.problemId = startedRoom.exam.problems[0].id;
+  return startedRoom;
 };
 
 const startedAt = performance.now();
@@ -202,12 +209,13 @@ try {
   }
   await runInBatches(joinTasks, JOIN_BATCH_SIZE, BATCH_PAUSE_MS);
 
-  for (const room of rooms) room.host.socket.emit("room:start");
   await Promise.all(
     rooms.map((room) =>
-      waitForRoomStatus(room.host, "playing").catch((error) => {
-        stats.failures.push(error.message);
-      })
+      startRoom(room)
+        .then(() => waitForRoomStatus(room.host, "playing"))
+        .catch((error) => {
+          stats.failures.push(error.message);
+        })
     )
   );
   await sleep(POST_START_WAIT_MS);

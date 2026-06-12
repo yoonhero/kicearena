@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
-import { ChevronDown, Gamepad2, LogIn, LogOut, SlidersHorizontal } from "lucide-react";
+import { ChevronDown, Eraser, Gamepad2, LogIn, LogOut, Shuffle, SlidersHorizontal, Zap } from "lucide-react";
 import { ROOM_GUARDRAILS, type ExamSummary, type RoomMode } from "../../../shared/game";
-import { composeHangulSyllable, composeNickname, createRandomNicknameParts, NICKNAME_FINALS, NICKNAME_INITIALS, NICKNAME_VOWELS, sanitizeNickname, type NicknameJamo } from "../../../shared/nickname";
+import { composeNickname, createRandomNicknameParts, NICKNAME_FINALS, NICKNAME_INITIALS, NICKNAME_VOWELS, sanitizeNickname, type NicknameJamo } from "../../../shared/nickname";
 import { formatReportDate } from "../lib/format";
 
 const QUICK_PRESETS = [
@@ -21,6 +21,8 @@ export function HomeScreen(props: {
   setFreezeBeforeMin: (value: number) => void;
   roomMode: RoomMode;
   setRoomMode: (mode: RoomMode) => void;
+  itemEnabled: boolean;
+  setItemEnabled: (enabled: boolean) => void;
   nickname: string;
   setNickname: (value: string) => void;
   roomCode: string;
@@ -67,8 +69,21 @@ export function HomeScreen(props: {
       return next;
     });
   };
-  const previewName = nameParts.map(composeHangulSyllable);
   const nicknameLength = Array.from(trimmedNickname).length;
+  const trimmedRoomCode = props.roomCode.trim();
+  const effectiveItemEnabled = props.roomMode === "casual" && props.itemEnabled;
+  const rollNickname = () => {
+    const nextParts = createRandomNicknameParts();
+    setNameParts(nextParts);
+    setActiveSlot(0);
+    props.setNickname(composeNickname(nextParts[0], nextParts[1]));
+  };
+  const clearNickname = () => {
+    const nextParts = createRandomNicknameParts();
+    setNameParts(nextParts);
+    setActiveSlot(0);
+    props.setNickname("");
+  };
 
   useEffect(() => {
     if (!props.nickname) props.setNickname(composeNickname(nameParts[0], nameParts[1]));
@@ -95,24 +110,36 @@ export function HomeScreen(props: {
             <div className="omr-name-maker" aria-label="성명 OMR 입력">
               <div className="omr-maker-head">
                 <strong>성명</strong>
+                <div className="omr-maker-tools" aria-label="성명 빠른 작업">
+                  <button type="button" onClick={rollNickname} aria-label="성명 다시 뽑기" title="성명 다시 뽑기">
+                    <Shuffle size={14} />
+                  </button>
+                  <button type="button" onClick={clearNickname} aria-label="성명 지우기" title="성명 지우기">
+                    <Eraser size={14} />
+                  </button>
+                </div>
                 {props.inviteMode && <span>{`초대 방 ${props.inviteRoomCode}`}</span>}
               </div>
               <div className="omr-maker-cells" role="tablist" aria-label="수정할 이름 글자 선택">
-                {Array.from({ length: nameSlots }, (_, index) => (
-                  <button
-                    key={index}
-                    type="button"
-                    className={`omr-name-cell ${activeSlot === index ? "active" : ""}`}
-                    onClick={() => setActiveSlot(index as 0 | 1)}
-                    role="tab"
-                    aria-selected={activeSlot === index}
-                    aria-label={`${index + 1}번째 글자 ${displayedName[index] ?? previewName[index] ?? ""} 수정`}
-                  >
-                    {displayedName[index] ?? previewName[index] ?? ""}
-                  </button>
-                ))}
+                {Array.from({ length: nameSlots }, (_, index) => {
+                  const cellText = displayedName[index] ?? "";
+                  return (
+                    <button
+                      key={index}
+                      type="button"
+                      className={`omr-name-cell ${activeSlot === index ? "active" : ""} ${cellText ? "" : "empty"}`}
+                      onClick={() => setActiveSlot(index as 0 | 1)}
+                      role="tab"
+                      aria-selected={activeSlot === index}
+                      aria-label={`${index + 1}번째 글자 ${cellText || "비어 있음"} 수정`}
+                    >
+                      {cellText}
+                    </button>
+                  );
+                })}
               </div>
               <div className="omr-syllable-row" aria-label={`${activeSlot + 1}글자 초성 선택`}>
+                <span className="omr-row-name" aria-hidden="true">초</span>
                 {NICKNAME_INITIALS.map((jamo) => (
                   <button key={`initial-${jamo}`} type="button" className={nameParts[activeSlot].initial === jamo ? "marked" : ""} onClick={() => setNicknamePart("initial", jamo)} aria-label={`${activeSlot + 1}글자 초성 ${jamo}`}>
                     <span>{jamo}</span>
@@ -120,6 +147,7 @@ export function HomeScreen(props: {
                 ))}
               </div>
               <div className="omr-syllable-row" aria-label={`${activeSlot + 1}글자 중성 선택`}>
+                <span className="omr-row-name" aria-hidden="true">중</span>
                 {NICKNAME_VOWELS.map((jamo) => (
                   <button key={`vowel-${jamo}`} type="button" className={nameParts[activeSlot].vowel === jamo ? "marked" : ""} onClick={() => setNicknamePart("vowel", jamo)} aria-label={`${activeSlot + 1}글자 중성 ${jamo}`}>
                     <span>{jamo}</span>
@@ -127,9 +155,10 @@ export function HomeScreen(props: {
                 ))}
               </div>
               <div className="omr-syllable-row" aria-label={`${activeSlot + 1}글자 종성 선택`}>
+                <span className="omr-row-name" aria-hidden="true">종</span>
                 {NICKNAME_FINALS.map((jamo) => (
                   <button key={`final-${jamo || "none"}`} type="button" className={(nameParts[activeSlot].final ?? "") === jamo ? "marked" : ""} onClick={() => setNicknamePart("final", jamo)} aria-label={`${activeSlot + 1}글자 종성 ${jamo || "없음"}`}>
-                    <span>{jamo || "-"}</span>
+                    <span>{jamo || "없음"}</span>
                   </button>
                 ))}
               </div>
@@ -185,20 +214,20 @@ export function HomeScreen(props: {
               <div className="entry-mode-toggle" role="tablist" aria-label="입실 방식">
                 <button type="button" className={entryMode === "create" ? "active" : ""} onClick={() => setEntryMode("create")} role="tab" aria-selected={entryMode === "create"}>
                   <Gamepad2 size={16} />
-                  방 생성
+                  시험실 만들기
                 </button>
                 <button type="button" className={entryMode === "join" ? "active" : ""} onClick={() => setEntryMode("join")} role="tab" aria-selected={entryMode === "join"}>
                   <LogIn size={16} />
-                  기존 방 입장
+                  코드로 입장
                 </button>
               </div>
               {entryMode === "create" ? (
                 <div className={`entry-action-panel creator-panel entry-zone entry-zone-action ${showOptions ? "options-open" : ""}`}>
                   <div className="entry-panel-title">
-                    <span>방 생성</span>
+                    <span>시험실 만들기</span>
                     <strong>
                       {selectedExam
-                        ? `${props.roomMode === "contest" ? "콘테스트" : "캐주얼"} · ${selectedExam.problemCount}문항 · ${props.timeLimitMin}분 / 프리즈 ${props.freezeBeforeMin}분`
+                        ? `${props.roomMode === "contest" ? "콘테스트" : "캐주얼"} · 아이템 ${effectiveItemEnabled ? "ON" : "OFF"} · ${selectedExam.problemCount}문항 · ${props.timeLimitMin}분 / 프리즈 ${props.freezeBeforeMin}분`
                         : "시험지를 고른 뒤 시작"}
                     </strong>
                   </div>
@@ -207,8 +236,24 @@ export function HomeScreen(props: {
                       캐주얼
                     </button>
                     <button type="button" className={props.roomMode === "contest" ? "active" : ""} onClick={() => props.setRoomMode("contest")} role="tab" aria-selected={props.roomMode === "contest"}>
-                      콘테스트 200
+                      콘테스트
                     </button>
+                  </div>
+                  <div className="item-toggle-row" role="group" aria-label="아이템 설정">
+                    <span>
+                      <Zap size={15} />
+                      아이템
+                    </span>
+                    <button
+                      type="button"
+                      className={effectiveItemEnabled ? "active" : ""}
+                      disabled={props.roomMode === "contest"}
+                      onClick={() => props.setItemEnabled(!props.itemEnabled)}
+                      aria-pressed={effectiveItemEnabled}
+                    >
+                      {effectiveItemEnabled ? "ON" : "OFF"}
+                    </button>
+                    {props.roomMode === "contest" && <em>콘테스트는 아이템 OFF</em>}
                   </div>
                   <div className="quick-preset-list" role="radiogroup" aria-label="시험 시간 프리셋">
                     <span>시간 / 프리즈</span>
@@ -301,22 +346,22 @@ export function HomeScreen(props: {
                       </div>
                     )}
                   </div>
-                  <button className="omr-action host-action" onClick={props.createRoom}>
+                  <button className="omr-action host-action" disabled={!trimmedNickname || !props.selectedExamId} onClick={props.createRoom}>
                     <Gamepad2 size={18} />
-                    방 열기
+                    시험실 만들기
                   </button>
                 </div>
               ) : (
                 <div className="entry-action-panel join-panel entry-zone entry-zone-action">
                   <div className="entry-panel-title">
-                    <span>기존 방 입장</span>
-                    <strong>방 코드만 입력</strong>
+                    <span>코드로 입장</span>
+                    <strong>초대받은 시험실 코드 입력</strong>
                   </div>
                   <div className="omr-field code-field">
                     <span>방 코드</span>
                     <input value={props.roomCode} onChange={(event) => props.setRoomCode(event.target.value.toUpperCase())} placeholder="ABCDE" />
                   </div>
-                  <button className="omr-action join-action" onClick={props.joinRoom}>
+                  <button className="omr-action join-action" disabled={!trimmedNickname || !trimmedRoomCode} onClick={props.joinRoom}>
                     <LogIn size={18} />
                     입장
                   </button>

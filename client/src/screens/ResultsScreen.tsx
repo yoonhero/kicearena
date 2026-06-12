@@ -289,20 +289,20 @@ export function ResultsScreen({ room, ownPlayer, onLeave }: { room: RoomPublic; 
           </div>
           <div className="reveal-control-strip">
             <div>
-              <span>방장 공개 순서</span>
+              <span>{allRevealed ? "다음 행동" : "다음 공개"}</span>
               <strong>{allRevealed ? "비공개 시도가 모두 공개되었습니다." : makeNextRevealLabel(nextRevealRow, room)}</strong>
             </div>
             {!allRevealed && isHost && (
               <button className="reveal-next-btn" type="button" aria-busy={revealPending} onClick={requestRevealAdvance}>
                 <RotateCw size={18} />
-                시도 공개
+                다음 시도 공개
               </button>
             )}
-            {!allRevealed && !isHost && <em>방장이 다음 비공개 시도를 공개할 때까지 대기</em>}
+            {!allRevealed && !isHost && <em>방장 공개 대기</em>}
             {allRevealed && (
               <button className="reveal-next-btn" type="button" onClick={() => setReportOpen(true)}>
                 <FileText size={18} />
-                성적표 보기
+                최종 성적표 보기
               </button>
             )}
           </div>
@@ -391,6 +391,13 @@ export function ResultsScreen({ room, ownPlayer, onLeave }: { room: RoomPublic; 
           <strong>{formatReportDate()} 시행 성적통지표</strong>
           <em>{room.exam.title}</em>
         </div>
+        <div className="final-report-actions">
+          <span>{ownPlayer ? `${ownPlayer.nickname} 성적 확인 완료` : "성적 확인 완료"}</span>
+          <button className="leave-report-btn" type="button" onClick={() => void onLeave()}>
+            <LogOut size={18} />
+            시험실 나가기
+          </button>
+        </div>
         <div className="final-report-table">
           <div className="final-report-row final-report-row-head">
             <span>등급</span>
@@ -403,7 +410,7 @@ export function ResultsScreen({ room, ownPlayer, onLeave }: { room: RoomPublic; 
           {players.map((player) => {
             const metric = makeReportMetric(players, player.score);
             return (
-              <div key={player.id} className="final-report-row">
+              <div key={player.id} className={`final-report-row ${ownPlayer?.id === player.id ? "me" : ""}`}>
                 <span>{metric.grade}</span>
                 <strong>{player.nickname}</strong>
                 <em>{metric.standardScore}</em>
@@ -414,10 +421,6 @@ export function ResultsScreen({ room, ownPlayer, onLeave }: { room: RoomPublic; 
             );
           })}
         </div>
-        <button className="leave-report-btn" type="button" onClick={() => void onLeave()}>
-          <LogOut size={18} />
-          나가기
-        </button>
       </section>
     </main>
   );

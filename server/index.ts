@@ -36,7 +36,7 @@ import { createExamCatalogPool, createExamInDatabase, createProblemInDatabase, m
 import { isExamReleased, toExamPublic, toExamSummary } from "./exams.js";
 import { activeEffectForItem, cleanupEffects, findAdviceNoteProblem, maybeAwardItems, randomWeakDebuff, validateItemTarget } from "./items.js";
 import { shouldRateLimit as shouldRateLimitEvent } from "./rateLimit.js";
-import { contestSubmissionToPublic, countActiveRoomStates, deleteRoomState, migrateRoomState, readContestSubmissionByIdempotency, readRoomState, readRoomStateCodes, readRoomStates, saveContestSubmission, saveRoomState } from "./roomDatabase.js";
+import { contestSubmissionToPublic, countActiveRoomStates, deleteRoomState, migrateRoomState, readRoomState, readRoomStateCodes, readRoomStates, saveContestSubmission, saveRoomState } from "./roomDatabase.js";
 import { derivePlayerScoreState, formatPenaltyMinutes, makeStandings, normalizeSubmissionPenalty, scoreForAccepted } from "./scoring.js";
 import type { PlayerState, RoomState } from "./types.js";
 
@@ -82,6 +82,7 @@ type SocketPlayerRef = { roomCode: string; playerId: string; socketToken: string
 const socketToPlayer = new Map<string, SocketPlayerRef>();
 type RoomSocketCleanupPayload = { roomCode: string; playerIds?: string[]; socketIds?: string[]; excludeSocketIds?: string[] };
 const socketEventTimestamps = new Map<string, Map<string, number>>();
+const remotePresenceFetchedAt = new Map<string, number>();
 const metricsRegistry = new Registry();
 const EXPIRED_EFFECT_NOTICE_MS = 3000;
 
@@ -336,6 +337,7 @@ const ROOM_TTL = {
   disconnectedLobbyMs: 30 * 60 * 1000,
   finishedMs: 30 * 60 * 1000
 } as const;
+const REMOTE_PRESENCE_FETCH_INTERVAL_MS = 1000;
 
 const RATE_LIMIT_MS = {
   ready: 200,
@@ -507,9 +509,16 @@ const markSocketPresence = (room: RoomState, ref: Partial<SocketPlayerRef>, sock
 };
 
 const applySocketPresence = async (room: RoomState) => {
+  const cachedRoom = rooms.get(room.code);
   for (const player of room.players.values()) {
-    player.socketId = "";
-    player.connected = false;
+    const cachedPlayer = cachedRoom?.players.get(player.id);
+    if (cachedPlayer?.socketToken === player.socketToken) {
+      player.socketId = cachedPlayer.socketId;
+      player.connected = cachedPlayer.connected;
+    } else {
+      player.socketId = "";
+      player.connected = false;
+    }
   }
   for (const [socketId, ref] of socketToPlayer.entries()) {
     if (ref.roomCode !== room.code) continue;
@@ -521,13 +530,23 @@ const applySocketPresence = async (room: RoomState) => {
     markSocketPresence(room, ref, socketId);
   }
 
-  try {
-    const sockets = await io.in(room.code).fetchSockets();
-    for (const remoteSocket of sockets) {
-      markSocketPresence(room, remoteSocket.data as Partial<SocketPlayerRef>, remoteSocket.id);
+  const now = Date.now();
+  const shouldFetchRemotePresence = redisClients && now - (remotePresenceFetchedAt.get(room.code) ?? 0) >= REMOTE_PRESENCE_FETCH_INTERVAL_MS;
+  if (shouldFetchRemotePresence) {
+    try {
+      const sockets = await io.in(room.code).fetchSockets();
+      for (const player of room.players.values()) {
+        if (io.sockets.sockets.has(player.socketId)) continue;
+        player.socketId = "";
+        player.connected = false;
+      }
+      for (const remoteSocket of sockets) {
+        markSocketPresence(room, remoteSocket.data as Partial<SocketPlayerRef>, remoteSocket.id);
+      }
+      remotePresenceFetchedAt.set(room.code, now);
+    } catch (error) {
+      console.error(`Unable to fetch socket presence for room ${room.code}.`, error);
     }
-  } catch (error) {
-    console.error(`Unable to fetch socket presence for room ${room.code}.`, error);
   }
   return room;
 };
@@ -658,6 +677,7 @@ const deleteRoom = (room: RoomState) => {
     io.sockets.sockets.get(player.socketId)?.leave(room.code);
   }
   rooms.delete(room.code);
+  remotePresenceFetchedAt.delete(room.code);
   removePersistedRoom(room.code);
 };
 
@@ -1250,7 +1270,7 @@ io.on("connection", (socket) => {
     socket.join(code);
     setSocketPlayer(socket, { roomCode: code, playerId, socketToken });
     socket.emit("player:you", playerId);
-    addLog(room, "system", mode === "contest" ? `${nickname} 감독관이 200인 콘테스트 방을 열었습니다.` : `${nickname} 출제위원장이 방을 열었습니다.`);
+    addLog(room, "system", mode === "contest" ? `${nickname} 감독관이 콘테스트 방을 열었습니다.` : `${nickname} 출제위원장이 방을 열었습니다.`);
     const snapshot = emitRoom(room);
     replyAfterRoomCommit(reply, { ok: true, data: snapshot });
     });
@@ -1327,13 +1347,19 @@ io.on("connection", (socket) => {
     });
   });
 
-  socket.on("room:start", async () => {
+  socket.on("room:start", async (_payload?: unknown, reply?: (response: ServerResponse<RoomPublic>) => void) => {
     const ref = socketToPlayer.get(socket.id);
-    if (!ref) return;
+    if (!ref) {
+      replyAfterRoomCommit(reply, { ok: false, error: "참가자 정보를 찾을 수 없습니다." });
+      return;
+    }
     await withRoomMutation(ref.roomCode, async () => {
     const room = await getPersistedRoom(ref.roomCode);
     const player = room?.players.get(ref.playerId);
-    if (!room || !isCurrentPlayerSocket(player, ref) || room.hostId !== ref.playerId || room.status !== "lobby") return;
+    if (!room || !isCurrentPlayerSocket(player, ref) || room.hostId !== ref.playerId || room.status !== "lobby") {
+      replyAfterRoomCommit(reply, { ok: false, error: "방장만 로비에서 시험을 시작할 수 있습니다." });
+      return;
+    }
     room.status = "playing";
     room.startedAt = Date.now();
     room.endsAt = room.startedAt + room.timeLimitSec * 1000;
@@ -1343,7 +1369,8 @@ io.on("connection", (socket) => {
     for (const player of room.players.values()) player.ready = true;
     touchRoom(room);
     addLog(room, "system", "타종. 1교시 수학 영역을 시작합니다.");
-    emitRoom(room);
+    const snapshot = emitRoom(room);
+    replyAfterRoomCommit(reply, { ok: true, data: snapshot });
     });
   });
 
@@ -1547,13 +1574,6 @@ io.on("connection", (socket) => {
     const acceptedAt = Date.now();
     const correct = normalizeAnswer(answer) === normalizeAnswer(problem.answer);
     const idempotencyKey = readString(payload?.idempotencyKey, 120) || makeSubmissionId();
-    if (room.mode === "contest") {
-      const existingSubmission = await readContestSubmissionByIdempotency(roomDatabase()!, room.code, player.id, idempotencyKey);
-      if (existingSubmission) {
-        replyAfterRoomCommit(reply, { ok: true, data: { correct: existingSubmission.correct, itemAwarded: null, itemAwards: [] } });
-        return;
-      }
-    }
     if (shouldRateLimit(socket.id, "answer:submit", RATE_LIMIT_MS.answerSubmit)) {
       replyAfterRoomCommit(reply, { ok: false, error: "답안 제출 간격이 너무 짧습니다." });
       return;

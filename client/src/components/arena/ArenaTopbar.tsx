@@ -42,11 +42,11 @@ export function ArenaTopbar({
       <div className="topbar-actions">
         <button className="status-link ranking-link" onClick={showRankings}>
           <BarChart3 size={16} />
-          순위표 보기
+          순위표
         </button>
         <button className="status-link" onClick={leaveRoom}>
           <LogOut size={16} />
-          나가기
+          퇴실
         </button>
         {isHost && (
           <button className="status-link danger-link" onClick={endExamEarly}>

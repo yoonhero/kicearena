@@ -474,11 +474,11 @@ export function AdminScreen() {
     <main className="admin-shell">
       <header className="admin-topbar">
         <div>
-          <span>KICE ARENA ADMIN</span>
-          <strong>문제지 관리</strong>
+          <span>관리실</span>
+          <strong>문제지 편집</strong>
         </div>
         <label>
-          <span>Admin Token</span>
+          <span>관리자 토큰</span>
           <input type="password" value={token} onChange={(event) => setToken(event.target.value)} placeholder="X-Admin-Token" />
         </label>
         <button type="button" className="secondary-btn" onClick={saveToken}>
@@ -627,10 +627,16 @@ export function AdminScreen() {
         <section className="admin-editor">
           <div className="admin-section-head">
             <span>{selectedProblem ? `${selectedProblem.number}번` : "문제 선택"}</span>
-            <strong>{isDirty ? "수정중" : selectedProblem?.id ?? ""}</strong>
+            <strong>{isDirty ? "저장 필요" : selectedProblem?.id ?? ""}</strong>
           </div>
           {form && (
             <>
+              <div className="admin-edit-state-strip" aria-label="편집 상태">
+                <span><b>선택</b>{selectedExam?.title ?? "-"}</span>
+                <span><b>유형</b>{form.answerKind === "choice" ? "객관식" : "단답형"}</span>
+                <span className={canSave ? "valid" : "invalid"}><b>검증</b>{canSave ? "저장 가능" : bodyCheck.error || pointValueCheck.error || "필수값 확인"}</span>
+                <span className={isDirty ? "dirty" : "clean"}><b>상태</b>{isDirty ? "수정중" : "저장됨"}</span>
+              </div>
               <label>
                 <span>제목</span>
                 <input value={form.title} onChange={(event) => updateForm("title", event.target.value)} />
@@ -678,8 +684,16 @@ export function AdminScreen() {
                   <input value={form.pointValue} onChange={(event) => updateForm("pointValue", event.target.value)} placeholder="auto" />
                 </label>
               </div>
-              <label className={`admin-markup-editor ${assetDragging || uploadingAsset ? "drag-active" : ""}`}>
-                <span>본문</span>
+              <div className={`admin-markup-editor ${assetDragging || uploadingAsset ? "drag-active" : ""}`}>
+                <div className="admin-body-toolrow">
+                  <span>본문</span>
+                  <div>
+                    <button type="button" className="secondary-btn" onClick={() => insertBodyMarkup("::math x^2+1")}>수식</button>
+                    <button type="button" className="secondary-btn" onClick={() => insertBodyMarkup("::svg diagrams/graph.svg | 도표")}>도표</button>
+                    <button type="button" className="secondary-btn" onClick={() => insertBodyMarkup("::note 조건")}>조건</button>
+                    {form.answerKind === "choice" && <button type="button" className="secondary-btn" onClick={() => insertBodyMarkup("::choice 1")}>선택지</button>}
+                  </div>
+                </div>
                 <textarea
                   ref={bodyEditorRef}
                   value={form.bodyMarkup}
@@ -689,9 +703,9 @@ export function AdminScreen() {
                   onDragLeave={() => setAssetDragging(false)}
                   onDrop={(event) => void handleBodyDrop(event)}
                   spellCheck={false}
-                  placeholder={"문제 본문\n\n::math x^2+1\n::svg diagrams/graph.svg | 그래프 | 참고\n::note 자연수로 입력\n::choice 1"}
+                  placeholder={form.answerKind === "choice" ? "문제 본문을 입력하세요. 선택지는 위의 선택지 버튼으로 추가합니다." : "문제 본문을 입력하세요. 수식, 도표, 조건은 위 버튼으로 추가합니다."}
                 />
-              </label>
+              </div>
               {(!bodyCheck.ok || !pointValueCheck.ok || uploadingAsset) && (
                 <div className="admin-validation-strip">
                   {!bodyCheck.ok && <span className="invalid">{bodyCheck.error}</span>}
@@ -723,7 +737,7 @@ export function AdminScreen() {
             <div className="admin-preview-paper">
               <div className="admin-preview-head">
                 <span>{previewProblem.title}</span>
-                <strong>{previewProblem.answerKind} · {form?.answer ?? ""}</strong>
+                <strong>{previewProblem.answerKind === "choice" ? "객관식" : "단답형"} · 정답 {form?.answer ?? ""}</strong>
               </div>
               <ProblemContent problem={previewProblem} />
             </div>

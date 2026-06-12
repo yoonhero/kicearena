@@ -256,20 +256,19 @@ export const saveContestSubmission = async (
   db: RoomDatabase,
   input: ContestSubmissionInput
 ): Promise<{ submission: ContestSubmissionRecord; reused: boolean }> => {
-  const existingSubmission = await readContestSubmissionByIdempotency(db, input.roomCode, input.playerId, input.idempotencyKey);
-  if (existingSubmission) return { submission: existingSubmission, reused: true };
-
-  const sequenceResult = await db.query<{ sequence: number }>(
-    "SELECT COALESCE(MAX(sequence), 0) + 1 AS sequence FROM contest_submissions WHERE room_code = $1",
-    [input.roomCode]
-  );
-  const sequence = Number(sequenceResult.rows[0]?.sequence ?? 1);
   const inserted = await db.query<ContestSubmissionRow>(
-    `INSERT INTO contest_submissions (
+    `WITH next_sequence AS (
+       SELECT COALESCE(MAX(sequence), 0) + 1 AS sequence
+       FROM contest_submissions
+       WHERE room_code = $2
+     )
+     INSERT INTO contest_submissions (
        id, room_code, player_id, problem_id, answer, submitted_at, submitted_at_ms,
        sequence, correct, score_awarded, penalty_ms, attempts, idempotency_key
      )
-     VALUES ($1, $2, $3, $4, $5, to_timestamp($6 / 1000.0), $6, $7, $8, $9, $10, $11, $12)
+     SELECT $1, $2, $3, $4, $5, to_timestamp($6 / 1000.0), $6, next_sequence.sequence, $7, $8, $9, $10, $11
+     FROM next_sequence
+     ON CONFLICT (room_code, player_id, idempotency_key) DO NOTHING
      RETURNING id, room_code, player_id, problem_id, answer, submitted_at_ms::text, sequence, correct, score_awarded, penalty_ms, attempts, idempotency_key`,
     [
       input.id,
@@ -278,7 +277,6 @@ export const saveContestSubmission = async (
       input.problemId,
       input.answer,
       input.submittedAt,
-      sequence,
       input.correct,
       input.scoreAwarded,
       input.penaltyMs,
@@ -287,7 +285,12 @@ export const saveContestSubmission = async (
     ]
   );
 
-  return { submission: rowToContestSubmission(inserted.rows[0]!), reused: false };
+  const insertedSubmission = inserted.rows[0];
+  if (insertedSubmission) return { submission: rowToContestSubmission(insertedSubmission), reused: false };
+
+  const existingSubmission = await readContestSubmissionByIdempotency(db, input.roomCode, input.playerId, input.idempotencyKey);
+  if (existingSubmission) return { submission: existingSubmission, reused: true };
+  throw new Error("Unable to save contest submission.");
 };
 
 export const readContestSubmissionByIdempotency = async (db: RoomDatabase, roomCode: string, playerId: string, idempotencyKey: string): Promise<ContestSubmissionRecord | null> => {

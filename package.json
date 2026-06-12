@@ -8,6 +8,7 @@
     "dev:client": "vite --host 0.0.0.0",
     "dev:server": "tsx watch server/index.ts",
     "db:seed": "tsx server/seedExamCatalog.ts",
+    "codex:agents:validate": "conda run -n mlenv python scripts/validate_codex_agents.py",
     "build": "tsc --noEmit && vite build",
     "start": "NODE_ENV=production tsx server/index.ts",
     "test": "vitest run",

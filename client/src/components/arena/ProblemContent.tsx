@@ -1,8 +1,8 @@
-import katex from "katex";
-import type React from "react";
+import { memo, type ReactNode } from "react";
 import type { ProblemBodyBlock, ProblemPublic } from "../../../../shared/game";
+import { MathHtml } from "../common/MathHtml";
 
-export function ProblemContent({ problem }: { problem: ProblemPublic }) {
+export const ProblemContent = memo(function ProblemContent({ problem }: { problem: ProblemPublic }) {
   if (!problem.body?.length && problem.imageUrl) {
     return <img src={problem.imageUrl} alt={`${problem.sourceNumber ?? problem.number}번 문제`} />;
   }
@@ -16,9 +16,9 @@ export function ProblemContent({ problem }: { problem: ProblemPublic }) {
       </div>
     </article>
   );
-}
+});
 
-function ProblemBlock({ block }: { block: ProblemBodyBlock }) {
+const ProblemBlock = memo(function ProblemBlock({ block }: { block: ProblemBodyBlock }) {
   if (block.kind === "paragraph") {
     return (
       <p className="kice-problem-paragraph">
@@ -45,30 +45,14 @@ function ProblemBlock({ block }: { block: ProblemBodyBlock }) {
   }
 
   return <p className="kice-problem-note">{block.text}</p>;
-}
+});
 
 function renderInlineMath(text: string, inlineMath: string[] = []) {
   const parts = text.split("{}");
   return parts.flatMap((part, index) => {
-    const nodes: React.ReactNode[] = [part];
+    const nodes: ReactNode[] = [part];
     const latex = inlineMath[index];
     if (latex) nodes.push(<MathHtml key={`${latex}-${index}`} latex={latex} />);
     return nodes;
   });
-}
-
-function MathHtml({ latex, displayMode = false, className = "" }: { latex: string; displayMode?: boolean; className?: string }) {
-  return (
-    <span
-      className={className}
-      dangerouslySetInnerHTML={{
-        __html: katex.renderToString(latex, {
-          displayMode,
-          throwOnError: false,
-          strict: "ignore",
-          trust: false
-        })
-      }}
-    />
-  );
 }
