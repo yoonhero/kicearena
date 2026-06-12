@@ -45,6 +45,7 @@ import { normalizeStudentStatus } from "../shared/campaign.js";
 import {
     attachReferralConversion,
     createCampaignUser,
+    findNearestHighSchool,
     isReferralCodeWhitelisted,
     migrateCampaign,
     readCampaignUserByUsername,
@@ -119,6 +120,10 @@ const referralWhitelist = (process.env.CAMPAIGN_REFERRAL_WHITELIST ?? "")
     .split(/[\s,]+/)
     .map((code) => code.trim().toLowerCase())
     .filter(Boolean);
+const campaignLocationRadiusKm = Math.max(
+    0.2,
+    Math.min(20, Number(process.env.CAMPAIGN_LOCATION_RADIUS_KM) || 3),
+);
 const allowedOrigins = (process.env.CORS_ORIGINS ?? "")
     .split(",")
     .map((origin) => origin.trim())
@@ -1079,6 +1084,49 @@ app.post("/api/campaign/referral-visit", async (req, res) => {
     }
     await recordReferralVisit(examCatalogPool, referralCode, visitorFingerprint(req));
     res.json({ ok: true });
+});
+
+app.post("/api/campaign/referral-location-verify", async (req, res) => {
+    if (!examCatalogPool) {
+        res.sendStatus(503);
+        return;
+    }
+    const referralCode = readString(req.body?.referralCode, 32).toLowerCase();
+    const latitude = Number(req.body?.latitude);
+    const longitude = Number(req.body?.longitude);
+    if (
+        !/^[2-9a-z]{4,32}$/.test(referralCode) ||
+        !Number.isFinite(latitude) ||
+        !Number.isFinite(longitude) ||
+        latitude < 33 ||
+        latitude > 39 ||
+        longitude < 124 ||
+        longitude > 132
+    ) {
+        res.status(400).json({ error: "Invalid location verification payload." });
+        return;
+    }
+    if (!(await isReferralCodeWhitelisted(examCatalogPool, referralCode))) {
+        res.status(403).json({ error: "Referral code is not whitelisted." });
+        return;
+    }
+    const nearest = await findNearestHighSchool(
+        examCatalogPool,
+        latitude,
+        longitude,
+        campaignLocationRadiusKm,
+    );
+    if (!nearest) {
+        res.status(403).json({ error: "No high school matched this location." });
+        return;
+    }
+    await recordReferralVisit(examCatalogPool, referralCode, visitorFingerprint(req));
+    res.json({
+        referralCode,
+        school: nearest.school,
+        distanceKm: Math.round(nearest.distanceKm * 100) / 100,
+        verifiedAt: new Date().toISOString(),
+    });
 });
 
 app.post("/api/campaign/register", async (req, res) => {

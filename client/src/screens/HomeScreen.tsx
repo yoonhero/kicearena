@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 import { ChevronDown, Gamepad2, LogIn, LogOut, SlidersHorizontal, Zap } from "lucide-react";
 import { ROOM_GUARDRAILS, type ExamSummary } from "../../../shared/game";
-import { CampaignPanel } from "../components/CampaignPanel";
 import {
     composeNickname,
     createRandomNicknameParts,
@@ -223,7 +222,6 @@ export function HomeScreen(props: {
                                 placeholder="닉네임"
                             />
                         </label>
-                        {!props.inviteMode && <CampaignPanel />}
                         {props.inviteMode && (
                             <>
                                 <div className="invite-entry-status" aria-live="polite">

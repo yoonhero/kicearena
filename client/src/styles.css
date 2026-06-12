@@ -10,7 +10,7 @@
 
 /* Home screen */
 @import "./styles/home/identity-card.css";
-@import "./styles/home/campaign-panel.css";
+@import "./styles/home/referral-gate.css";
 @import "./styles/home/entry-actions.css";
 @import "./styles/home/exam-cover-picker.css";
 @import "./styles/home/time-options.css";

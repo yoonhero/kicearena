@@ -226,6 +226,34 @@ export const searchHighSchools = async (
     return result.rows.map(toHighSchool);
 };
 
+export const findNearestHighSchool = async (
+    db: CampaignDatabase,
+    latitude: number,
+    longitude: number,
+    maxDistanceKm: number,
+): Promise<{ school: HighSchool; distanceKm: number } | null> => {
+    const result = await db.query<HighSchoolRow & { distance_km: string | number }>(
+        `SELECT id, name, region, address, latitude, longitude,
+            6371 * acos(
+              least(1, greatest(-1,
+                cos(radians($1)) * cos(radians(latitude::double precision)) *
+                cos(radians(longitude::double precision) - radians($2)) +
+                sin(radians($1)) * sin(radians(latitude::double precision))
+              ))
+            ) AS distance_km
+     FROM high_schools
+     WHERE latitude IS NOT NULL AND longitude IS NOT NULL
+     ORDER BY distance_km ASC
+     LIMIT 1`,
+        [latitude, longitude],
+    );
+    const row = result.rows[0];
+    if (!row) return null;
+    const distanceKm = Number(row.distance_km);
+    if (!Number.isFinite(distanceKm) || distanceKm > maxDistanceKm) return null;
+    return { school: toHighSchool(row), distanceKm };
+};
+
 export const readCampaignUserByUsername = async (db: CampaignDatabase, username: string) => {
     const result = await db.query<CampaignUserRow>(
         `SELECT user_account.id, user_account.username, user_account.password_hash, user_account.student_status,

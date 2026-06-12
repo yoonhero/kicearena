@@ -1,0 +1,72 @@
+.referral-gate-layout {
+    min-height: 100dvh;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+}
+
+.referral-gate-sheet {
+    width: min(420px, 100%);
+    display: grid;
+    gap: 18px;
+    padding: 22px;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    box-shadow: var(--shadow);
+}
+
+.referral-gate-head,
+.referral-school-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.referral-gate-head span,
+.referral-school-card span,
+.referral-school-card em,
+.referral-gate-copy span {
+    color: var(--muted);
+    font-size: 0.82rem;
+}
+
+.referral-gate-head span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.referral-gate-head strong,
+.referral-school-card strong,
+.referral-gate-copy strong {
+    font-size: 1rem;
+}
+
+.referral-school-card {
+    justify-content: flex-start;
+    padding: 14px;
+    border: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.72);
+}
+
+.referral-school-card strong {
+    flex: 1;
+}
+
+.referral-gate-copy {
+    display: grid;
+    gap: 6px;
+}
+
+.referral-gate-action {
+    width: 100%;
+}
+
+.referral-gate-exit {
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    font-weight: 700;
+    cursor: pointer;
+}

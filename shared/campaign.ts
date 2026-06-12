@@ -20,6 +20,13 @@ export type CampaignUserPublic = {
     badgeLabel: string;
 };
 
+export type ReferralLocationVerification = {
+    referralCode: string;
+    school: HighSchool;
+    distanceKm: number;
+    verifiedAt: string;
+};
+
 export type CampaignStats = {
     totals: {
         users: number;

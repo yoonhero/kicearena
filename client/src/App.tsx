@@ -7,6 +7,10 @@ import {
     type RoomPublic,
 } from "../../shared/game";
 import { ArenaScreen } from "./screens/ArenaScreen";
+import {
+    hasReferralLocationVerification,
+    ReferralSchoolGate,
+} from "./components/ReferralSchoolGate";
 import { HomeScreen } from "./screens/HomeScreen";
 import { LobbyScreen } from "./screens/LobbyScreen";
 import { ResultsScreen } from "./screens/ResultsScreen";
@@ -25,6 +29,8 @@ type RoomLookup = {
 
 const readInviteCode = () =>
     new URLSearchParams(window.location.search).get("room")?.trim().toUpperCase() ?? "";
+const readReferralCode = () =>
+    new URLSearchParams(window.location.search).get("c")?.trim().toLowerCase() ?? "";
 const defaultFreezeForTimeLimit = (timeLimitMin: number) =>
     Math.max(0, Math.min(timeLimitMin, Math.round(timeLimitMin / 2)));
 const REJOIN_CONNECT_TIMEOUT_MS = 2500;
@@ -72,6 +78,30 @@ const waitForSocketConnection = () =>
         };
         socket.once("connect", onConnect);
     });
+
+function useReferralGateState(screen: Screen) {
+    const [referralCode, setReferralCode] = useState(readReferralCode);
+    const [referralGatePassed, setReferralGatePassed] = useState(() => {
+        const code = readReferralCode();
+        return !code || hasReferralLocationVerification(code);
+    });
+    const needsReferralGate = screen === "home" && Boolean(referralCode) && !referralGatePassed;
+    const exitReferralGate = () => {
+        setReferralCode("");
+        setReferralGatePassed(true);
+        const url = new URL(window.location.href);
+        url.searchParams.delete("c");
+        window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+    };
+    return { referralCode, needsReferralGate, setReferralGatePassed, exitReferralGate };
+}
+
+const getScreen = (room: RoomPublic | null): Screen => {
+    if (!room) return "home";
+    if (room.status === "lobby") return "lobby";
+    if (room.status === "finished") return "results";
+    return "arena";
+};
 
 export function App() {
     const [inviteCode, setInviteCode] = useState(readInviteCode);
@@ -199,14 +229,10 @@ export function App() {
         return room.players.find((player) => player.id === ownPlayerId) ?? null;
     }, [room, ownPlayerId]);
 
-    const screen: Screen = !room
-        ? "home"
-        : room.status === "lobby"
-          ? "lobby"
-          : room.status === "finished"
-            ? "results"
-            : "arena";
+    const screen = getScreen(room);
     const isInviteMode = screen === "home" && Boolean(inviteCode);
+    const { referralCode, needsReferralGate, setReferralGatePassed, exitReferralGate } =
+        useReferralGateState(screen);
 
     const leaveRoom = async () => {
         await emitWithAck("room:leave", {});
@@ -299,7 +325,15 @@ export function App() {
 
     return (
         <div className="app-shell">
-            {screen === "home" && (
+            {needsReferralGate && (
+                <ReferralSchoolGate
+                    referralCode={referralCode}
+                    onVerified={() => setReferralGatePassed(true)}
+                    onExit={exitReferralGate}
+                />
+            )}
+
+            {screen === "home" && !needsReferralGate && (
                 <HomeScreen
                     exams={exams}
                     selectedExamId={selectedExamId}

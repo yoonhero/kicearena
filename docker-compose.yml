@@ -75,6 +75,7 @@ services:
             ADMIN_TOKEN: ${ADMIN_TOKEN:-}
             CORS_ORIGINS: ${CORS_ORIGINS:-}
             CAMPAIGN_REFERRAL_WHITELIST: ${CAMPAIGN_REFERRAL_WHITELIST:-}
+            CAMPAIGN_LOCATION_RADIUS_KM: ${CAMPAIGN_LOCATION_RADIUS_KM:-3}
             METRICS_BEARER_TOKEN: ${METRICS_BEARER_TOKEN:-}
             METRICS_BEARER_TOKEN_FILE: /run/secrets/kice_arena_metrics_token
         ports:

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
     attachReferralConversion,
     createCampaignUser,
+    findNearestHighSchool,
     type CampaignDatabase,
     migrateCampaign,
     recordReferralVisit,
@@ -150,6 +151,34 @@ describe("campaign database persistence", () => {
         expect(queries).toHaveLength(1);
         expect(queries[0]?.text).toContain("campaign_referral_whitelist");
         expect(queries[0]?.values).toEqual(["abc234"]);
+    });
+
+    it("finds a nearby high school for location verification only within radius", async () => {
+        const queries: { text: string; values?: unknown[] }[] = [];
+        const db: CampaignDatabase = {
+            query: async <T extends object>(text: string, values?: unknown[]) => {
+                queries.push({ text, values });
+                return makeQueryResult([
+                    {
+                        id: "school-1",
+                        name: "KICE High",
+                        region: "Seoul",
+                        address: "1 Test-ro",
+                        latitude: 37.5,
+                        longitude: 127,
+                        distance_km: 0.42,
+                    } as T,
+                ]);
+            },
+        };
+
+        await expect(findNearestHighSchool(db, 37.5, 127, 1)).resolves.toMatchObject({
+            school: { id: "school-1", name: "KICE High" },
+            distanceKm: 0.42,
+        });
+        await expect(findNearestHighSchool(db, 37.5, 127, 0.1)).resolves.toBeNull();
+        expect(queries[0]?.text).toContain("ORDER BY distance_km ASC");
+        expect(queries[0]?.values).toEqual([37.5, 127]);
     });
 
     it("searches schools and reads bounded admin stats", async () => {

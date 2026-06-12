@@ -61,6 +61,7 @@ jobs:
                   GRAFANA_ADMIN_USER: ${{ vars.GRAFANA_ADMIN_USER }}
                   CORS_ORIGINS: ${{ vars.CORS_ORIGINS }}
                   CAMPAIGN_REFERRAL_WHITELIST: ${{ vars.CAMPAIGN_REFERRAL_WHITELIST }}
+                  CAMPAIGN_LOCATION_RADIUS_KM: ${{ vars.CAMPAIGN_LOCATION_RADIUS_KM }}
                   REDIS_URL: ${{ vars.REDIS_URL || secrets.REDIS_URL }}
                   DATABASE_URL: ${{ secrets.DATABASE_URL }}
                   POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
@@ -128,6 +129,7 @@ jobs:
                   add_env ADMIN_TOKEN "${ADMIN_TOKEN:-}"
                   add_env CORS_ORIGINS "${CORS_ORIGINS:-}"
                   add_env CAMPAIGN_REFERRAL_WHITELIST "${CAMPAIGN_REFERRAL_WHITELIST:-}"
+                  add_env CAMPAIGN_LOCATION_RADIUS_KM "${CAMPAIGN_LOCATION_RADIUS_KM:-}"
                   add_env PROMETHEUS_HOST_PORT "${PROMETHEUS_HOST_PORT:-}"
                   add_env ALERTMANAGER_HOST_PORT "${ALERTMANAGER_HOST_PORT:-}"
                   add_env GRAFANA_HOST_PORT "${GRAFANA_HOST_PORT:-}"
