@@ -6,6 +6,28 @@ type PendingEventAction = { eventId: string; action: "register" | "spectate" } |
 type EventDisplay = GymEventSummary & {
     startLabel: string;
     statusLabel: string;
+    durationLabel: string;
+};
+type EventAccess = {
+    canRegister: boolean;
+    canSpectate: boolean;
+    hint: string;
+};
+type EntrantState = {
+    hasAccount: boolean;
+    hasInvite: boolean;
+    hasNickname: boolean;
+};
+
+const formatEventStart = (startsAt: string | null) => {
+    if (!startsAt) return "상시 공개";
+    return new Date(startsAt).toLocaleString("ko-KR", {
+        month: "long",
+        day: "numeric",
+        weekday: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+    });
 };
 
 export function EventHomeScreen({
@@ -45,56 +67,67 @@ export function EventHomeScreen({
 }) {
     const displayEvents = useMemo<EventDisplay[]>(
         () =>
-            events.map((event) => {
-                const startsAt = event.startsAt ? new Date(event.startsAt) : null;
-                return {
-                    ...event,
-                    startLabel: startsAt
-                        ? startsAt.toLocaleString("ko-KR", {
-                              month: "short",
-                              day: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                          })
-                        : "상시 오픈",
-                    statusLabel: event.status === "upcoming" ? "예정" : "오픈",
-                };
-            }),
+            events.map((event) => ({
+                ...event,
+                startLabel: formatEventStart(event.startsAt),
+                statusLabel: event.status === "upcoming" ? "예정" : "공개",
+                durationLabel: `${Math.round(event.timeLimitSec / 60)}분`,
+            })),
         [events],
     );
+    const entrantState = {
+        hasAccount: Boolean(accountId.trim()),
+        hasInvite: Boolean(registrationInviteCode.trim()),
+        hasNickname: Boolean(nickname.trim()),
+    };
+    const entryReady =
+        entrantState.hasAccount && entrantState.hasInvite && entrantState.hasNickname;
+    const hasOpenEvent = displayEvents.some((event) => event.status === "open");
+    const entrantStatus = entryReady ? "응시 가능" : hasOpenEvent ? "관전 가능" : "입장 전";
+    const nextEvent = displayEvents[0];
 
     if (inviteMode) {
         return (
-            <main className="gym-layout">
-                <section className="gym-entry-panel">
-                    <div className="gym-kicker">
-                        <Ticket size={16} />
-                        초대 시험실
+            <main className="gym-layout gym-invite-layout">
+                <section className="gym-exam-cover gym-invite-ticket">
+                    <CoverHead marker="초대 시험실" page="1" />
+                    <div className="gym-cover-title">
+                        <span>제 2 교시</span>
+                        <em>2026학년도 KICE ARENA 문제지</em>
+                        <h1>수학 영역</h1>
+                        <strong>{inviteRoomCode}</strong>
                     </div>
-                    <h1>{inviteRoomCode}</h1>
-                    <label className="gym-field">
-                        <span>응시 이름</span>
-                        <input
-                            value={nickname}
-                            onChange={(event) => setNickname(event.target.value)}
-                            maxLength={6}
-                        />
-                    </label>
-                    <div className="gym-actions">
-                        <button
-                            type="button"
-                            onClick={() => void joinInviteRoom()}
-                            disabled={joiningInvite}
-                        >
-                            <LogIn size={18} />
-                            {joiningInvite ? "입장 중" : "시험실 입장"}
-                        </button>
-                        <button type="button" className="ghost" onClick={exitInviteMode}>
-                            <DoorOpen size={18} />
-                            나가기
-                        </button>
+                    <div className="gym-omr-block" aria-label="초대 시험실 입장 정보">
+                        <label className="gym-omr-field">
+                            <span>성명</span>
+                            <input
+                                value={nickname}
+                                onChange={(event) => setNickname(event.target.value)}
+                                maxLength={6}
+                                placeholder="응시 이름"
+                            />
+                        </label>
+                        <div className="gym-ticket-actions">
+                            <button
+                                type="button"
+                                className="gym-primary-action"
+                                onClick={() => void joinInviteRoom()}
+                                disabled={!nickname.trim() || joiningInvite}
+                            >
+                                <LogIn size={18} />
+                                {joiningInvite ? "입장 중" : "시험실 입장"}
+                            </button>
+                            <button
+                                type="button"
+                                className="gym-secondary-action"
+                                onClick={exitInviteMode}
+                            >
+                                <DoorOpen size={18} />
+                                나가기
+                            </button>
+                        </div>
                     </div>
-                    {error && <p className="error-text">{error}</p>}
+                    {error && <p className="gym-error error-text">{error}</p>}
                 </section>
             </main>
         );
@@ -102,97 +135,149 @@ export function EventHomeScreen({
 
     return (
         <main className="gym-layout">
-            <section className="gym-entry-panel">
-                <div className="gym-kicker">
-                    <Ticket size={16} />
-                    초대 시험
+            <section className="gym-exam-cover">
+                <CoverHead marker="모의평가 대회" page="1" />
+                <div className="gym-cover-title">
+                    <span>제 2 교시</span>
+                    <em>2026학년도 KICE ARENA 문제지</em>
+                    <h1>수학 영역</h1>
+                    <strong>{nextEvent?.statusLabel ?? "대기"}</strong>
                 </div>
-                <h1>시험 입장 정보</h1>
-                <div className="gym-account-row">
-                    <label className="gym-field">
-                        <span>초대 계정</span>
-                        <input
-                            value={accountId}
-                            onChange={(event) =>
-                                setAccountId(event.target.value.trim().toLowerCase())
-                            }
-                            placeholder="invited-user"
-                        />
-                    </label>
-                    <label className="gym-field">
-                        <span>초대 코드</span>
-                        <input
-                            value={registrationInviteCode}
-                            onChange={(event) =>
-                                setRegistrationInviteCode(event.target.value.trim())
-                            }
-                            placeholder="invite-code"
-                        />
-                    </label>
-                    <label className="gym-field">
-                        <span>응시 이름</span>
-                        <input
-                            value={nickname}
-                            onChange={(event) => setNickname(event.target.value)}
-                            maxLength={6}
-                        />
-                    </label>
-                </div>
-            </section>
 
-            <section className="gym-event-list" aria-label="운영자가 연 이벤트">
-                {displayEvents.length === 0 ? (
-                    <div className="gym-empty">현재 운영자가 연 이벤트가 없습니다.</div>
-                ) : (
-                    displayEvents.map((event) => (
-                        <EventRow
-                            key={event.id}
-                            event={event}
-                            accountId={accountId}
-                            inviteCode={registrationInviteCode}
-                            registerForEvent={registerForEvent}
-                            spectateEvent={spectateEvent}
-                            pendingEventAction={pendingEventAction}
-                        />
-                    ))
-                )}
+                <section className="gym-event-list" aria-label="예정 대회">
+                    <div className="gym-section-label">
+                        <span>시험 일정</span>
+                        <strong>{displayEvents.length}건</strong>
+                    </div>
+                    {displayEvents.length === 0 ? (
+                        <div className="gym-empty">현재 공개된 대회 일정이 없습니다.</div>
+                    ) : (
+                        displayEvents.map((event) => (
+                            <EventRow
+                                key={event.id}
+                                event={event}
+                                entrantState={entrantState}
+                                inviteCode={registrationInviteCode}
+                                registerForEvent={registerForEvent}
+                                spectateEvent={spectateEvent}
+                                pendingEventAction={pendingEventAction}
+                            />
+                        ))
+                    )}
+                </section>
+                <section className="gym-omr-block" aria-label="응시자 정보">
+                    <div className="gym-omr-heading">
+                        <Ticket size={17} />
+                        <span>응시자 정보</span>
+                        <strong>{entrantStatus}</strong>
+                    </div>
+                    <div className="gym-omr-grid">
+                        <label className="gym-omr-field">
+                            <span>계정</span>
+                            <input
+                                value={accountId}
+                                onChange={(event) =>
+                                    setAccountId(event.target.value.trim().toLowerCase())
+                                }
+                                placeholder="초대 계정"
+                            />
+                        </label>
+                        <label className="gym-omr-field">
+                            <span>초대 코드</span>
+                            <input
+                                value={registrationInviteCode}
+                                onChange={(event) =>
+                                    setRegistrationInviteCode(event.target.value.trim())
+                                }
+                                placeholder="초대 코드"
+                            />
+                        </label>
+                        <label className="gym-omr-field">
+                            <span>성명</span>
+                            <input
+                                value={nickname}
+                                onChange={(event) => setNickname(event.target.value)}
+                                maxLength={6}
+                                placeholder="응시 이름"
+                            />
+                        </label>
+                    </div>
+                </section>
+                {error && <p className="gym-error error-text">{error}</p>}
             </section>
-            {error && <p className="gym-error error-text">{error}</p>}
         </main>
     );
 }
 
+function CoverHead({ marker, page }: { marker: string; page: string }) {
+    return (
+        <div className="gym-cover-head">
+            <span>{marker}</span>
+            <strong>{page}</strong>
+        </div>
+    );
+}
+
+function getEventAccess({
+    event,
+    entrantState,
+}: {
+    event: EventDisplay;
+    entrantState: EntrantState;
+}): EventAccess {
+    if (event.status !== "open") {
+        return {
+            canRegister: false,
+            canSpectate: false,
+            hint: "공개 시간이 되면 참가와 관전이 열립니다.",
+        };
+    }
+    if (!entrantState.hasAccount || !entrantState.hasInvite) {
+        return {
+            canRegister: false,
+            canSpectate: true,
+            hint: "초대 정보가 없으면 관전만 가능합니다.",
+        };
+    }
+    if (!entrantState.hasNickname) {
+        return {
+            canRegister: false,
+            canSpectate: true,
+            hint: "성명을 입력하면 참가할 수 있습니다.",
+        };
+    }
+    return {
+        canRegister: true,
+        canSpectate: true,
+        hint: "저장된 초대 정보로 참가합니다.",
+    };
+}
+
 function EventRow({
     event,
-    accountId,
+    entrantState,
     inviteCode,
     registerForEvent,
     spectateEvent,
     pendingEventAction,
 }: {
     event: EventDisplay;
-    accountId: string;
+    entrantState: EntrantState;
     inviteCode: string;
     registerForEvent: (eventId: string, inviteCode: string) => Promise<void>;
     spectateEvent: (eventId: string) => Promise<void>;
     pendingEventAction: PendingEventAction;
 }) {
     const pendingThisEvent = pendingEventAction?.eventId === event.id;
-    const registerDisabled =
-        !accountId || !inviteCode || event.status !== "open" || Boolean(pendingEventAction);
-    const disabledReason = !accountId
-        ? "초대 계정을 입력하면 시험에 입장할 수 있습니다."
-        : !inviteCode
-          ? "초대 코드를 입력하면 시험에 입장할 수 있습니다."
-          : event.status !== "open"
-            ? "아직 입장이 열리지 않았습니다."
-            : pendingEventAction
-              ? "처리 중입니다."
-              : undefined;
+    const access = getEventAccess({ event, entrantState });
+    const actionLocked = Boolean(pendingEventAction);
+    const registerActionClass = access.canRegister ? "gym-primary-action" : "gym-secondary-action";
+    const spectatorActionClass =
+        access.canSpectate && !access.canRegister ? "gym-primary-action" : "gym-secondary-action";
 
     return (
-        <article className="gym-event-row">
-            <div>
+        <article className={`gym-event-row ${access.canSpectate ? "is-open" : "is-upcoming"}`}>
+            <div className="gym-event-main">
                 <span className={`gym-event-status ${event.status}`}>{event.statusLabel}</span>
                 <h2>{event.title}</h2>
                 <p>{event.subtitle}</p>
@@ -202,39 +287,39 @@ function EventRow({
                         <dd>{event.startLabel}</dd>
                     </div>
                     <div>
-                        <dt>문항</dt>
-                        <dd>{event.problemCount}개</dd>
+                        <dt>시간</dt>
+                        <dd>{event.durationLabel}</dd>
                     </div>
                     <div>
-                        <dt>등록</dt>
-                        <dd>초대 전용</dd>
+                        <dt>문항</dt>
+                        <dd>{event.problemCount}문항</dd>
                     </div>
                 </dl>
             </div>
             <div className="gym-event-actions">
                 <button
                     type="button"
-                    className="primary"
+                    className={registerActionClass}
                     onClick={() => void registerForEvent(event.id, inviteCode)}
-                    disabled={registerDisabled}
+                    disabled={!access.canRegister || actionLocked}
                 >
                     <UserRound size={18} />
                     {pendingThisEvent && pendingEventAction?.action === "register"
-                        ? "입장 중"
-                        : "초대 코드로 입장"}
+                        ? "응시 중"
+                        : "시험 응시"}
                 </button>
                 <button
                     type="button"
-                    className="secondary"
+                    className={spectatorActionClass}
                     onClick={() => void spectateEvent(event.id)}
-                    disabled={Boolean(pendingEventAction)}
+                    disabled={!access.canSpectate || actionLocked}
                 >
                     <Eye size={18} />
                     {pendingThisEvent && pendingEventAction?.action === "spectate"
-                        ? "불러오는 중"
-                        : "문제 미리보기"}
+                        ? "관전 입장 중"
+                        : "관전 입장"}
                 </button>
-                {disabledReason && <p className="gym-action-hint">{disabledReason}</p>}
+                <p className="gym-action-hint">{access.hint}</p>
             </div>
         </article>
     );

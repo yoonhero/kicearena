@@ -1,274 +1,390 @@
-.gym-layout,
-.spectator-layout {
+.gym-layout {
     width: min(1120px, calc(100vw - 32px));
     min-height: 100vh;
     min-height: 100dvh;
     margin: 0 auto;
-    padding: 34px 0;
+    padding: 28px 0;
     color: var(--ink);
 }
 
-.gym-entry-panel,
-.spectator-topbar,
-.spectator-empty {
-    border: 1px solid rgba(20, 38, 44, 0.2);
-    background: rgba(255, 255, 255, 0.82);
-    box-shadow: 0 18px 50px rgba(22, 41, 48, 0.12);
+.gym-layout {
+    display: grid;
+    align-items: start;
 }
 
-.gym-entry-panel {
-    border: 2px solid rgba(18, 18, 18, 0.72);
-    background: var(--paper);
-    box-shadow: none;
-    padding: 26px;
-}
-
-.gym-kicker,
-.spectator-topbar span {
-    display: inline-flex;
+.gym-invite-layout {
     align-items: center;
-    gap: 7px;
-    font-size: 0.78rem;
-    font-weight: 800;
-    letter-spacing: 0;
-    text-transform: uppercase;
-    color: var(--ui-accent);
 }
 
-.gym-entry-panel h1 {
-    margin: 8px 0 20px;
-    font-size: clamp(1.8rem, 4.4vw, 3.2rem);
-    line-height: 1;
-    letter-spacing: 0;
+.gym-exam-cover {
+    position: relative;
+    isolation: isolate;
+    width: 100%;
+    min-height: calc(100dvh - 56px);
+    border: 2px solid var(--line);
+    background:
+        linear-gradient(
+            90deg,
+            rgba(255, 255, 255, 0.24),
+            transparent 22%,
+            rgba(18, 18, 18, 0.025) 72%,
+            transparent
+        ),
+        var(--paper);
+    padding: clamp(18px, 3.2vw, 34px);
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.42),
+        inset 0 0 42px rgba(18, 18, 18, 0.045);
 }
 
-.gym-account-row,
-.gym-actions,
-.gym-event-actions {
-    display: flex;
+.gym-exam-cover::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.72' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='table' tableValues='0 .16'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E"),
+        repeating-linear-gradient(
+            92deg,
+            transparent 0 29px,
+            rgba(18, 18, 18, 0.012) 29px 30px,
+            transparent 30px 71px
+        );
+    opacity: 0.54;
+    mix-blend-mode: multiply;
+    pointer-events: none;
+}
+
+.gym-exam-cover::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background:
+        linear-gradient(
+            180deg,
+            rgba(18, 18, 18, 0.05),
+            transparent 9%,
+            transparent 92%,
+            rgba(18, 18, 18, 0.045)
+        ),
+        linear-gradient(
+            90deg,
+            rgba(18, 18, 18, 0.045),
+            transparent 11%,
+            transparent 89%,
+            rgba(18, 18, 18, 0.04)
+        );
+    pointer-events: none;
+}
+
+.gym-invite-ticket {
+    width: min(560px, 100%);
+    min-height: 0;
+    margin: auto;
+}
+
+.gym-cover-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
     gap: 12px;
 }
 
-.gym-field {
+.gym-cover-head {
+    border-bottom: 2px solid var(--line);
+    padding-bottom: 10px;
+    font-size: 13px;
+    font-weight: 1000;
+    text-transform: none;
+}
+
+.gym-cover-head strong {
     display: grid;
-    gap: 7px;
-    flex: 1;
+    place-items: center;
+    width: 34px;
+    aspect-ratio: 1;
+    border: 2px solid var(--line);
+    border-radius: 50%;
 }
 
-.gym-field span {
-    font-size: 0.78rem;
-    font-weight: 800;
+.gym-cover-title {
+    display: grid;
+    justify-items: center;
+    gap: 8px;
+    margin: clamp(20px, 4vh, 44px) 0 clamp(18px, 3vh, 34px);
+    text-align: center;
 }
 
-.gym-field input {
-    width: 100%;
-    border: 0;
-    border-bottom: 2px solid rgba(22, 41, 48, 0.46);
-    border-radius: 0;
-    background: transparent;
-    padding: 10px 2px;
-    font: inherit;
+.gym-cover-title > span {
+    border: 1.5px solid rgba(18, 18, 18, 0.72);
+    padding: 4px 16px;
+    font-size: clamp(18px, 3.8vw, 28px);
+    font-weight: 1000;
+}
+
+.gym-cover-title em {
+    color: rgba(18, 18, 18, 0.72);
+    font-size: clamp(14px, 2.2vw, 22px);
+    font-style: normal;
+    font-weight: 1000;
+}
+
+.gym-cover-title h1 {
+    margin: 0;
+    font-size: clamp(48px, 8.5vw, 96px);
+    line-height: 0.95;
+    letter-spacing: 0;
+    text-shadow:
+        0.35px 0 rgba(18, 18, 18, 0.34),
+        -0.25px 0 rgba(255, 254, 249, 0.52);
+}
+
+.gym-cover-title > strong {
+    border: 1.5px solid rgba(18, 18, 18, 0.56);
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-size: clamp(18px, 3vw, 26px);
+    font-weight: 1000;
+}
+
+.gym-section-label,
+.gym-omr-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    color: rgba(18, 18, 18, 0.68);
+    font-size: 12px;
+    font-weight: 1000;
 }
 
 .gym-event-list {
     display: grid;
-    gap: 14px;
-    margin-top: 18px;
+    gap: 0;
+    margin-top: 8px;
+}
+
+.gym-empty,
+.gym-error {
+    margin-top: 14px;
 }
 
 .gym-event-row {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) minmax(214px, 270px);
     gap: 18px;
     align-items: end;
-    border-top: 2px solid rgba(22, 41, 48, 0.78);
-    background: transparent;
-    padding: 18px 4px 20px;
+    border-top: 2px solid rgba(18, 18, 18, 0.78);
+    background: rgba(255, 254, 249, 0.34);
+    padding: 18px 0 20px;
 }
 
-.gym-event-row h2 {
-    margin: 7px 0 4px;
-    font-size: clamp(1.35rem, 4vw, 2rem);
-    letter-spacing: 0;
+.gym-event-row:last-child {
+    border-bottom: 2px solid rgba(18, 18, 18, 0.78);
 }
 
-.gym-event-row p {
-    margin: 0 0 14px;
-    color: rgba(22, 41, 48, 0.72);
-}
-
-.gym-event-row dl {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px 20px;
-    margin: 0;
-}
-
-.gym-event-row div,
-.gym-event-row dt,
-.gym-event-row dd {
+.gym-event-main,
+.gym-event-actions,
+.gym-event-row dl,
+.gym-omr-grid {
     min-width: 0;
-}
-
-.gym-event-row dt {
-    font-size: 0.72rem;
-    font-weight: 800;
-    color: rgba(22, 41, 48, 0.55);
-}
-
-.gym-event-row dd {
-    margin: 2px 0 0;
-    font-weight: 800;
 }
 
 .gym-event-status {
     display: inline-flex;
     border: 1px solid currentColor;
     padding: 3px 8px;
-    font-size: 0.75rem;
-    font-weight: 900;
+    color: rgba(18, 18, 18, 0.7);
+    font-size: 12px;
+    font-weight: 1000;
 }
 
 .gym-event-status.open {
-    color: #2f6473;
+    color: var(--ui-accent-ink);
 }
 
-.gym-event-status.upcoming {
-    color: #7a4d1d;
+.gym-event-row h2 {
+    margin: 8px 0 5px;
+    overflow-wrap: anywhere;
+    font-size: clamp(24px, 4vw, 40px);
+    line-height: 1.02;
+    letter-spacing: 0;
 }
 
-.gym-actions button,
-.gym-event-actions button,
-.spectator-back {
+.gym-event-row p {
+    margin: 0 0 14px;
+    color: rgba(18, 18, 18, 0.68);
+    overflow-wrap: anywhere;
+}
+
+.gym-event-row dl {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 9px 22px;
+    margin: 0;
+}
+
+.gym-event-row dt {
+    color: rgba(18, 18, 18, 0.52);
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.gym-event-row dd {
+    margin: 2px 0 0;
+    font-weight: 1000;
+}
+
+.gym-event-actions {
+    display: grid;
+    gap: 8px;
+}
+
+.gym-primary-action,
+.gym-secondary-action {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
-    border: 1px solid rgba(22, 41, 48, 0.75);
-    background: #fff;
-    color: var(--ink);
     min-height: 48px;
+    border: 1.5px solid rgba(18, 18, 18, 0.74);
+    background: transparent;
+    color: var(--ink);
     padding: 0 14px;
     font: inherit;
-    font-weight: 850;
-    cursor: pointer;
+    font-weight: 1000;
 }
 
-.gym-event-actions button.primary,
-.gym-actions button:not(.ghost) {
-    background: var(--ui-accent);
+.gym-primary-action {
     border-color: var(--ui-accent);
-    color: #fff;
+    background: var(--ui-accent);
+    color: #fffef9;
 }
 
-.gym-event-actions button.secondary {
-    border-color: rgba(22, 41, 48, 0.36);
-    background: transparent;
-    color: rgba(22, 41, 48, 0.72);
+.gym-secondary-action {
+    background: rgba(255, 254, 249, 0.72);
 }
 
-.gym-event-actions button:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
+.gym-primary-action:disabled,
+.gym-secondary-action:disabled {
+    background: rgba(18, 18, 18, 0.035);
 }
 
 .gym-action-hint {
-    grid-column: 1 / -1;
     margin: 0;
-    font-size: 0.78rem;
-    font-weight: 800;
-    color: rgba(22, 41, 48, 0.66);
-}
-
-.gym-empty,
-.gym-error {
-    margin-top: 16px;
-}
-
-.spectator-topbar {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    gap: 16px;
-    align-items: center;
-    padding: 16px;
-}
-
-.spectator-topbar strong {
-    display: block;
-    margin-top: 3px;
-    overflow-wrap: anywhere;
-}
-
-.spectator-topbar em {
-    font-style: normal;
-    font-weight: 850;
-}
-
-.spectator-layout .spectator-sheet {
-    --mobile-answer-offset: 24px;
-    --mobile-command-offset: 18px;
-    --mobile-command-height: 56px;
-    margin-top: 18px;
-}
-
-.spectator-layout .spectator-preview {
-    min-height: min(66vh, 720px);
-}
-
-.spectator-layout .problem-command-strip {
-    margin-inline: auto;
-}
-
-.spectator-problem-nav {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
-    gap: 8px;
-    margin-top: 12px;
-}
-
-.spectator-problem-nav button {
-    aspect-ratio: 1;
-    border: 1px solid rgba(22, 41, 48, 0.3);
-    background: #fff;
+    color: rgba(18, 18, 18, 0.62);
+    font-size: 12px;
     font-weight: 900;
 }
 
-.spectator-problem-nav button.active {
-    background: var(--ui-accent);
-    color: #fff;
+.gym-omr-block {
+    display: grid;
+    gap: 14px;
+    margin-top: clamp(18px, 3vh, 28px);
+    border-top: 2px solid rgba(18, 18, 18, 0.72);
+    padding-top: 14px;
+}
+
+.gym-omr-heading {
+    justify-content: flex-start;
+}
+
+.gym-omr-heading strong {
+    margin-left: auto;
+    color: var(--ui-accent-ink);
+}
+
+.gym-omr-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.gym-omr-field {
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+}
+
+.gym-omr-field span {
+    color: rgba(18, 18, 18, 0.62);
+    font-size: 12px;
+    font-weight: 1000;
+}
+
+.gym-omr-field input {
+    width: 100%;
+    min-height: 48px;
+    border: 0;
+    border-bottom: 2px solid rgba(18, 18, 18, 0.62);
+    border-radius: 0;
+    background: rgba(255, 254, 249, 0.46);
+    padding: 8px 2px;
+    color: var(--ink);
+    font: inherit;
+    font-weight: 900;
+}
+
+.gym-ticket-actions {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 10px;
 }
 
 @media (max-width: 720px) {
-    .gym-layout,
-    .spectator-layout {
+    .gym-layout {
         width: min(100vw - 18px, 560px);
-        padding: 14px 0 24px;
+        padding: 10px 0 24px;
     }
 
-    .gym-entry-panel {
-        padding: 18px;
+    .gym-exam-cover {
+        min-height: calc(100dvh - 34px);
+        padding: 16px;
     }
 
-    .gym-account-row,
-    .gym-actions,
-    .gym-event-actions,
+    .gym-cover-title {
+        margin: 16px 0 14px;
+    }
+
+    .gym-cover-title h1 {
+        font-size: clamp(42px, 16vw, 68px);
+    }
+
     .gym-event-row,
-    .spectator-topbar {
-        display: grid;
+    .gym-omr-grid {
         grid-template-columns: 1fr;
     }
 
-    .gym-event-actions {
-        grid-template-columns: 1fr 1fr;
+    .gym-event-row {
+        gap: 14px;
+        padding: 16px 0 18px;
     }
 
-    .spectator-layout .spectator-sheet {
-        --mobile-command-offset: 18px;
-        padding-bottom: calc(var(--mobile-command-height) + 42px + env(safe-area-inset-bottom));
+    .gym-event-row h2 {
+        font-size: clamp(22px, 7vw, 32px);
+    }
+}
+
+@media (max-width: 420px) {
+    .gym-layout {
+        width: min(100vw - 12px, 420px);
+        padding-top: 6px;
     }
 
-    .spectator-layout .spectator-preview {
-        min-height: min(52svh, 520px);
-        max-height: none;
+    .gym-exam-cover {
+        padding: 12px;
+    }
+
+    .gym-cover-title > span {
+        font-size: 16px;
+    }
+
+    .gym-cover-title h1 {
+        font-size: clamp(36px, 14vw, 52px);
+    }
+
+    .gym-ticket-actions {
+        grid-template-columns: 1fr;
     }
 }

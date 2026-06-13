@@ -9,6 +9,7 @@ import { AppLoading, AppRoutes, type AppScreen } from "./components/AppRoutes";
 import { emitWithAck, ROOM_SESSION_KEY, socket } from "./lib/socket";
 
 const GYM_ACCOUNT_KEY = "kice-gym-account-id";
+const GYM_INVITE_KEY = "kice-gym-invite-code";
 
 type SavedRoomSession = {
     code: string;
@@ -23,7 +24,9 @@ type RoomLookup = {
 const readInviteCode = () =>
     new URLSearchParams(window.location.search).get("room")?.trim().toUpperCase() ?? "";
 const readRegistrationInviteCode = () =>
-    new URLSearchParams(window.location.search).get("invite")?.trim() ?? "";
+    new URLSearchParams(window.location.search).get("invite")?.trim() ??
+    window.localStorage.getItem(GYM_INVITE_KEY) ??
+    "";
 const readReferralCode = () =>
     new URLSearchParams(window.location.search).get("c")?.trim().toLowerCase() ?? "";
 const REJOIN_CONNECT_TIMEOUT_MS = 2500;
@@ -101,7 +104,9 @@ export function App() {
     const [accountId, setAccountIdState] = useState(
         () => window.localStorage.getItem(GYM_ACCOUNT_KEY) ?? "",
     );
-    const [registrationInviteCode, setRegistrationInviteCode] = useState(readRegistrationInviteCode);
+    const [registrationInviteCode, setRegistrationInviteCode] = useState(
+        readRegistrationInviteCode,
+    );
     const [nickname, setNickname] = useState("");
     const [roomCode, setRoomCode] = useState(inviteCode);
     const [room, setRoom] = useState<RoomPublic | null>(null);
@@ -119,17 +124,16 @@ export function App() {
     const rejoinAttempted = useRef(false);
     const spectatorRequestRef = useRef<AbortController | null>(null);
 
-    const setAccountId = useCallback((nextAccountId: string) => {
-        setAccountIdState(nextAccountId);
-    }, []);
-
     useEffect(() => {
         const timeout = window.setTimeout(() => {
             if (accountId) window.localStorage.setItem(GYM_ACCOUNT_KEY, accountId);
             else window.localStorage.removeItem(GYM_ACCOUNT_KEY);
+            if (registrationInviteCode)
+                window.localStorage.setItem(GYM_INVITE_KEY, registrationInviteCode);
+            else window.localStorage.removeItem(GYM_INVITE_KEY);
         }, 250);
         return () => window.clearTimeout(timeout);
-    }, [accountId]);
+    }, [accountId, registrationInviteCode]);
 
     const resetRoomSession = useCallback((nextRoomCode = "") => {
         window.localStorage.removeItem(ROOM_SESSION_KEY);
@@ -275,7 +279,11 @@ export function App() {
                 signal: controller.signal,
             });
             if (!response.ok) {
-                setError(response.status === 403 ? "아직 공개 전인 이벤트입니다." : "문제를 불러오지 못했습니다.");
+                setError(
+                    response.status === 403
+                        ? "아직 공개 전인 이벤트입니다."
+                        : "문제를 불러오지 못했습니다.",
+                );
                 return;
             }
             setSpectatorExam((await response.json()) as ExamPublic);
@@ -361,7 +369,7 @@ export function App() {
             exitReferralGate={exitReferralGate}
             events={events}
             accountId={accountId}
-            setAccountId={setAccountId}
+            setAccountId={setAccountIdState}
             registrationInviteCode={registrationInviteCode}
             setRegistrationInviteCode={setRegistrationInviteCode}
             nickname={nickname}

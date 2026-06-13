@@ -1,0 +1,117 @@
+.spectator-layout {
+    display: grid;
+    align-content: start;
+    width: min(1120px, calc(100vw - 32px));
+    min-height: 100vh;
+    min-height: 100dvh;
+    margin: 0 auto;
+    padding: 28px 0;
+    color: var(--ink);
+}
+
+.spectator-topbar,
+.spectator-empty {
+    border: 2px solid var(--line);
+    background: var(--paper);
+    padding: 16px;
+}
+
+.spectator-topbar {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+}
+
+.spectator-topbar span {
+    color: var(--ui-accent-ink);
+    font-size: 12px;
+    font-weight: 1000;
+}
+
+.spectator-topbar strong {
+    display: block;
+    margin-top: 3px;
+    overflow-wrap: anywhere;
+}
+
+.spectator-topbar em {
+    font-style: normal;
+    font-weight: 1000;
+}
+
+.spectator-back {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 48px;
+    border: 1.5px solid rgba(18, 18, 18, 0.74);
+    background: transparent;
+    color: var(--ink);
+    padding: 0 14px;
+    font: inherit;
+    font-weight: 1000;
+}
+
+.spectator-layout .spectator-sheet {
+    --mobile-answer-offset: 24px;
+    --mobile-command-offset: 18px;
+    --mobile-command-height: 56px;
+    margin-top: 18px;
+}
+
+.spectator-layout .spectator-preview {
+    min-height: min(66vh, 720px);
+}
+
+.spectator-layout .problem-command-strip {
+    margin-inline: auto;
+}
+
+.spectator-problem-nav {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.spectator-problem-nav button {
+    aspect-ratio: 1;
+    border: 1px solid rgba(18, 18, 18, 0.3);
+    background: #fff;
+    font-weight: 1000;
+}
+
+.spectator-problem-nav button.active {
+    background: var(--ui-accent);
+    color: #fff;
+}
+
+@media (max-width: 720px) {
+    .spectator-layout {
+        width: min(100vw - 18px, 560px);
+        padding: 10px 0 24px;
+    }
+
+    .spectator-topbar {
+        grid-template-columns: 1fr;
+    }
+
+    .spectator-layout .spectator-sheet {
+        --mobile-command-offset: 18px;
+        padding-bottom: calc(var(--mobile-command-height) + 42px + env(safe-area-inset-bottom));
+    }
+
+    .spectator-layout .spectator-preview {
+        min-height: min(52svh, 520px);
+        max-height: none;
+    }
+}
+
+@media (max-width: 420px) {
+    .spectator-layout {
+        width: min(100vw - 12px, 420px);
+        padding-top: 6px;
+    }
+}

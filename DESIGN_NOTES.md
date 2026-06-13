@@ -199,12 +199,12 @@ AI or system-generated content should behave like a reliable instrument:
 
 ### Entrance
 
-Primary job: collect room intent and identity.
+Primary job: show the next contest and collect only the identity needed to enter it.
 
 - Treat the viewport as one exam cover.
-- Do not split room creation and room joining into unrelated marketing cards.
-- Use OMR-like underlined fields, compact labels, and room-code affordances.
-- Keep the primary actions obvious: create a room or enter a room.
+- Defer room creation on the public main page. Upcoming contests, invite-backed entry, and timed spectating are the visible jobs.
+- Use OMR-like underlined fields, compact labels, and examinee-ticket affordances.
+- Keep the primary actions obvious: enter with saved invite information or spectate after release.
 - Remove hero copy that repeats what the layout already shows.
 
 ### Lobby
