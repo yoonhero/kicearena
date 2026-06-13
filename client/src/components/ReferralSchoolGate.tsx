@@ -1,26 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BadgeCheck, LocateFixed, LogIn, School } from "lucide-react";
 import type { ReferralLocationVerification } from "../../../shared/campaign";
-
-const REFERRAL_VERIFICATION_KEY = "kice-referral-location-verification";
-
-const readStoredVerification = (referralCode: string): ReferralLocationVerification | null => {
-    const raw = window.localStorage.getItem(REFERRAL_VERIFICATION_KEY);
-    if (!raw) return null;
-    try {
-        const parsed = JSON.parse(raw) as ReferralLocationVerification;
-        return parsed.referralCode === referralCode ? parsed : null;
-    } catch {
-        return null;
-    }
-};
-
-const saveVerification = (verification: ReferralLocationVerification) => {
-    window.localStorage.setItem(REFERRAL_VERIFICATION_KEY, JSON.stringify(verification));
-};
-
-export const hasReferralLocationVerification = (referralCode: string) =>
-    Boolean(readStoredVerification(referralCode));
+import {
+    readStoredReferralVerification,
+    saveReferralVerification,
+} from "../lib/referralVerification";
 
 export function ReferralSchoolGate({
     referralCode,
@@ -32,7 +16,7 @@ export function ReferralSchoolGate({
     onExit: () => void;
 }) {
     const [verification, setVerification] = useState<ReferralLocationVerification | null>(() =>
-        readStoredVerification(referralCode),
+        readStoredReferralVerification(referralCode),
     );
     const [status, setStatus] = useState("");
     const [error, setError] = useState("");
@@ -84,7 +68,7 @@ export function ReferralSchoolGate({
                 return;
             }
             const nextVerification = (await response.json()) as ReferralLocationVerification;
-            saveVerification(nextVerification);
+            saveReferralVerification(nextVerification);
             setVerification(nextVerification);
             setStatus("인증 완료");
         } catch (error) {
@@ -122,8 +106,8 @@ export function ReferralSchoolGate({
                     </div>
                 ) : (
                     <div className="referral-gate-copy">
-                        <strong>학교 근처에서 입장을 확인합니다.</strong>
-                        <span>확인되면 이름을 정하고 입장합니다.</span>
+                        <strong>학교 근처에서 추천 인증을 완료하세요.</strong>
+                        <span>인증 후 계정으로 로그인하면 이후 대회에 참가할 수 있습니다.</span>
                     </div>
                 )}
 
@@ -144,11 +128,11 @@ export function ReferralSchoolGate({
                         onClick={onVerified}
                     >
                         <LogIn size={18} />
-                        이름 정하러 가기
+                        로그인하고 참가
                     </button>
                 )}
                 <button type="button" className="referral-gate-exit" onClick={onExit}>
-                    캠페인 없이 입장
+                    관전으로 보기
                 </button>
                 {status && <p className="campaign-status">{status}</p>}
                 {error && <p className="error-text">{error}</p>}

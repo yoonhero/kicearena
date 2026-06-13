@@ -202,9 +202,11 @@ AI or system-generated content should behave like a reliable instrument:
 Primary job: show the next contest and collect only the identity needed to enter it.
 
 - Treat the viewport as one exam cover.
-- Defer room creation on the public main page. Upcoming contests, invite-backed entry, and timed spectating are the visible jobs.
+- Defer room creation on the public main page. Upcoming contests, referral-verified entry, and timed spectating are the visible jobs.
+- Referral entry is `location verification -> login -> later contest participation`; a normal visitor should understand they can spectate after release, not enter an invite code.
+- The main page may feel cinematic like a single poster, but the scene must still read as a physical exam cover with paper texture, ruled lines, and OMR-like identity fields.
 - Use OMR-like underlined fields, compact labels, and examinee-ticket affordances.
-- Keep the primary actions obvious: enter with saved invite information or spectate after release.
+- Keep the primary actions obvious: participate only after saved referral verification and login, or spectate after release.
 - Remove hero copy that repeats what the layout already shows.
 
 ### Lobby

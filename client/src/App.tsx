@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { CampaignUserPublic } from "../../shared/campaign";
 import {
     type ExamPublic,
     type GymEventSummary,
@@ -6,10 +7,10 @@ import {
     type RoomPublic,
 } from "../../shared/game";
 import { AppLoading, AppRoutes, type AppScreen } from "./components/AppRoutes";
+import { useReferralGateState } from "./hooks/useReferralGateState";
 import { emitWithAck, ROOM_SESSION_KEY, socket } from "./lib/socket";
 
 const GYM_ACCOUNT_KEY = "kice-gym-account-id";
-const GYM_INVITE_KEY = "kice-gym-invite-code";
 
 type SavedRoomSession = {
     code: string;
@@ -20,15 +21,10 @@ type RoomLookup = {
     status?: RoomPublic["status"];
     playerCount?: number;
 };
+type PendingEventAction = { eventId: string; action: "register" | "spectate" } | null;
 
 const readInviteCode = () =>
     new URLSearchParams(window.location.search).get("room")?.trim().toUpperCase() ?? "";
-const readRegistrationInviteCode = () =>
-    new URLSearchParams(window.location.search).get("invite")?.trim() ??
-    window.localStorage.getItem(GYM_INVITE_KEY) ??
-    "";
-const readReferralCode = () =>
-    new URLSearchParams(window.location.search).get("c")?.trim().toLowerCase() ?? "";
 const REJOIN_CONNECT_TIMEOUT_MS = 2500;
 
 const writeClipboard = async (text: string) => {
@@ -75,20 +71,6 @@ const waitForSocketConnection = () =>
         socket.once("connect", onConnect);
     });
 
-function useReferralGateState(screen: AppScreen) {
-    const [referralCode, setReferralCode] = useState(readReferralCode);
-    const [referralGatePassed, setReferralGatePassed] = useState(() => !readReferralCode());
-    const needsReferralGate = screen === "home" && Boolean(referralCode) && !referralGatePassed;
-    const exitReferralGate = () => {
-        setReferralCode("");
-        setReferralGatePassed(true);
-        const url = new URL(window.location.href);
-        url.searchParams.delete("c");
-        window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
-    };
-    return { referralCode, needsReferralGate, setReferralGatePassed, exitReferralGate };
-}
-
 const getScreen = (room: RoomPublic | null, spectatorExam: ExamPublic | null): AppScreen => {
     if (!room && spectatorExam) return "spectator";
     if (!room) return "home";
@@ -104,9 +86,7 @@ export function App() {
     const [accountId, setAccountIdState] = useState(
         () => window.localStorage.getItem(GYM_ACCOUNT_KEY) ?? "",
     );
-    const [registrationInviteCode, setRegistrationInviteCode] = useState(
-        readRegistrationInviteCode,
-    );
+    const [campaignUser, setCampaignUser] = useState<CampaignUserPublic | null>(null);
     const [nickname, setNickname] = useState("");
     const [roomCode, setRoomCode] = useState(inviteCode);
     const [room, setRoom] = useState<RoomPublic | null>(null);
@@ -115,25 +95,16 @@ export function App() {
     const [copied, setCopied] = useState(false);
     const [copiedLink, setCopiedLink] = useState(false);
     const [joiningInvite, setJoiningInvite] = useState(false);
-    const [pendingEventAction, setPendingEventAction] = useState<{
-        eventId: string;
-        action: "register" | "spectate";
-    } | null>(null);
+    const [pendingEventAction, setPendingEventAction] = useState<PendingEventAction>(null);
     const [loadingInitialRoom, setLoadingInitialRoom] = useState(true);
     const [eventsLoaded, setEventsLoaded] = useState(false);
     const rejoinAttempted = useRef(false);
     const spectatorRequestRef = useRef<AbortController | null>(null);
 
     useEffect(() => {
-        const timeout = window.setTimeout(() => {
-            if (accountId) window.localStorage.setItem(GYM_ACCOUNT_KEY, accountId);
-            else window.localStorage.removeItem(GYM_ACCOUNT_KEY);
-            if (registrationInviteCode)
-                window.localStorage.setItem(GYM_INVITE_KEY, registrationInviteCode);
-            else window.localStorage.removeItem(GYM_INVITE_KEY);
-        }, 250);
-        return () => window.clearTimeout(timeout);
-    }, [accountId, registrationInviteCode]);
+        if (accountId) window.localStorage.setItem(GYM_ACCOUNT_KEY, accountId);
+        else window.localStorage.removeItem(GYM_ACCOUNT_KEY);
+    }, [accountId]);
 
     const resetRoomSession = useCallback((nextRoomCode = "") => {
         window.localStorage.removeItem(ROOM_SESSION_KEY);
@@ -233,18 +204,45 @@ export function App() {
 
     const screen = getScreen(room, spectatorExam);
     const isInviteMode = screen === "home" && Boolean(inviteCode);
-    const { referralCode, needsReferralGate, setReferralGatePassed, exitReferralGate } =
-        useReferralGateState(screen);
+    const {
+        referralCode,
+        needsReferralGate,
+        hasReferralVerification,
+        completeReferralGate,
+        exitReferralGate,
+    } = useReferralGateState(screen);
 
     const leaveRoom = async () => {
         await emitWithAck("room:leave", {});
         resetRoomSession("");
     };
 
-    const registerForEvent = async (eventId: string, inviteCode: string) => {
+    const loginCampaignAccount = async (username: string, password: string) => {
+        setError("");
+        if (!hasReferralVerification) {
+            setCampaignUser(null);
+            setError("추천 위치 인증 후 로그인할 수 있습니다.");
+            return;
+        }
+        const response = await fetch("/api/campaign/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, password }),
+        });
+        if (!response.ok) {
+            setCampaignUser(null);
+            setError("계정 정보를 확인하지 못했습니다.");
+            return;
+        }
+        const user = (await response.json()) as CampaignUserPublic;
+        setCampaignUser(user);
+        setAccountIdState(user.username);
+    };
+
+    const registerForEvent = async (eventId: string) => {
         if (pendingEventAction) return;
         setError("");
-        if (!accountId) {
+        if (!hasReferralVerification || !campaignUser) {
             await spectateEvent(eventId);
             return;
         }
@@ -252,8 +250,7 @@ export function App() {
         try {
             const response = await emitWithAck<RoomPublic>("event:register", {
                 eventId,
-                accountId,
-                inviteCode,
+                accountId: campaignUser.username,
                 nickname,
             });
             if (!response.ok || !response.data) {
@@ -354,7 +351,7 @@ export function App() {
                 inviteCode={inviteCode}
                 needsReferralGate={needsReferralGate}
                 referralCode={referralCode}
-                setReferralGatePassed={setReferralGatePassed}
+                completeReferralGate={completeReferralGate}
                 exitReferralGate={exitReferralGate}
             />
         );
@@ -365,13 +362,14 @@ export function App() {
             screen={screen}
             needsReferralGate={needsReferralGate}
             referralCode={referralCode}
-            setReferralGatePassed={setReferralGatePassed}
+            completeReferralGate={completeReferralGate}
             exitReferralGate={exitReferralGate}
             events={events}
             accountId={accountId}
             setAccountId={setAccountIdState}
-            registrationInviteCode={registrationInviteCode}
-            setRegistrationInviteCode={setRegistrationInviteCode}
+            campaignUser={campaignUser}
+            hasReferralVerification={hasReferralVerification}
+            loginCampaignAccount={loginCampaignAccount}
             nickname={nickname}
             setNickname={setNickname}
             joinInviteRoom={joinInviteRoom}

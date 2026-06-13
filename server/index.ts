@@ -55,7 +55,6 @@ import {
 } from "./campaignDatabase.js";
 import { readCampaignStats } from "./campaignStatsDatabase.js";
 import { findHighSchoolNearLocation } from "./highSchoolGeo.js";
-import { hasGymEventInvite, parseGymEventInvites } from "./gymInvites.js";
 import {
     createExamCatalogPool,
     createExamInDatabase,
@@ -121,7 +120,6 @@ const referralWhitelist = (process.env.CAMPAIGN_REFERRAL_WHITELIST ?? "")
     .split(/[\s,]+/)
     .map((entry) => entry.trim())
     .filter(Boolean);
-const gymEventInvites = parseGymEventInvites(process.env.GYM_EVENT_INVITES ?? "");
 const campaignLocationRadiusKm = Math.max(
     0.2,
     Math.min(20, Number(process.env.CAMPAIGN_LOCATION_RADIUS_KM) || 3),
@@ -1760,7 +1758,7 @@ io.on("connection", (socket) => {
     socket.on(
         "event:register",
         async (
-            payload: { eventId: string; accountId: string; inviteCode: string; nickname: string },
+            payload: { eventId: string; accountId: string; nickname: string },
             reply: (response: ServerResponse<RoomPublic>) => void,
         ) => {
             await withRoomMutation("__event_register__", async () => {
@@ -1774,7 +1772,6 @@ io.on("connection", (socket) => {
 
                 const eventId = readString(payload?.eventId, 80);
                 const accountId = readString(payload?.accountId, 80).toLowerCase();
-                const inviteCode = readString(payload?.inviteCode, 80);
                 const exam = examById.get(eventId);
                 if (!exam) {
                     replyAfterRoomCommit(reply, { ok: false, error: "이벤트를 찾을 수 없습니다." });
@@ -1794,17 +1791,13 @@ io.on("connection", (socket) => {
                     });
                     return;
                 }
-                if (!examCatalogPool || !(await readCampaignUserByUsername(examCatalogPool, accountId))) {
+                if (
+                    !examCatalogPool ||
+                    !(await readCampaignUserByUsername(examCatalogPool, accountId))
+                ) {
                     replyAfterRoomCommit(reply, {
                         ok: false,
                         error: "등록된 계정만 이벤트에 등록할 수 있습니다.",
-                    });
-                    return;
-                }
-                if (!hasGymEventInvite(gymEventInvites, eventId, accountId, inviteCode)) {
-                    replyAfterRoomCommit(reply, {
-                        ok: false,
-                        error: "초대된 계정만 등록할 수 있습니다.",
                     });
                     return;
                 }

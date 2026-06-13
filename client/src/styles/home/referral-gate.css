@@ -3,16 +3,63 @@
     display: grid;
     place-items: center;
     padding: 24px;
+    background:
+        radial-gradient(circle at 50% 26%, rgba(255, 255, 255, 0.5), transparent 28%),
+        radial-gradient(circle at 72% 72%, rgba(53, 106, 122, 0.1), transparent 24%),
+        linear-gradient(115deg, rgba(18, 18, 18, 0.22), transparent 36%),
+        radial-gradient(ellipse at 50% 18%, rgba(255, 254, 249, 0.72), transparent 44%),
+        var(--paper);
 }
 
 .referral-gate-sheet {
-    width: min(420px, 100%);
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    width: min(680px, 100%);
+    min-height: min(640px, calc(100dvh - 48px));
     display: grid;
-    gap: 18px;
-    padding: 22px;
-    border: 1px solid var(--line);
-    background: var(--paper);
-    box-shadow: var(--shadow);
+    align-content: center;
+    gap: 22px;
+    padding: clamp(22px, 5vw, 48px);
+    border: 2.5px solid var(--line);
+    background:
+        linear-gradient(
+            90deg,
+            rgba(255, 255, 255, 0.24),
+            transparent 22%,
+            rgba(18, 18, 18, 0.025) 72%,
+            transparent
+        ),
+        var(--paper);
+    box-shadow:
+        0 28px 80px rgba(18, 18, 18, 0.22),
+        0 0 0 8px rgba(255, 254, 249, 0.38);
+}
+
+.referral-gate-sheet::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.72' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='table' tableValues='0 .16'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
+    opacity: 0.5;
+    mix-blend-mode: multiply;
+    pointer-events: none;
+}
+
+.referral-gate-sheet::after {
+    content: "KICE";
+    position: absolute;
+    right: -14px;
+    bottom: 20px;
+    z-index: -1;
+    color: rgba(18, 18, 18, 0.04);
+    font-size: clamp(86px, 20vw, 180px);
+    font-weight: 1000;
+    letter-spacing: 0;
+    line-height: 0.8;
+    writing-mode: vertical-rl;
+    pointer-events: none;
 }
 
 .referral-gate-head,
@@ -40,7 +87,9 @@
 .referral-gate-head strong,
 .referral-school-card strong,
 .referral-gate-copy strong {
-    font-size: 1rem;
+    font-size: clamp(1.4rem, 4vw, 2.8rem);
+    line-height: 1.05;
+    letter-spacing: 0;
 }
 
 .referral-school-card {
@@ -57,8 +106,33 @@
 }
 
 .referral-gate-copy {
+    position: relative;
     display: grid;
-    gap: 6px;
+    gap: 10px;
+    border-top: 2px solid rgba(18, 18, 18, 0.72);
+    border-bottom: 2px solid rgba(18, 18, 18, 0.72);
+    padding: 22px 0;
+}
+
+.referral-gate-copy::before,
+.referral-gate-copy::after {
+    content: "";
+    position: absolute;
+    width: 58px;
+    height: 58px;
+    border: 1.5px solid rgba(18, 18, 18, 0.24);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+.referral-gate-copy::before {
+    top: -94px;
+    left: 0;
+}
+
+.referral-gate-copy::after {
+    right: 4px;
+    bottom: -124px;
 }
 
 .referral-gate-action {
@@ -71,4 +145,15 @@
     color: var(--muted);
     font-weight: 700;
     cursor: pointer;
+}
+
+@media (max-width: 520px) {
+    .referral-gate-layout {
+        padding: 10px;
+    }
+
+    .referral-gate-sheet {
+        min-height: calc(100dvh - 20px);
+        padding: 18px;
+    }
 }
