@@ -3,12 +3,7 @@
     display: grid;
     place-items: center;
     padding: 24px;
-    background:
-        radial-gradient(circle at 50% 26%, rgba(255, 255, 255, 0.5), transparent 28%),
-        radial-gradient(circle at 72% 72%, rgba(53, 106, 122, 0.1), transparent 24%),
-        linear-gradient(115deg, rgba(18, 18, 18, 0.22), transparent 36%),
-        radial-gradient(ellipse at 50% 18%, rgba(255, 254, 249, 0.72), transparent 44%),
-        var(--paper);
+    background: var(--paper);
 }
 
 .referral-gate-sheet {
@@ -16,12 +11,12 @@
     isolation: isolate;
     overflow: hidden;
     width: min(680px, 100%);
-    min-height: min(640px, calc(100dvh - 48px));
+    min-height: min(520px, calc(100dvh - 48px));
     display: grid;
     align-content: center;
-    gap: 22px;
-    padding: clamp(22px, 5vw, 48px);
-    border: 2.5px solid var(--line);
+    gap: 18px;
+    padding: clamp(20px, 4vw, 38px);
+    border: 2px solid var(--line);
     background:
         linear-gradient(
             90deg,
@@ -31,9 +26,7 @@
             transparent
         ),
         var(--paper);
-    box-shadow:
-        0 28px 80px rgba(18, 18, 18, 0.22),
-        0 0 0 8px rgba(255, 254, 249, 0.38);
+    box-shadow: inset 0 0 42px rgba(18, 18, 18, 0.045);
 }
 
 .referral-gate-sheet::before {
@@ -44,21 +37,6 @@
     background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.72' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='table' tableValues='0 .16'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
     opacity: 0.5;
     mix-blend-mode: multiply;
-    pointer-events: none;
-}
-
-.referral-gate-sheet::after {
-    content: "KICE";
-    position: absolute;
-    right: -14px;
-    bottom: 20px;
-    z-index: -1;
-    color: rgba(18, 18, 18, 0.04);
-    font-size: clamp(86px, 20vw, 180px);
-    font-weight: 1000;
-    letter-spacing: 0;
-    line-height: 0.8;
-    writing-mode: vertical-rl;
     pointer-events: none;
 }
 
@@ -116,23 +94,7 @@
 
 .referral-gate-copy::before,
 .referral-gate-copy::after {
-    content: "";
-    position: absolute;
-    width: 58px;
-    height: 58px;
-    border: 1.5px solid rgba(18, 18, 18, 0.24);
-    border-radius: 50%;
-    pointer-events: none;
-}
-
-.referral-gate-copy::before {
-    top: -94px;
-    left: 0;
-}
-
-.referral-gate-copy::after {
-    right: 4px;
-    bottom: -124px;
+    content: none;
 }
 
 .referral-gate-action {
@@ -145,6 +107,12 @@
     color: var(--muted);
     font-weight: 700;
     cursor: pointer;
+}
+
+.referral-gate-sheet .campaign-status,
+.referral-gate-sheet .error-text {
+    min-height: 20px;
+    margin: 0;
 }
 
 @media (max-width: 520px) {

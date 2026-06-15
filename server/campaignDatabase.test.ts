@@ -137,6 +137,7 @@ describe("campaign database persistence", () => {
     it("loads the bundled full operating high-school dataset", () => {
         const schools = readDefaultHighSchools();
         expect(schools.length).toBeGreaterThan(2000);
+        expect(schools.some((school) => school.id === "SNU-GWANAK")).toBe(true);
         expect(schools.some((school) => school.name === "경기고등학교")).toBe(true);
         expect(schools.every((school) => school.id && school.name && school.address)).toBe(true);
     });
@@ -155,10 +156,11 @@ describe("campaign database persistence", () => {
         ).toEqual([{ referralCode: "abc234", schoolId: "B100000546" }]);
         await syncReferralWhitelist(db, ["abc234:B100000546", "BAD!", "x"]);
 
-        expect(queries).toHaveLength(1);
+        expect(queries).toHaveLength(2);
         expect(queries[0]?.text).toContain("campaign_referral_whitelist");
         expect(queries[0]?.text).toContain("school_id = EXCLUDED.school_id");
-        expect(queries[0]?.values).toEqual(["abc234", "B100000546"]);
+        expect(queries[0]?.values).toEqual(["snu226", "SNU-GWANAK"]);
+        expect(queries[1]?.values).toEqual(["abc234", "B100000546"]);
     });
 
     it("verifies only the code-bound high school within radius", async () => {

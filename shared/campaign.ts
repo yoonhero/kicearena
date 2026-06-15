@@ -1,4 +1,6 @@
 export type StudentStatus = "g3" | "repeat" | "other";
+export const DEFAULT_SNU_REFERRAL_CODE = "snu226";
+export const DEFAULT_SNU_REFERRAL_SCHOOL_ID = "SNU-GWANAK";
 
 export type HighSchool = {
     id: string;

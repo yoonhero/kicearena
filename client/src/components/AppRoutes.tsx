@@ -1,4 +1,4 @@
-import type { CampaignUserPublic } from "../../../shared/campaign";
+import type { CampaignUserPublic, ReferralLocationVerification } from "../../../shared/campaign";
 import type { ExamPublic, PlayerPublic, RoomPublic, GymEventSummary } from "../../../shared/game";
 import { ArenaScreen } from "../screens/ArenaScreen";
 import { EventHomeScreen } from "../screens/EventHomeScreen";
@@ -19,7 +19,7 @@ export function AppLoading({
     inviteCode: string;
     needsReferralGate: boolean;
     referralCode: string;
-    completeReferralGate: () => void;
+    completeReferralGate: (verification: ReferralLocationVerification) => void;
     exitReferralGate: () => void;
 }) {
     if (needsReferralGate) {
@@ -45,14 +45,12 @@ export function AppRoutes(props: {
     screen: AppScreen;
     needsReferralGate: boolean;
     referralCode: string;
-    completeReferralGate: () => void;
+    referralVerification: ReferralLocationVerification | null;
+    completeReferralGate: (verification: ReferralLocationVerification) => void;
     exitReferralGate: () => void;
     events: GymEventSummary[];
-    accountId: string;
-    setAccountId: (accountId: string) => void;
     campaignUser: CampaignUserPublic | null;
     hasReferralVerification: boolean;
-    loginCampaignAccount: (username: string, password: string) => Promise<void>;
     nickname: string;
     setNickname: (nickname: string) => void;
     joinInviteRoom: () => Promise<void>;
@@ -87,11 +85,9 @@ export function AppRoutes(props: {
             {props.screen === "home" && !props.needsReferralGate && (
                 <EventHomeScreen
                     events={props.events}
-                    accountId={props.accountId}
-                    setAccountId={props.setAccountId}
                     campaignUser={props.campaignUser}
+                    referralVerification={props.referralVerification}
                     hasReferralVerification={props.hasReferralVerification}
-                    loginCampaignAccount={props.loginCampaignAccount}
                     nickname={props.nickname}
                     setNickname={props.setNickname}
                     joinInviteRoom={props.joinInviteRoom}

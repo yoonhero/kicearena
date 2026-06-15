@@ -15,6 +15,17 @@ export const readStoredReferralVerification = (
     }
 };
 
+export const readAnyStoredReferralVerification = (): ReferralLocationVerification | null => {
+    const raw = window.localStorage.getItem(REFERRAL_VERIFICATION_KEY);
+    if (!raw) return null;
+    try {
+        const parsed = JSON.parse(raw) as ReferralLocationVerification;
+        return parsed?.referralCode && parsed.school?.id ? parsed : null;
+    } catch {
+        return null;
+    }
+};
+
 export const saveReferralVerification = (verification: ReferralLocationVerification) => {
     window.localStorage.setItem(REFERRAL_VERIFICATION_KEY, JSON.stringify(verification));
 };

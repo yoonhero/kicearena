@@ -1,5 +1,7 @@
 import type { QueryResult } from "pg";
 import {
+    DEFAULT_SNU_REFERRAL_CODE,
+    DEFAULT_SNU_REFERRAL_SCHOOL_ID,
     schoolRepresentativeBadge,
     type CampaignUserPublic,
     type HighSchool,
@@ -334,8 +336,15 @@ export const parseReferralWhitelistBindings = (entries: string[]): ReferralWhite
         return [{ referralCode, schoolId }];
     });
 
+const DEFAULT_REFERRAL_WHITELIST = [
+    `${DEFAULT_SNU_REFERRAL_CODE}:${DEFAULT_SNU_REFERRAL_SCHOOL_ID}`,
+];
+
 export const syncReferralWhitelist = async (db: CampaignDatabase, entries: string[]) => {
-    for (const binding of parseReferralWhitelistBindings(entries)) {
+    for (const binding of parseReferralWhitelistBindings([
+        ...DEFAULT_REFERRAL_WHITELIST,
+        ...entries,
+    ])) {
         await db.query(
             `INSERT INTO campaign_referral_whitelist (referral_code, school_id, note)
        VALUES ($1, $2, 'env')

@@ -1,0 +1,234 @@
+.gym-exam-cover {
+    background:
+        linear-gradient(
+            180deg,
+            transparent 0 84px,
+            rgba(18, 18, 18, 0.045) 84px 86px,
+            transparent 86px
+        ),
+        linear-gradient(90deg, rgba(18, 18, 18, 0.028) 0 1px, transparent 1px 18px), var(--paper);
+}
+
+.gym-cover-title {
+    position: relative;
+}
+
+.gym-cover-title::after {
+    content: "";
+    width: min(360px, 72vw);
+    height: 28px;
+    margin-top: 8px;
+    background:
+        radial-gradient(
+                circle at center,
+                transparent 0 6px,
+                rgba(18, 18, 18, 0.76) 6px 7.5px,
+                transparent 8px
+            )
+            0 0 / 28px 28px,
+        linear-gradient(90deg, rgba(18, 18, 18, 0.58), rgba(18, 18, 18, 0.58)) center / 100% 1px
+            no-repeat;
+    opacity: 0.72;
+}
+
+.gym-cover-title > strong {
+    border-radius: 0;
+    background: rgba(255, 254, 249, 0.64);
+}
+
+.gym-ticket-block {
+    justify-items: center;
+    background: repeating-linear-gradient(
+        180deg,
+        rgba(255, 254, 249, 0.2) 0 28px,
+        rgba(18, 18, 18, 0.035) 28px 29px
+    );
+}
+
+.gym-ticket-card {
+    display: grid;
+    width: min(720px, 100%);
+    min-height: 168px;
+    grid-template-columns: minmax(0, 1fr) minmax(136px, 0.42fr);
+    grid-template-areas:
+        "title side"
+        "main side";
+    border: 2px solid rgba(18, 18, 18, 0.74);
+    background: rgba(255, 254, 249, 0.72);
+}
+
+.gym-ticket-title {
+    grid-area: title;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    gap: 12px;
+    min-height: 54px;
+    border-right: 2px solid rgba(18, 18, 18, 0.54);
+    border-bottom: 2px solid rgba(18, 18, 18, 0.74);
+    padding: 8px 12px;
+}
+
+.gym-ticket-title span {
+    color: rgba(18, 18, 18, 0.58);
+    font-size: 13px;
+    font-weight: 1000;
+}
+
+.gym-ticket-title strong {
+    font-size: clamp(24px, 3.6vw, 38px);
+    line-height: 1;
+    letter-spacing: 0.2em;
+}
+
+.gym-ticket-main {
+    grid-area: main;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    min-width: 0;
+}
+
+.gym-ticket-row {
+    display: grid;
+    grid-template-columns: 82px minmax(0, 1fr);
+    border-right: 2px solid rgba(18, 18, 18, 0.72);
+    border-bottom: 2px solid rgba(18, 18, 18, 0.72);
+    min-height: 38px;
+}
+
+.gym-ticket-row > span {
+    display: grid;
+    align-items: center;
+    border-right: 1.5px solid rgba(18, 18, 18, 0.38);
+    padding: 7px 9px;
+    color: rgba(18, 18, 18, 0.58);
+    font-size: 12px;
+    font-weight: 1000;
+}
+
+.gym-ticket-row > strong {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    padding: 7px 10px;
+    overflow-wrap: anywhere;
+    font-size: clamp(15px, 2vw, 19px);
+    font-weight: 1000;
+}
+
+.gym-ticket-side {
+    grid-area: side;
+    display: grid;
+    align-content: start;
+    gap: 8px;
+    min-width: 0;
+    padding: 12px;
+    background: rgba(213, 235, 220, 0.78);
+}
+
+.gym-ticket-side span {
+    color: rgba(18, 18, 18, 0.58);
+    font-size: 12px;
+    font-weight: 1000;
+}
+
+.gym-ticket-side strong,
+.gym-ticket-side em,
+.gym-ticket-side small {
+    overflow-wrap: anywhere;
+    font-style: normal;
+    font-weight: 1000;
+}
+
+.gym-ticket-side strong {
+    font-size: clamp(17px, 2.4vw, 24px);
+}
+
+.gym-ticket-side small {
+    color: rgba(18, 18, 18, 0.62);
+    font-size: 12px;
+}
+
+.gym-ticket-note {
+    margin: 0;
+    color: rgba(18, 18, 18, 0.64);
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.gym-admission-slip {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    margin-top: clamp(18px, 3vh, 28px);
+    border-top: 2px solid rgba(18, 18, 18, 0.72);
+    border-bottom: 2px solid rgba(18, 18, 18, 0.72);
+    padding: 14px 0;
+}
+
+.gym-admission-slip div {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+}
+
+.gym-admission-slip span {
+    color: rgba(18, 18, 18, 0.58);
+    font-size: 12px;
+    font-weight: 1000;
+}
+
+.gym-admission-slip strong {
+    overflow-wrap: anywhere;
+    font-size: clamp(16px, 2.4vw, 22px);
+    line-height: 1.12;
+}
+
+@media (max-width: 720px) {
+    .gym-ticket-card {
+        width: 100%;
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas:
+            "title"
+            "main"
+            "side";
+    }
+
+    .gym-ticket-title {
+        border-right: 0;
+    }
+
+    .gym-ticket-title strong {
+        font-size: clamp(22px, 8vw, 30px);
+    }
+
+    .gym-ticket-side {
+        border-top: 2px solid rgba(18, 18, 18, 0.72);
+    }
+
+    .gym-ticket-main,
+    .gym-admission-slip {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 420px) {
+    .gym-ticket-card {
+        min-height: 0;
+        grid-template-columns: 1fr;
+        grid-template-areas:
+            "title"
+            "main"
+            "side";
+    }
+
+    .gym-ticket-row {
+        grid-template-columns: 76px minmax(0, 1fr);
+        border-right: 0;
+    }
+
+    .gym-admission-slip .gym-secondary-action {
+        width: 100%;
+    }
+}

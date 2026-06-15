@@ -3,11 +3,21 @@ import path from "node:path";
 import { gunzipSync } from "node:zlib";
 import { fileURLToPath } from "node:url";
 import type { HighSchoolInput } from "./campaignDatabase.js";
+import { DEFAULT_SNU_REFERRAL_SCHOOL_ID } from "../shared/campaign.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const fullDatasetPath = path.join(__dirname, "data", "high-schools-20260320.json.gz");
+const SNU_REFERRAL_SCHOOL: HighSchoolInput = {
+    id: DEFAULT_SNU_REFERRAL_SCHOOL_ID,
+    name: "서울대학교",
+    region: "서울 관악구",
+    address: "서울특별시 관악구 관악로 1",
+    latitude: 37.4599,
+    longitude: 126.9519,
+};
 
 const FALLBACK_HIGH_SCHOOLS: HighSchoolInput[] = [
+    SNU_REFERRAL_SCHOOL,
     {
         id: "B000000556",
         name: "경기고등학교",
@@ -51,7 +61,7 @@ export const readDefaultHighSchools = (): HighSchoolInput[] => {
     try {
         const parsed = JSON.parse(gunzipSync(fs.readFileSync(fullDatasetPath)).toString("utf8"));
         if (Array.isArray(parsed) && parsed.every(isHighSchoolInput) && parsed.length > 1000) {
-            return parsed;
+            return [SNU_REFERRAL_SCHOOL, ...parsed];
         }
     } catch {
         return FALLBACK_HIGH_SCHOOLS;

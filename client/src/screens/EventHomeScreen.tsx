@@ -1,7 +1,12 @@
-import { DoorOpen, Eye, LogIn, Ticket, UserRound } from "lucide-react";
-import { useMemo, useState } from "react";
-import type { CampaignUserPublic } from "../../../shared/campaign";
+import { DoorOpen, Eye, LogIn, UserRound } from "lucide-react";
+import { useMemo } from "react";
+import {
+    DEFAULT_SNU_REFERRAL_CODE,
+    type CampaignUserPublic,
+    type ReferralLocationVerification,
+} from "../../../shared/campaign";
 import type { GymEventSummary } from "../../../shared/game";
+import { SavedAdmissionTicket } from "./SavedAdmissionTicket";
 
 type PendingEventAction = { eventId: string; action: "register" | "spectate" } | null;
 type EventDisplay = GymEventSummary & {
@@ -17,7 +22,6 @@ type EventAccess = {
 type EntrantState = {
     hasReferralVerification: boolean;
     isLoggedIn: boolean;
-    hasNickname: boolean;
 };
 
 const formatEventStart = (startsAt: string | null) => {
@@ -33,42 +37,19 @@ const formatEventStart = (startsAt: string | null) => {
 
 const getEntrantStatus = (
     hasReferralVerification: boolean,
-    entryReady: boolean,
+    isLoggedIn: boolean,
     hasOpenEvent: boolean,
 ) => {
-    if (entryReady) return "추천 인증 완료";
+    if (hasReferralVerification && isLoggedIn) return "응시표 저장 완료";
     if (!hasReferralVerification) return hasOpenEvent ? "공개 관전 가능" : "인증 전";
-    return hasOpenEvent ? "공개 관전 가능" : "입장 전";
+    return "등록 정보 없음";
 };
-
-const getLoginPrompt = (
-    campaignUser: CampaignUserPublic | null,
-    hasReferralVerification: boolean,
-) => {
-    if (campaignUser) return `${campaignUser.school.name} 인증 계정`;
-    if (hasReferralVerification) return "인증 후 발급된 계정으로 로그인하세요.";
-    return "추천 링크에서 위치 인증을 먼저 완료하세요.";
-};
-
-const isLoginDisabled = ({
-    hasReferralVerification,
-    accountId,
-    password,
-    campaignUser,
-}: {
-    hasReferralVerification: boolean;
-    accountId: string;
-    password: string;
-    campaignUser: CampaignUserPublic | null;
-}) => !hasReferralVerification || !accountId.trim() || password.length < 8 || Boolean(campaignUser);
 
 export function EventHomeScreen({
     events,
-    accountId,
-    setAccountId,
     campaignUser,
+    referralVerification,
     hasReferralVerification,
-    loginCampaignAccount,
     nickname,
     setNickname,
     inviteMode,
@@ -82,11 +63,9 @@ export function EventHomeScreen({
     error,
 }: {
     events: GymEventSummary[];
-    accountId: string;
-    setAccountId: (accountId: string) => void;
     campaignUser: CampaignUserPublic | null;
+    referralVerification: ReferralLocationVerification | null;
     hasReferralVerification: boolean;
-    loginCampaignAccount: (username: string, password: string) => Promise<void>;
     nickname: string;
     setNickname: (nickname: string) => void;
     inviteMode: boolean;
@@ -99,7 +78,6 @@ export function EventHomeScreen({
     pendingEventAction: PendingEventAction;
     error: string;
 }) {
-    const [password, setPassword] = useState("");
     const displayEvents = useMemo<EventDisplay[]>(
         () =>
             events.map((event) => ({
@@ -113,20 +91,15 @@ export function EventHomeScreen({
     const entrantState = {
         hasReferralVerification,
         isLoggedIn: Boolean(campaignUser),
-        hasNickname: Boolean(nickname.trim()),
     };
-    const entryReady =
-        entrantState.hasReferralVerification && entrantState.isLoggedIn && entrantState.hasNickname;
     const hasOpenEvent = displayEvents.some((event) => event.status === "open");
-    const entrantStatus = getEntrantStatus(hasReferralVerification, entryReady, hasOpenEvent);
-    const loginPrompt = getLoginPrompt(campaignUser, hasReferralVerification);
-    const loginDisabled = isLoginDisabled({
+    const entrantStatus = getEntrantStatus(
         hasReferralVerification,
-        accountId,
-        password,
-        campaignUser,
-    });
+        entrantState.isLoggedIn,
+        hasOpenEvent,
+    );
     const nextEvent = displayEvents[0];
+    const hasSavedTicket = Boolean(campaignUser || referralVerification);
 
     if (inviteMode) {
         return (
@@ -186,6 +159,14 @@ export function EventHomeScreen({
                     <strong>{nextEvent?.statusLabel ?? "대기"}</strong>
                 </div>
 
+                {hasSavedTicket && (
+                    <SavedAdmissionTicket
+                        campaignUser={campaignUser}
+                        entrantStatus={entrantStatus}
+                        referralVerification={referralVerification}
+                    />
+                )}
+
                 <section className="gym-event-list" aria-label="예정 대회">
                     <div className="gym-section-label">
                         <span>시험 일정</span>
@@ -207,55 +188,7 @@ export function EventHomeScreen({
                         ))
                     )}
                 </section>
-                <section className="gym-omr-block" aria-label="응시자 정보">
-                    <div className="gym-omr-heading">
-                        <Ticket size={17} />
-                        <span>입장 정보</span>
-                        <strong>{entrantStatus}</strong>
-                    </div>
-                    <div className="gym-omr-grid">
-                        <label className="gym-omr-field">
-                            <span>계정</span>
-                            <input
-                                value={accountId}
-                                onChange={(event) =>
-                                    setAccountId(event.target.value.trim().toLowerCase())
-                                }
-                                placeholder="계정"
-                            />
-                        </label>
-                        <label className="gym-omr-field">
-                            <span>비밀번호</span>
-                            <input
-                                value={password}
-                                onChange={(event) => setPassword(event.target.value)}
-                                placeholder={campaignUser ? "로그인 완료" : "계정 비밀번호"}
-                                type="password"
-                            />
-                        </label>
-                        <label className="gym-omr-field">
-                            <span>성명</span>
-                            <input
-                                value={nickname}
-                                onChange={(event) => setNickname(event.target.value)}
-                                maxLength={6}
-                                placeholder="응시 이름"
-                            />
-                        </label>
-                    </div>
-                    <div className="gym-login-row">
-                        <span>{loginPrompt}</span>
-                        <button
-                            type="button"
-                            className="gym-secondary-action"
-                            disabled={loginDisabled}
-                            onClick={() => void loginCampaignAccount(accountId, password)}
-                        >
-                            <LogIn size={18} />
-                            {campaignUser ? "로그인 완료" : "로그인"}
-                        </button>
-                    </div>
-                </section>
+                {!hasSavedTicket && <AdmissionIssueSlip />}
                 {error && <p className="gym-error error-text">{error}</p>}
             </section>
         </main>
@@ -268,6 +201,21 @@ function CoverHead({ marker, page }: { marker: string; page: string }) {
             <span>{marker}</span>
             <strong>{page}</strong>
         </div>
+    );
+}
+
+function AdmissionIssueSlip() {
+    const href = `/?c=${DEFAULT_SNU_REFERRAL_CODE}`;
+    return (
+        <section className="gym-admission-slip" aria-label="응시표 발급 안내">
+            <div>
+                <span>응시표 없음</span>
+                <strong>추천 링크에서 위치 인증 후 자동 발급됩니다.</strong>
+            </div>
+            <a className="gym-secondary-action" href={href}>
+                서울대 인증 링크
+            </a>
+        </section>
     );
 }
 
@@ -289,27 +237,20 @@ function getEventAccess({
         return {
             canRegister: false,
             canSpectate: true,
-            hint: "추천 위치 인증 전에는 관전만 가능합니다.",
+            hint: "응시표가 없으면 관전만 가능합니다.",
         };
     }
     if (!entrantState.isLoggedIn) {
         return {
             canRegister: false,
             canSpectate: true,
-            hint: "추천 인증 계정으로 로그인한 사용자만 참가할 수 있습니다.",
-        };
-    }
-    if (!entrantState.hasNickname) {
-        return {
-            canRegister: false,
-            canSpectate: true,
-            hint: "성명을 입력하면 참가할 수 있습니다.",
+            hint: "추천 링크에서 발급된 응시표로 참가합니다.",
         };
     }
     return {
         canRegister: true,
         canSpectate: true,
-        hint: "인증된 학교 정보로 참가합니다.",
+        hint: "저장된 추천 등록 정보로 참가합니다.",
     };
 }
 
@@ -331,9 +272,6 @@ function EventRow({
     const pendingThisEvent = pendingEventAction?.eventId === event.id;
     const access = getEventAccess({ event, entrantState });
     const actionLocked = Boolean(pendingEventAction);
-    const registerActionClass = access.canRegister ? "gym-primary-action" : "gym-secondary-action";
-    const spectatorActionClass =
-        access.canSpectate && !access.canRegister ? "gym-primary-action" : "gym-secondary-action";
 
     return (
         <article
@@ -361,28 +299,39 @@ function EventRow({
                 </dl>
             </div>
             <div className="gym-event-actions">
-                <button
-                    type="button"
-                    className={registerActionClass}
-                    onClick={() => void registerForEvent(event.id)}
-                    disabled={!access.canRegister || actionLocked}
-                >
-                    <UserRound size={18} />
-                    {pendingThisEvent && pendingEventAction?.action === "register"
-                        ? "응시 중"
-                        : "참가 등록"}
-                </button>
-                <button
-                    type="button"
-                    className={spectatorActionClass}
-                    onClick={() => void spectateEvent(event.id)}
-                    disabled={!access.canSpectate || actionLocked}
-                >
-                    <Eye size={18} />
-                    {pendingThisEvent && pendingEventAction?.action === "spectate"
-                        ? "관전 입장 중"
-                        : "관전하기"}
-                </button>
+                {access.canRegister && (
+                    <button
+                        type="button"
+                        className="gym-primary-action"
+                        onClick={() => void registerForEvent(event.id)}
+                        disabled={actionLocked}
+                    >
+                        <UserRound size={18} />
+                        {pendingThisEvent && pendingEventAction?.action === "register"
+                            ? "응시 중"
+                            : "대회 참가"}
+                    </button>
+                )}
+                {access.canSpectate && (
+                    <button
+                        type="button"
+                        className={
+                            access.canRegister ? "gym-secondary-action" : "gym-primary-action"
+                        }
+                        onClick={() => void spectateEvent(event.id)}
+                        disabled={actionLocked}
+                    >
+                        <Eye size={18} />
+                        {pendingThisEvent && pendingEventAction?.action === "spectate"
+                            ? "관전 입장 중"
+                            : "관전 입장"}
+                    </button>
+                )}
+                {!access.canSpectate && (
+                    <button type="button" className="gym-secondary-action" disabled>
+                        공개 전
+                    </button>
+                )}
                 <p className="gym-action-hint">{access.hint}</p>
             </div>
         </article>

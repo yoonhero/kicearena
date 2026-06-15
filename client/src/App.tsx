@@ -8,9 +8,8 @@ import {
 } from "../../shared/game";
 import { AppLoading, AppRoutes, type AppScreen } from "./components/AppRoutes";
 import { useReferralGateState } from "./hooks/useReferralGateState";
+import { entrantNickname, readStoredCampaignUser } from "./lib/campaignSession";
 import { emitWithAck, ROOM_SESSION_KEY, socket } from "./lib/socket";
-
-const GYM_ACCOUNT_KEY = "kice-gym-account-id";
 
 type SavedRoomSession = {
     code: string;
@@ -83,10 +82,7 @@ export function App() {
     const [inviteCode, setInviteCode] = useState(readInviteCode);
     const [events, setEvents] = useState<GymEventSummary[]>([]);
     const [spectatorExam, setSpectatorExam] = useState<ExamPublic | null>(null);
-    const [accountId, setAccountIdState] = useState(
-        () => window.localStorage.getItem(GYM_ACCOUNT_KEY) ?? "",
-    );
-    const [campaignUser, setCampaignUser] = useState<CampaignUserPublic | null>(null);
+    const [campaignUser] = useState<CampaignUserPublic | null>(readStoredCampaignUser);
     const [nickname, setNickname] = useState("");
     const [roomCode, setRoomCode] = useState(inviteCode);
     const [room, setRoom] = useState<RoomPublic | null>(null);
@@ -100,11 +96,6 @@ export function App() {
     const [eventsLoaded, setEventsLoaded] = useState(false);
     const rejoinAttempted = useRef(false);
     const spectatorRequestRef = useRef<AbortController | null>(null);
-
-    useEffect(() => {
-        if (accountId) window.localStorage.setItem(GYM_ACCOUNT_KEY, accountId);
-        else window.localStorage.removeItem(GYM_ACCOUNT_KEY);
-    }, [accountId]);
 
     const resetRoomSession = useCallback((nextRoomCode = "") => {
         window.localStorage.removeItem(ROOM_SESSION_KEY);
@@ -179,7 +170,7 @@ export function App() {
             }
         };
         socket.on("connect", tryRejoin);
-        if (socket.connected) void tryRejoin();
+        void tryRejoin();
         return () => {
             socket.off("room:update", onRoomUpdate);
             socket.off("player:you", setOwnPlayerId);
@@ -208,6 +199,7 @@ export function App() {
         referralCode,
         needsReferralGate,
         hasReferralVerification,
+        referralVerification,
         completeReferralGate,
         exitReferralGate,
     } = useReferralGateState(screen);
@@ -215,28 +207,6 @@ export function App() {
     const leaveRoom = async () => {
         await emitWithAck("room:leave", {});
         resetRoomSession("");
-    };
-
-    const loginCampaignAccount = async (username: string, password: string) => {
-        setError("");
-        if (!hasReferralVerification) {
-            setCampaignUser(null);
-            setError("추천 위치 인증 후 로그인할 수 있습니다.");
-            return;
-        }
-        const response = await fetch("/api/campaign/login", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username, password }),
-        });
-        if (!response.ok) {
-            setCampaignUser(null);
-            setError("계정 정보를 확인하지 못했습니다.");
-            return;
-        }
-        const user = (await response.json()) as CampaignUserPublic;
-        setCampaignUser(user);
-        setAccountIdState(user.username);
     };
 
     const registerForEvent = async (eventId: string) => {
@@ -251,7 +221,7 @@ export function App() {
             const response = await emitWithAck<RoomPublic>("event:register", {
                 eventId,
                 accountId: campaignUser.username,
-                nickname,
+                nickname: entrantNickname(campaignUser),
             });
             if (!response.ok || !response.data) {
                 setError(response.error ?? "등록 실패");
@@ -365,11 +335,9 @@ export function App() {
             completeReferralGate={completeReferralGate}
             exitReferralGate={exitReferralGate}
             events={events}
-            accountId={accountId}
-            setAccountId={setAccountIdState}
             campaignUser={campaignUser}
+            referralVerification={referralVerification}
             hasReferralVerification={hasReferralVerification}
-            loginCampaignAccount={loginCampaignAccount}
             nickname={nickname}
             setNickname={setNickname}
             joinInviteRoom={joinInviteRoom}

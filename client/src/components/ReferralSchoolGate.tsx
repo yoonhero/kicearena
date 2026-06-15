@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BadgeCheck, LocateFixed, LogIn, School } from "lucide-react";
+import { BadgeCheck, LocateFixed, TicketCheck } from "lucide-react";
 import type { ReferralLocationVerification } from "../../../shared/campaign";
 import {
     readStoredReferralVerification,
@@ -12,7 +12,7 @@ export function ReferralSchoolGate({
     onExit,
 }: {
     referralCode: string;
-    onVerified: () => void;
+    onVerified: (verification: ReferralLocationVerification) => void;
     onExit: () => void;
 }) {
     const [verification, setVerification] = useState<ReferralLocationVerification | null>(() =>
@@ -37,8 +37,7 @@ export function ReferralSchoolGate({
         setError("");
         setStatus("위치 확인 중");
         setChecking(true);
-        const controller = new AbortController();
-        const timeout = window.setTimeout(() => controller.abort(), 10000);
+        let timeout = 0;
         try {
             const position = await new Promise<GeolocationPosition>((resolve, reject) => {
                 navigator.geolocation.getCurrentPosition(resolve, reject, {
@@ -47,6 +46,8 @@ export function ReferralSchoolGate({
                     maximumAge: 30000,
                 });
             });
+            const controller = new AbortController();
+            timeout = window.setTimeout(() => controller.abort(), 10000);
             const response = await fetch("/api/campaign/referral-location-verify", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -70,7 +71,10 @@ export function ReferralSchoolGate({
             const nextVerification = (await response.json()) as ReferralLocationVerification;
             saveReferralVerification(nextVerification);
             setVerification(nextVerification);
-            setStatus("인증 완료");
+            setStatus("수험표 발행 완료");
+            window.setTimeout(() => {
+                if (mountedRef.current) onVerified(nextVerification);
+            }, 650);
         } catch (error) {
             if (mountedRef.current) {
                 setError(
@@ -81,7 +85,7 @@ export function ReferralSchoolGate({
                 setStatus("");
             }
         } finally {
-            window.clearTimeout(timeout);
+            if (timeout) window.clearTimeout(timeout);
             if (mountedRef.current) setChecking(false);
         }
     };
@@ -92,22 +96,22 @@ export function ReferralSchoolGate({
                 <div className="referral-gate-head">
                     <span>
                         <BadgeCheck size={16} />
-                        학교 위치 확인
+                        응시표 발급
                     </span>
-                    <strong>{verification ? "인증 완료" : "입장 전 확인"}</strong>
+                    <strong>{verification ? "발급 완료" : referralCode}</strong>
                 </div>
 
                 {verification ? (
                     <div className="referral-school-card">
-                        <School size={20} />
+                        <TicketCheck size={20} />
                         <span>{verification.school.region}</span>
                         <strong>{verification.school.name}</strong>
                         <em>{distanceLabel}</em>
                     </div>
                 ) : (
                     <div className="referral-gate-copy">
-                        <strong>학교 근처에서 추천 인증을 완료하세요.</strong>
-                        <span>인증 후 계정으로 로그인하면 이후 대회에 참가할 수 있습니다.</span>
+                        <strong>학교 위치를 확인하면 응시표가 발급됩니다.</strong>
+                        <span>발급된 응시표는 이 기기에 저장됩니다.</span>
                     </div>
                 )}
 
@@ -125,10 +129,10 @@ export function ReferralSchoolGate({
                     <button
                         type="button"
                         className="omr-action referral-gate-action"
-                        onClick={onVerified}
+                        onClick={() => onVerified(verification)}
                     >
-                        <LogIn size={18} />
-                        로그인하고 참가
+                        <TicketCheck size={18} />
+                        응시표 확인
                     </button>
                 )}
                 <button type="button" className="referral-gate-exit" onClick={onExit}>

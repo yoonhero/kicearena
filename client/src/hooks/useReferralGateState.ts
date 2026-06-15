@@ -1,6 +1,10 @@
 import { useState } from "react";
+import type { ReferralLocationVerification } from "../../../shared/campaign";
 import type { AppScreen } from "../components/AppRoutes";
-import { hasStoredReferralLocationVerification } from "../lib/referralVerification";
+import {
+    hasStoredReferralLocationVerification,
+    readAnyStoredReferralVerification,
+} from "../lib/referralVerification";
 
 const readReferralCode = () =>
     new URLSearchParams(window.location.search).get("c")?.trim().toLowerCase() ?? "";
@@ -11,16 +15,21 @@ export function useReferralGateState(screen: AppScreen) {
     const [hasReferralVerification, setHasReferralVerification] = useState(
         hasStoredReferralLocationVerification,
     );
+    const [referralVerification, setReferralVerification] = useState(
+        readAnyStoredReferralVerification,
+    );
     const needsReferralGate = screen === "home" && Boolean(referralCode) && !referralGatePassed;
 
-    const completeReferralGate = () => {
+    const completeReferralGate = (verification?: ReferralLocationVerification) => {
         setReferralGatePassed(true);
         setHasReferralVerification(true);
+        if (verification) setReferralVerification(verification);
     };
 
     const exitReferralGate = () => {
         setReferralCode("");
         setReferralGatePassed(true);
+        setReferralVerification(null);
         const url = new URL(window.location.href);
         url.searchParams.delete("c");
         window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
@@ -30,6 +39,7 @@ export function useReferralGateState(screen: AppScreen) {
         referralCode,
         needsReferralGate,
         hasReferralVerification,
+        referralVerification,
         completeReferralGate,
         exitReferralGate,
     };
