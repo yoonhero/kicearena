@@ -12,19 +12,9 @@
     }
 
     .problem-command-strip {
-        position: fixed;
-        left: 50%;
-        bottom: calc(var(--mobile-command-offset) + env(safe-area-inset-bottom));
-        z-index: 80;
         grid-template-columns: repeat(3, 44px);
         gap: 8px;
         align-self: center;
-        padding: 6px 8px;
-        background: rgba(255, 254, 249, 0.94);
-        border: 1px solid rgba(18, 18, 18, 0.2);
-        box-shadow: 0 8px 24px rgba(18, 18, 18, 0.1);
-        backdrop-filter: blur(6px);
-        transform: translateX(-50%);
     }
 
     .problem-command-strip button,
@@ -35,34 +25,19 @@
     }
 
     .problem-picker {
-        position: fixed;
-        left: 10px;
-        right: 10px;
-        bottom: calc(
-            var(--mobile-command-offset) + var(--mobile-command-height) + 14px +
-                env(safe-area-inset-bottom)
-        );
-        z-index: 78;
-        width: auto;
-        max-height: min(38svh, 360px);
-        overflow: auto;
+        width: 100%;
+        max-height: none;
+        overflow: visible;
         margin: 0;
-        padding: 12px;
-        border: 2px solid var(--line);
-        background: rgba(255, 254, 249, 0.98);
-        box-shadow: 0 -12px 34px rgba(18, 18, 18, 0.18);
-        overscroll-behavior: contain;
-        -webkit-overflow-scrolling: touch;
+        padding: 12px 0 2px;
+        border-top: 1.5px solid var(--line);
     }
 
     .problem-picker-head {
-        position: sticky;
-        top: -12px;
-        z-index: 1;
-        margin: -12px -12px 4px;
-        padding: 10px 12px 8px;
-        background: rgba(255, 254, 249, 0.98);
-        border-bottom: 1px solid rgba(18, 18, 18, 0.16);
+        margin: 0;
+        padding: 0;
+        background: transparent;
+        border-bottom: 0;
     }
 
     .problem-nav {

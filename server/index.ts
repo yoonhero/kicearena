@@ -106,6 +106,7 @@ import {
     saveContestSubmission,
     saveRoomState,
 } from "./roomDatabase.js";
+import { saveProblemAttemptRecord } from "./problemAttemptDatabase.js";
 import {
     derivePlayerScoreState,
     formatPenaltyMinutes,
@@ -1003,6 +1004,45 @@ const applySubmissionToPlayer = (
         player.consecutiveWrong = 0;
     } else {
         player.consecutiveWrong += 1;
+    }
+};
+
+const recordProblemAttempt = async (
+    room: RoomState,
+    player: PlayerState,
+    problem: ProblemManifest,
+    submission: ReturnType<typeof contestSubmissionToPublic>,
+    idempotencyKey: string,
+) => {
+    const db = roomDatabase();
+    if (!db) return;
+    try {
+        await saveProblemAttemptRecord(db, {
+            id: makeSubmissionId(),
+            roomCode: room.code,
+            roomMode: room.mode,
+            eventId: room.eventId ?? null,
+            examId: room.exam.id,
+            playerId: player.id,
+            playerNickname: player.nickname,
+            problemId: problem.id,
+            problemNumber: problem.number,
+            problemTitle: problem.title,
+            answerKind: problem.answerKind,
+            answer: submission.answer,
+            submittedAt: submission.submittedAt,
+            elapsedMs:
+                room.startedAt === null
+                    ? null
+                    : Math.max(0, submission.submittedAt - room.startedAt),
+            correct: submission.correct,
+            scoreAwarded: submission.scoreAwarded,
+            penaltyMs: submission.penaltyMs,
+            attemptNumber: submission.attempts,
+            idempotencyKey,
+        });
+    } catch (error) {
+        console.error(`Unable to record problem attempt for room ${room.code}.`, error);
     }
 };
 
@@ -2070,7 +2110,7 @@ io.on("connection", (socket) => {
                     return;
                 }
 
-                const existingRoom = await findReusableEventRoom(exam.id);
+                const existingRoom = openRegistration ? null : await findReusableEventRoom(exam.id);
                 if (existingRoom) {
                     const playerId = makeId();
                     const socketToken = makeSocketToken();
@@ -2137,7 +2177,9 @@ io.on("connection", (socket) => {
                     exam,
                     eventId: exam.id,
                     mode: openRegistration ? "casual" : "contest",
-                    maxPlayers: maxPlayersForRoomMode(openRegistration ? "casual" : "contest"),
+                    maxPlayers: openRegistration
+                        ? 1
+                        : maxPlayersForRoomMode(openRegistration ? "casual" : "contest"),
                     version: 0,
                     status: "lobby",
                     timeLimitSec: exam.timeLimitSec,
@@ -2791,6 +2833,13 @@ io.on("connection", (socket) => {
                         return;
                     }
                     const durableSubmission = contestSubmissionToPublic(saved.submission);
+                    await recordProblemAttempt(
+                        room,
+                        player,
+                        problem,
+                        durableSubmission,
+                        idempotencyKey,
+                    );
                     applySubmissionToPlayer(player, durableSubmission);
                     if (durableSubmission.correct) {
                         addLog(
@@ -2818,6 +2867,7 @@ io.on("connection", (socket) => {
                     return;
                 }
 
+                await recordProblemAttempt(room, player, problem, submission, idempotencyKey);
                 player.submissions.push(submission);
                 player.submissionHistory.push(submission);
 

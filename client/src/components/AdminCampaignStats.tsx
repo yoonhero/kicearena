@@ -2,6 +2,8 @@ import { useState } from "react";
 import { BadgeCheck, RefreshCw, Users } from "lucide-react";
 import type { CampaignStats } from "../../../shared/campaign";
 
+const formatPercent = (value: number) => `${Math.round(value * 1000) / 10}%`;
+
 export function AdminCampaignStats({ token }: { token: string }) {
     const [stats, setStats] = useState<CampaignStats | null>(null);
     const [error, setError] = useState("");
@@ -43,8 +45,13 @@ export function AdminCampaignStats({ token }: { token: string }) {
                     <div className="campaign-stat-grid">
                         <Stat label="인증" value={stats.totals.users} />
                         <Stat label="학교" value={stats.totals.schools} />
-                        <Stat label="방문" value={stats.totals.referralVisits} />
+                        <Stat label="순방문" value={stats.totals.referralVisits} />
+                        <Stat label="방문 기록" value={stats.totals.referralEvents} />
                         <Stat label="전환" value={stats.totals.convertedReferrals} />
+                        <Stat
+                            label="전환율"
+                            value={formatPercent(stats.totals.referralConversionRate)}
+                        />
                     </div>
                     <div className="campaign-rank-list">
                         {stats.topSchools.map((school) => (
@@ -77,7 +84,7 @@ export function AdminCampaignStats({ token }: { token: string }) {
     );
 }
 
-function Stat({ label, value }: { label: string; value: number }) {
+function Stat({ label, value }: { label: string; value: number | string }) {
     return (
         <div>
             <span>{label}</span>

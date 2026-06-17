@@ -34,7 +34,9 @@ export type CampaignStats = {
         users: number;
         schools: number;
         referralVisits: number;
+        referralEvents: number;
         convertedReferrals: number;
+        referralConversionRate: number;
         whitelistedLinks: number;
     };
     topSchools: Array<{

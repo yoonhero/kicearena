@@ -15,6 +15,7 @@ import {
     saveRoomState,
     serializeRoomState,
 } from "./roomDatabase.js";
+import { saveProblemAttemptRecord } from "./problemAttemptDatabase.js";
 
 const exam: ExamManifest = {
     id: "persisted-exam",
@@ -242,5 +243,77 @@ describePostgres("postgres room state persistence", () => {
         await expect(
             readContestSubmissionByIdempotency(pool, original.code, "player", "key-1"),
         ).resolves.toBeNull();
+    });
+
+    it("records problem attempts as analytics rows that survive room deletion", async () => {
+        const original = { ...room(), code: "TRIES", eventId: "preliminary-day" };
+        await saveRoomState(pool, original);
+
+        const firstInserted = await saveProblemAttemptRecord(pool, {
+            id: "attempt-1",
+            roomCode: original.code,
+            roomMode: original.mode,
+            eventId: original.eventId ?? null,
+            examId: original.exam.id,
+            playerId: "player",
+            playerNickname: "민재",
+            problemId: "p1",
+            problemNumber: 1,
+            problemTitle: "P1",
+            answerKind: "short",
+            answer: "2",
+            submittedAt: 1200,
+            elapsedMs: 200,
+            correct: false,
+            scoreAwarded: 0,
+            penaltyMs: 0,
+            attemptNumber: 1,
+            idempotencyKey: "attempt-key-1",
+        });
+        const duplicateInserted = await saveProblemAttemptRecord(pool, {
+            id: "attempt-duplicate",
+            roomCode: original.code,
+            roomMode: original.mode,
+            eventId: original.eventId ?? null,
+            examId: original.exam.id,
+            playerId: "player",
+            playerNickname: "민재",
+            problemId: "p1",
+            problemNumber: 1,
+            problemTitle: "P1",
+            answerKind: "short",
+            answer: "2",
+            submittedAt: 1300,
+            elapsedMs: 300,
+            correct: false,
+            scoreAwarded: 0,
+            penaltyMs: 0,
+            attemptNumber: 2,
+            idempotencyKey: "attempt-key-1",
+        });
+
+        expect(firstInserted).toBe(true);
+        expect(duplicateInserted).toBe(false);
+
+        await deleteRoomState(pool, original.code);
+        const attempts = await pool.query<{
+            count: string;
+            event_id: string;
+            problem_number: number;
+            elapsed_ms: string;
+        }>(
+            `SELECT count(*)::text AS count, max(event_id) AS event_id,
+       max(problem_number) AS problem_number, max(elapsed_ms)::text AS elapsed_ms
+     FROM problem_attempt_records
+     WHERE room_code = $1`,
+            [original.code],
+        );
+
+        expect(attempts.rows[0]).toEqual({
+            count: "1",
+            event_id: "preliminary-day",
+            problem_number: 1,
+            elapsed_ms: "200",
+        });
     });
 });

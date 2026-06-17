@@ -19,7 +19,9 @@ const emptyStats: CampaignStats = {
         users: 0,
         schools: 0,
         referralVisits: 0,
+        referralEvents: 0,
         convertedReferrals: 0,
+        referralConversionRate: 0,
         whitelistedLinks: 0,
     },
     topSchools: [],
@@ -34,6 +36,8 @@ const emptyReferralForm = (): ReferralForm => ({
 });
 
 const referralUrl = (code: string) => `${window.location.origin}/?c=${encodeURIComponent(code)}`;
+
+const formatPercent = (value: number) => `${Math.round(value * 1000) / 10}%`;
 
 const upsertWhitelistEntry = (stats: CampaignStats, entry: WhitelistEntry): CampaignStats => {
     const exists = stats.whitelist.some(
@@ -222,8 +226,13 @@ export function AdminCampaignScreen() {
                 <section className="campaign-metrics" aria-label="캠페인 요약">
                     <Metric label="인증" value={visibleStats.totals.users} />
                     <Metric label="참여 학교" value={visibleStats.totals.schools} />
-                    <Metric label="방문" value={visibleStats.totals.referralVisits} />
+                    <Metric label="순방문" value={visibleStats.totals.referralVisits} />
+                    <Metric label="방문 기록" value={visibleStats.totals.referralEvents} />
                     <Metric label="전환" value={visibleStats.totals.convertedReferrals} />
+                    <Metric
+                        label="전환율"
+                        value={formatPercent(visibleStats.totals.referralConversionRate)}
+                    />
                     <Metric label="허용 링크" value={visibleStats.totals.whitelistedLinks} />
                 </section>
 
@@ -358,7 +367,7 @@ export function AdminCampaignScreen() {
     );
 }
 
-function Metric({ label, value }: { label: string; value: number }) {
+function Metric({ label, value }: { label: string; value: number | string }) {
     return (
         <div>
             <span>{label}</span>

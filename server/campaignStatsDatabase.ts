@@ -74,13 +74,15 @@ export const readCampaignStats = async (db: CampaignDatabase): Promise<CampaignS
             users: string;
             schools: string;
             referral_visits: string;
+            referral_events: string;
             converted_referrals: string;
             whitelisted_links: string;
         }>(
             `SELECT
          (SELECT count(*)::text FROM campaign_users) AS users,
          (SELECT count(*)::text FROM high_schools) AS schools,
-         (SELECT count(*)::text FROM campaign_referral_events) AS referral_visits,
+         (SELECT count(DISTINCT (referral_code, visitor_fingerprint))::text FROM campaign_referral_events) AS referral_visits,
+         (SELECT count(*)::text FROM campaign_referral_events) AS referral_events,
          (SELECT count(*)::text FROM campaign_referral_events WHERE converted_user_id IS NOT NULL) AS converted_referrals,
          (SELECT count(*)::text FROM campaign_referral_whitelist) AS whitelisted_links`,
         ),
@@ -145,12 +147,16 @@ export const readCampaignStats = async (db: CampaignDatabase): Promise<CampaignS
         ),
     ]);
     const totalRow = totals.rows[0];
+    const referralVisits = Number(totalRow?.referral_visits ?? 0);
+    const convertedReferrals = Number(totalRow?.converted_referrals ?? 0);
     return {
         totals: {
             users: Number(totalRow?.users ?? 0),
             schools: Number(totalRow?.schools ?? 0),
-            referralVisits: Number(totalRow?.referral_visits ?? 0),
-            convertedReferrals: Number(totalRow?.converted_referrals ?? 0),
+            referralVisits,
+            referralEvents: Number(totalRow?.referral_events ?? 0),
+            convertedReferrals,
+            referralConversionRate: referralVisits === 0 ? 0 : convertedReferrals / referralVisits,
             whitelistedLinks: Number(totalRow?.whitelisted_links ?? 0),
         },
         topSchools: topSchools.rows.map((row) => ({

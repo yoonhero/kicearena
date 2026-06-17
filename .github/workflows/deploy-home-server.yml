@@ -278,23 +278,70 @@ jobs:
                     wait_healthy kice-arena-gateway
                   }
 
-                  reload_gateway() {
-                    local gateway_id=""
-                    gateway_id="$(compose ps -q kice-arena-gateway 2>/dev/null || true)"
-                    if [ -n "$gateway_id" ]; then
-                      "$DOCKER" exec "$gateway_id" nginx -s reload
+                  render_gateway_upstream() {
+                    local blue_state="$1"
+                    local green_state="$2"
+                    local blue_down=""
+                    local green_down=""
+
+                    if [ "$blue_state" = "down" ]; then
+                      blue_down=" down"
                     fi
+                    if [ "$green_state" = "down" ]; then
+                      green_down=" down"
+                    fi
+
+                    printf '%s\n' \
+                      "upstream kice_arena_app {" \
+                      "    server kice-arena-blue:3001 max_fails=2 fail_timeout=5s${blue_down};" \
+                      "    server kice-arena-green:3001 max_fails=2 fail_timeout=5s${green_down};" \
+                      "}"
+                  }
+
+                  set_gateway_upstream() {
+                    local blue_state="$1"
+                    local green_state="$2"
+                    local gateway_id=""
+
+                    gateway_id="$(compose ps -q kice-arena-gateway 2>/dev/null || true)"
+                    if [ -z "$gateway_id" ]; then
+                      echo "Cannot update gateway upstream before kice-arena-gateway exists." >&2
+                      return 1
+                    fi
+
+                    render_gateway_upstream "$blue_state" "$green_state" |
+                      "$DOCKER" exec -i "$gateway_id" sh -c 'cat > /etc/nginx/conf.d/upstream.conf && nginx -t && nginx -s reload'
                   }
 
                   roll_app() {
                     local service="$1"
+                    local standby_service=""
+                    local blue_state="up"
+                    local green_state="up"
+
+                    case "$service" in
+                      kice-arena-blue)
+                        standby_service="kice-arena-green"
+                        blue_state="down"
+                        ;;
+                      kice-arena-green)
+                        standby_service="kice-arena-blue"
+                        green_state="down"
+                        ;;
+                      *) echo "Unknown app service for rolling deploy: $service" >&2; exit 1 ;;
+                    esac
+
+                    wait_healthy "$standby_service"
+                    set_gateway_upstream "$blue_state" "$green_state"
+                    wait_healthy kice-arena-gateway
+
                     if ! compose up -d --no-deps --force-recreate "$service"; then
                       compose ps
                       compose logs --tail=200 "$service" kice-arena-gateway
                       exit 1
                     fi
                     wait_healthy "$service"
-                    reload_gateway
+                    set_gateway_upstream up up
                     wait_healthy kice-arena-gateway
                   }
 

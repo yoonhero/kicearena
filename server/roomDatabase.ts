@@ -1,6 +1,7 @@
 import type { QueryResult } from "pg";
 import type { ArenaLog, ExamManifest, StandingPublic, SubmissionPublic } from "../shared/game.js";
 import { ROOM_GUARDRAILS } from "../shared/game.js";
+import { migrateProblemAttemptRecords } from "./problemAttemptDatabase.js";
 import type { PlayerState, RoomState } from "./types.js";
 
 export interface RoomDatabase {
@@ -151,6 +152,7 @@ export const migrateRoomState = async (db: RoomDatabase) => {
     await db.query(
         "CREATE INDEX IF NOT EXISTS contest_submissions_room_player_idx ON contest_submissions(room_code, player_id, sequence)",
     );
+    await migrateProblemAttemptRecords(db);
 };
 
 export const serializeRoomState = (room: RoomState): PersistedRoomState => ({

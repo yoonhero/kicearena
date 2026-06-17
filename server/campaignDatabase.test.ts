@@ -264,7 +264,8 @@ describe("campaign database persistence", () => {
                         {
                             users: "2",
                             schools: "15",
-                            referral_visits: "3",
+                            referral_visits: "2",
+                            referral_events: "3",
                             converted_referrals: "1",
                             whitelisted_links: "2",
                         } as T,
@@ -311,8 +312,10 @@ describe("campaign database persistence", () => {
             totals: {
                 users: 2,
                 schools: 15,
-                referralVisits: 3,
+                referralVisits: 2,
+                referralEvents: 3,
                 convertedReferrals: 1,
+                referralConversionRate: 0.5,
                 whitelistedLinks: 2,
             },
             topSchools: [{ schoolName: "KICE High", users: 2, referrals: 1 }],
