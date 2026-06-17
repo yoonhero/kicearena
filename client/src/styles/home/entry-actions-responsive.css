@@ -84,7 +84,7 @@
     .entry-action-panel .invite-enter-action {
         border: 2px solid var(--line);
         background: var(--ui-accent);
-        color: #fffef9;
+        color: var(--ui-accent-contrast);
         box-shadow: 3px 3px 0 rgba(18, 18, 18, 0.1);
     }
 

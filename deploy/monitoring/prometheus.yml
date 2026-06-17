@@ -18,7 +18,7 @@ scrape_configs:
       credentials_file: /run/secrets/kice_arena_metrics_token
     static_configs:
       - targets:
-          - kice-arena:3001
+          - kice-arena-gateway:3001
 
   - job_name: postgres
     static_configs:

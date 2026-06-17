@@ -2,9 +2,9 @@
     min-height: 44px;
     border: 0;
     border-bottom: 2px solid var(--line);
-    background: var(--accent);
+    background: var(--ui-accent);
     box-shadow: none;
-    color: var(--ink);
+    color: var(--ui-accent-contrast);
     font-weight: 1000;
 }
 

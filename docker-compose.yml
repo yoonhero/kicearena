@@ -1,3 +1,41 @@
+x-kice-arena-app: &kice-arena-app
+    image: ghcr.io/yoonhero/kicearena:${TAG:-latest}
+    command:
+        [
+            "sh",
+            "-lc",
+            "if command -v bun >/dev/null 2>&1; then bun run start; else npm run start; fi",
+        ]
+    environment:
+        NODE_ENV: production
+        PORT: 3001
+        DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-kice_arena}:${POSTGRES_PASSWORD:-kice_arena}@postgres:5432/${POSTGRES_DB:-kice_arena}}
+        REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+        ADMIN_TOKEN: ${ADMIN_TOKEN:-}
+        CORS_ORIGINS: ${CORS_ORIGINS:-}
+        CAMPAIGN_REFERRAL_WHITELIST: ${CAMPAIGN_REFERRAL_WHITELIST:-}
+        CAMPAIGN_LOCATION_RADIUS_KM: ${CAMPAIGN_LOCATION_RADIUS_KM:-3}
+        METRICS_BEARER_TOKEN: ${METRICS_BEARER_TOKEN:-}
+        METRICS_BEARER_TOKEN_FILE: /run/secrets/kice_arena_metrics_token
+    secrets:
+        - kice_arena_metrics_token
+    depends_on:
+        postgres:
+            condition: service_healthy
+        redis:
+            condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+        test:
+            [
+                "CMD-SHELL",
+                'if command -v bun >/dev/null 2>&1; then bun -e "fetch(''http://127.0.0.1:'' + (process.env.PORT || 3001) + ''/api/health'').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"; else node -e "fetch(''http://127.0.0.1:'' + (process.env.PORT || 3001) + ''/api/health'').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"; fi',
+            ]
+        interval: 10s
+        timeout: 5s
+        start_period: 30s
+        retries: 12
+
 services:
     postgres:
         image: postgres:16-alpine
@@ -58,48 +96,36 @@ services:
                 condition: service_healthy
         restart: unless-stopped
 
-    kice-arena:
-        image: ghcr.io/yoonhero/kicearena:${TAG:-latest}
-        container_name: kice-arena
-        command:
-            [
-                "sh",
-                "-lc",
-                "if command -v bun >/dev/null 2>&1; then bun run start; else npm run start; fi",
-            ]
-        environment:
-            NODE_ENV: production
-            PORT: 3001
-            DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-kice_arena}:${POSTGRES_PASSWORD:-kice_arena}@postgres:5432/${POSTGRES_DB:-kice_arena}}
-            REDIS_URL: ${REDIS_URL:-redis://redis:6379}
-            ADMIN_TOKEN: ${ADMIN_TOKEN:-}
-            CORS_ORIGINS: ${CORS_ORIGINS:-}
-            CAMPAIGN_REFERRAL_WHITELIST: ${CAMPAIGN_REFERRAL_WHITELIST:-}
-            CAMPAIGN_LOCATION_RADIUS_KM: ${CAMPAIGN_LOCATION_RADIUS_KM:-3}
-            METRICS_BEARER_TOKEN: ${METRICS_BEARER_TOKEN:-}
-            METRICS_BEARER_TOKEN_FILE: /run/secrets/kice_arena_metrics_token
+    kice-arena-blue:
+        <<: *kice-arena-app
+        container_name: kice-arena-blue
+
+    kice-arena-green:
+        <<: *kice-arena-app
+        container_name: kice-arena-green
+
+    kice-arena-gateway:
+        image: nginx:1.27-alpine
+        container_name: kice-arena-gateway
         ports:
             - "127.0.0.1:${HOST_PORT:-3001}:3001"
-        secrets:
-            - kice_arena_metrics_token
+        volumes:
+            - ./deploy/nginx-app.conf:/etc/nginx/conf.d/default.conf:ro
         depends_on:
-            postgres:
-                condition: service_healthy
-            redis:
-                condition: service_healthy
-            kice-arena-seed:
-                condition: service_completed_successfully
+            kice-arena-blue:
+                condition: service_started
+            kice-arena-green:
+                condition: service_started
         restart: unless-stopped
         healthcheck:
             test:
                 [
                     "CMD-SHELL",
-                    'if command -v bun >/dev/null 2>&1; then bun -e "fetch(''http://127.0.0.1:'' + (process.env.PORT || 3001) + ''/api/health'').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"; else node -e "fetch(''http://127.0.0.1:'' + (process.env.PORT || 3001) + ''/api/health'').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"; fi',
+                    "wget -q --spider http://127.0.0.1:3001/api/health || exit 1",
                 ]
-            interval: 30s
+            interval: 10s
             timeout: 5s
-            start_period: 120s
-            retries: 5
+            retries: 6
 
     kice-arena-seed:
         image: ghcr.io/yoonhero/kicearena:${TAG:-latest}
@@ -134,7 +160,7 @@ services:
         secrets:
             - kice_arena_metrics_token
         depends_on:
-            kice-arena:
+            kice-arena-gateway:
                 condition: service_healthy
             postgres-exporter:
                 condition: service_started

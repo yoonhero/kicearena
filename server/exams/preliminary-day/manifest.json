@@ -1,7 +1,7 @@
 {
   "id": "preliminary-day",
-  "title": "예비고사",
-  "subtitle": "비인증 사용자도 풀어볼 수 있는 상시 공개 수학 예비 시험",
+  "title": "예비소집일",
+  "subtitle": "상시 공개 수학 점검",
   "timeLimitSec": 2400,
   "problems": [
     {

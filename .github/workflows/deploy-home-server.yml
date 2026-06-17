@@ -24,7 +24,7 @@ permissions:
 
 jobs:
     deploy:
-        name: Pull image and restart compose
+        name: Pull image and roll app containers
         runs-on: ubuntu-latest
         timeout-minutes: 10
         environment: production
@@ -193,15 +193,97 @@ jobs:
                   git checkout "$BRANCH"
                   git pull --ff-only origin "$BRANCH"
 
-                  TAG="$TAG" "$DOCKER" compose pull
-                  if ! TAG="$TAG" "$DOCKER" compose up -d --remove-orphans; then
-                    TAG="$TAG" "$DOCKER" compose ps
-                    TAG="$TAG" "$DOCKER" compose logs --tail=200 kice-arena kice-arena-seed
+                  compose() {
+                    TAG="$TAG" "$DOCKER" compose "$@"
+                  }
+
+                  wait_healthy() {
+                    local service="$1"
+                    local container_id=""
+                    local status=""
+                    local attempt=1
+
+                    while [ "$attempt" -le 36 ]; do
+                      container_id="$(compose ps -q "$service" 2>/dev/null || true)"
+                      if [ -n "$container_id" ]; then
+                        status="$("$DOCKER" inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$container_id" 2>/dev/null || true)"
+                        if [ "$status" = "healthy" ] || [ "$status" = "running" ]; then
+                          return 0
+                        fi
+                      fi
+                      sleep 5
+                      attempt=$((attempt + 1))
+                    done
+
+                    echo "Service did not become healthy: $service (last status: ${status:-missing})" >&2
+                    compose ps
+                    compose logs --tail=200 "$service" || true
+                    return 1
+                  }
+
+                  reload_gateway() {
+                    local gateway_id=""
+                    gateway_id="$(compose ps -q kice-arena-gateway 2>/dev/null || true)"
+                    if [ -n "$gateway_id" ]; then
+                      "$DOCKER" exec "$gateway_id" nginx -s reload
+                    fi
+                  }
+
+                  roll_app() {
+                    local service="$1"
+                    if ! compose up -d --no-deps --force-recreate "$service"; then
+                      compose ps
+                      compose logs --tail=200 "$service" kice-arena-gateway
+                      exit 1
+                    fi
+                    wait_healthy "$service"
+                    reload_gateway
+                    wait_healthy kice-arena-gateway
+                  }
+
+                  compose pull
+
+                  if ! compose up -d postgres redis postgres-exporter redis-exporter alertmanager-discord alertmanager; then
+                    compose ps
+                    compose logs --tail=200 postgres redis postgres-exporter redis-exporter alertmanager-discord alertmanager
                     exit 1
                   fi
-                  if ! TAG="$TAG" "$DOCKER" compose up -d --force-recreate --no-deps prometheus; then
-                    TAG="$TAG" "$DOCKER" compose ps
-                    TAG="$TAG" "$DOCKER" compose logs --tail=200 kice-arena prometheus
+
+                  compose rm -f -s kice-arena-seed >/dev/null 2>&1 || true
+                  if ! compose run --rm kice-arena-seed; then
+                    compose ps
+                    compose logs --tail=200 kice-arena-seed postgres
                     exit 1
                   fi
+                  compose rm -f -s kice-arena-seed >/dev/null 2>&1 || true
+
+                  gateway_id="$(compose ps -q kice-arena-gateway 2>/dev/null || true)"
+                  legacy_id="$("$DOCKER" ps -q --filter "name=^/kice-arena$" || true)"
+
+                  if [ -z "$gateway_id" ]; then
+                    compose up -d --no-deps kice-arena-blue
+                    wait_healthy kice-arena-blue
+                    compose up -d --no-deps kice-arena-green
+                    wait_healthy kice-arena-green
+
+                    if [ -n "$legacy_id" ]; then
+                      "$DOCKER" stop "$legacy_id"
+                      "$DOCKER" rm "$legacy_id"
+                    fi
+
+                    compose up -d --no-deps kice-arena-gateway
+                    wait_healthy kice-arena-gateway
+                  else
+                    wait_healthy kice-arena-gateway
+                    roll_app kice-arena-blue
+                    roll_app kice-arena-green
+                  fi
+
+                  if ! compose up -d --remove-orphans prometheus grafana; then
+                    compose ps
+                    compose logs --tail=200 kice-arena-blue kice-arena-green kice-arena-gateway prometheus grafana
+                    exit 1
+                  fi
+                  wait_healthy prometheus
+                  wait_healthy grafana
                   REMOTE

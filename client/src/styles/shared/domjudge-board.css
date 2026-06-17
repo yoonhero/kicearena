@@ -79,7 +79,7 @@
 }
 
 .domjudge-row.me {
-    background: var(--accent-soft);
+    background: var(--ui-accent-soft);
 }
 
 .domjudge-row.me > :nth-child(-n + 6) {

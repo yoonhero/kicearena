@@ -60,7 +60,9 @@ Bundled monitoring includes Prometheus exporters for Postgres and Redis. Prometh
 
 ## GitHub Deploy Configuration
 
-`Deploy Home Server` 워크플로는 GitHub environment/repository Variables와 Secrets를 원격 서버의 `.env` 및 metrics secret 파일로 쓴 뒤 `docker compose up -d`를 실행한다. 운영 첫 배포 전에 아래 required 값을 GitHub에서 직접 정한다. 값이 없으면 배포는 실패한다.
+`Deploy Home Server` 워크플로는 GitHub environment/repository Variables와 Secrets를 원격 서버의 `.env` 및 metrics secret 파일로 쓴 뒤 Compose 기반 blue/green rolling 배포를 실행한다. `kice-arena-gateway`가 host port를 계속 잡고, `kice-arena-blue`와 `kice-arena-green` app container를 한 대씩 새 image로 교체한 다음 nginx를 reload한다. 운영 첫 배포 전에 아래 required 값을 GitHub에서 직접 정한다. 값이 없으면 배포는 실패한다.
+
+기존 단일 `kice-arena` container에서 이 구조로 최초 전환할 때는 host port를 gateway로 넘기는 짧은 전환 구간이 있다. 전환 이후 배포는 seed 성공과 새 app healthcheck를 확인한 뒤 한쪽 app container만 교체하므로 HTTP 기준 무중단으로 진행된다. 진행 중인 Socket.IO 연결은 연결된 app container가 교체될 때 재연결될 수 있다.
 
 Required GitHub Secrets:
 

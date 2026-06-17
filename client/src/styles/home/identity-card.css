@@ -156,7 +156,7 @@
     min-height: 34px;
     padding: 4px 8px;
     border-bottom: 1px solid rgba(18, 18, 18, 0.24);
-    background: rgba(47, 100, 115, 0.06);
+    background: var(--ui-accent-soft);
     font-size: 12px;
 }
 
@@ -197,8 +197,8 @@
 }
 
 .omr-name-cell.active {
-    background: var(--ui-accent);
-    color: #fffef9;
+    background: var(--ui-accent-base);
+    color: var(--ui-accent-contrast);
     box-shadow: inset 0 -4px 0 rgba(18, 18, 18, 0.24);
 }
 
@@ -210,7 +210,7 @@
 }
 
 .omr-name-cell.empty.active::after {
-    background: rgba(255, 254, 249, 0.72);
+    background: color-mix(in srgb, var(--ui-accent-contrast) 44%, transparent);
 }
 
 .omr-syllable-row {
@@ -242,7 +242,7 @@
     max-width: calc(100% - 4px);
     height: 20px;
     padding-inline: 4px;
-    border: 1.5px solid rgba(47, 100, 115, 0.52);
+    border: 1.5px solid color-mix(in srgb, var(--ui-accent-ink) 52%, transparent);
     border-radius: 999px;
     display: grid;
     place-items: center;
@@ -253,9 +253,9 @@
 }
 
 .omr-syllable-row button.marked span {
-    background: var(--ui-accent);
-    border-color: var(--ui-accent);
-    color: #fff;
+    background: var(--ui-accent-base);
+    border-color: var(--ui-accent-base);
+    color: var(--ui-accent-contrast);
 }
 
 .omr-action {
@@ -276,7 +276,7 @@
 .invite-enter-action {
     background: var(--ui-accent);
     border: 2px solid var(--line);
-    color: #fffef9;
+    color: var(--ui-accent-contrast);
     padding-inline: 16px;
     box-shadow: 5px 5px 0 rgba(18, 18, 18, 0.12);
 }

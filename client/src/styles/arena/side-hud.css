@@ -99,7 +99,8 @@
 .inventory-grid button {
     min-height: 40px;
     border: 2px solid var(--line);
-    background: var(--accent);
+    background: var(--ui-accent-base);
+    color: var(--ui-accent-contrast);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -151,7 +152,8 @@
 .log-bubble.item,
 .log-bubble.penalty {
     margin-left: auto;
-    background: var(--accent);
+    background: var(--ui-accent-soft);
+    border-color: color-mix(in srgb, var(--ui-accent-ink) 28%, transparent);
 }
 
 .log-bubble.penalty {

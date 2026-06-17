@@ -11,9 +11,15 @@ import {
 } from "../../../shared/nickname";
 
 export function ReferralNicknameOmr({
+    ariaLabel = "응시자 성명 OMR 입력",
+    caption = "응시표에 인쇄됩니다",
+    className = "",
     nickname,
     setNickname,
 }: {
+    ariaLabel?: string;
+    caption?: string;
+    className?: string;
     nickname: string;
     setNickname: (nickname: string) => void;
 }) {
@@ -37,11 +43,11 @@ export function ReferralNicknameOmr({
     };
 
     return (
-        <div className="referral-omr-name" aria-label="응시자 성명 OMR 입력">
+        <div className={`referral-omr-name ${className}`.trim()} aria-label={ariaLabel}>
             <div className="omr-name-maker">
                 <div className="omr-maker-head">
                     <strong>성명</strong>
-                    <span>응시표에 인쇄됩니다</span>
+                    <span>{caption}</span>
                 </div>
                 <div className="omr-maker-cells" role="tablist" aria-label="수정할 이름 글자 선택">
                     {[0, 1].map((index) => {

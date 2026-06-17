@@ -69,7 +69,7 @@
     margin: 14px 0 0 auto;
     display: grid;
     place-items: center;
-    border: 7px double rgba(47, 100, 115, 0.78);
+    border: 7px double var(--ui-accent-base);
     border-radius: 50%;
     color: var(--ui-accent-ink);
     background: rgba(255, 254, 248, 0.72);
@@ -130,7 +130,8 @@
 .reveal-next-btn {
     min-height: 44px;
     border: 2px solid var(--line);
-    background: var(--accent);
+    background: var(--ui-accent);
+    color: var(--ui-accent-contrast);
     display: inline-flex;
     align-items: center;
     justify-content: center;

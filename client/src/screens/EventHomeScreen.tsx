@@ -10,6 +10,7 @@ import {
     makeIndexEvents,
     type EventDisplay,
 } from "./eventHomeModels";
+import { ReferralNicknameOmr } from "../components/ReferralNicknameOmr";
 import { SavedAdmissionTicket } from "./SavedAdmissionTicket";
 
 type PendingEventAction = { eventId: string; action: "register" | "spectate" } | null;
@@ -74,49 +75,57 @@ export function EventHomeScreen({
 
     if (inviteMode) {
         return (
-            <main className="gym-layout gym-invite-layout">
-                <section className="gym-exam-cover gym-invite-ticket">
-                    <CoverHead
-                        marker="2026. 06. 초대 시험실"
-                        descriptor="KICE ARENA 수학 영역"
-                        page="1"
-                    />
-                    <div className="gym-cover-title">
-                        <span>제 2 교시</span>
-                        <em>2026학년도 KICE ARENA 문제지</em>
-                        <h1>수학 영역</h1>
-                        <strong>{inviteRoomCode}</strong>
-                    </div>
-                    <div className="gym-omr-block" aria-label="초대 시험실 입장 정보">
-                        <label className="gym-omr-field">
-                            <span>성명</span>
-                            <input
-                                value={nickname}
-                                onChange={(event) => setNickname(event.target.value)}
-                                maxLength={6}
-                                placeholder="응시 이름"
-                            />
-                        </label>
-                        <div className="gym-ticket-actions">
-                            <button
-                                type="button"
-                                className="gym-primary-action"
-                                onClick={() => void joinInviteRoom()}
-                                disabled={!nickname.trim() || joiningInvite}
-                            >
-                                <LogIn size={18} />
-                                {joiningInvite ? "입장 중" : "시험실 입장"}
-                            </button>
-                            <button
-                                type="button"
-                                className="gym-secondary-action"
-                                onClick={exitInviteMode}
-                            >
-                                <DoorOpen size={18} />
-                                나가기
-                            </button>
+            <main className="gym-layout exam-reference-layout">
+                <section className="exam-reference-paper" aria-labelledby="invite-reference-title">
+                    <header className="exam-reference-head">
+                        <strong>제 2 교시</strong>
+                        <span>2026학년도 KICE ARENA 모의고사 문제지</span>
+                        <em>초대 시험실</em>
+                    </header>
+
+                    <h1 id="invite-reference-title">수학 영역</h1>
+
+                    <section className="gym-event-list exam-reference-events" aria-label="초대 시험실 입장">
+                        <div className="gym-section-label">
+                            <span>시험실 입장</span>
+                            <strong>{inviteRoomCode}</strong>
                         </div>
-                    </div>
+                        <div className="invite-room-entry">
+                            <div className="invite-room-entry-copy">
+                                <span className="gym-event-status open">초대 코드 확인</span>
+                                <h2>{inviteRoomCode}</h2>
+                                <p>OMR로 닉네임을 선정하고 초대 시험실에 입장합니다.</p>
+                            </div>
+                            <div className="invite-room-entry-form">
+                                <ReferralNicknameOmr
+                                    ariaLabel="초대 시험실 닉네임 OMR 입력"
+                                    caption={`초대 방 ${inviteRoomCode}`}
+                                    className="invite-room-omr-name"
+                                    nickname={nickname}
+                                    setNickname={setNickname}
+                                />
+                                <div className="gym-ticket-actions">
+                                    <button
+                                        type="button"
+                                        className="gym-primary-action"
+                                        onClick={() => void joinInviteRoom()}
+                                        disabled={!nickname.trim() || joiningInvite}
+                                    >
+                                        <LogIn size={18} />
+                                        {joiningInvite ? "입장 중" : "시험실 입장"}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="gym-secondary-action"
+                                        onClick={exitInviteMode}
+                                    >
+                                        <DoorOpen size={18} />
+                                        나가기
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
                     {error && <p className="gym-error error-text">{error}</p>}
                 </section>
             </main>
@@ -201,26 +210,6 @@ export function EventHomeScreen({
     );
 }
 
-function CoverHead({
-    descriptor,
-    marker,
-    page,
-}: {
-    descriptor: string;
-    marker: string;
-    page: string;
-}) {
-    return (
-        <div className="gym-cover-head">
-            <div>
-                <span>{marker}</span>
-                <em>{descriptor}</em>
-            </div>
-            <strong>{page}</strong>
-        </div>
-    );
-}
-
 function getEventAccess({
     event,
     entrantState,
@@ -239,7 +228,7 @@ function getEventAccess({
         return {
             canRegister: true,
             canSpectate: true,
-            hint: "계정 없이도 바로 예비고사를 풀 수 있습니다.",
+            hint: "계정 없이 바로 응시할 수 있습니다.",
         };
     }
     if (!entrantState.hasReferralVerification) {
@@ -305,7 +294,7 @@ function EventRow({
                         {pendingThisEvent && pendingEventAction?.action === "register"
                             ? "응시 중"
                             : event.registration === "open"
-                              ? "예비고사 응시"
+                              ? "예비소집일 응시"
                               : "시험 응시"}
                     </button>
                 )}

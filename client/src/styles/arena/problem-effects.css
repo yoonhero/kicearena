@@ -25,7 +25,7 @@
     position: absolute;
     inset: auto 20px 20px auto;
     z-index: 2;
-    background: var(--accent);
+    background: var(--ui-accent-base);
     border: 2px solid var(--line);
     padding: 12px 16px;
     font-weight: 900;

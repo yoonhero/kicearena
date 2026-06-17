@@ -138,9 +138,9 @@
     }
 
     .omr-name-cell.active {
-        background: var(--ui-accent);
+        background: var(--ui-accent-base);
         box-shadow: inset 0 -3px 0 var(--ui-accent);
-        color: #fffef9;
+        color: var(--ui-accent-contrast);
     }
 
     .omr-syllable-row {

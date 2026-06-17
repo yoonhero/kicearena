@@ -109,7 +109,7 @@
 }
 
 .aura-score-stack small {
-    color: var(--accent);
+    color: var(--ui-accent-base);
     font-size: 10px;
 }
 
@@ -120,7 +120,7 @@
 }
 
 .aura-score-stack b {
-    color: var(--accent);
+    color: var(--ui-accent-base);
     font-size: clamp(58px, 13vw, 94px);
     line-height: 0.78;
     text-shadow:
@@ -221,7 +221,7 @@
     position: static;
     width: 5px;
     height: 12px;
-    background: var(--accent);
+    background: var(--ui-accent-base);
     box-shadow: 0 0 8px rgba(255, 214, 0, 0.65);
     animation: aura-meter 420ms ease-in-out infinite;
 }

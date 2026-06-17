@@ -21,7 +21,7 @@
 }
 
 .exam-cover-shelf .exam-choice {
-    --cover-accent: var(--ui-accent);
+    --cover-accent: var(--ui-accent-base);
     aspect-ratio: 0.88;
     min-height: 0;
     border: 1px solid rgba(18, 18, 18, 0.26);
@@ -38,10 +38,10 @@
 }
 
 .exam-cover-shelf .exam-choice.selected {
-    border-color: var(--ui-accent);
+    border-color: var(--ui-accent-base);
     background: #fffdf7;
     box-shadow:
-        inset 0 -4px 0 var(--ui-accent),
+        inset 0 -4px 0 var(--ui-accent-base),
         3px 4px 0 rgba(18, 18, 18, 0.08);
 }
 

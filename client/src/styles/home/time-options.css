@@ -52,7 +52,7 @@
     z-index: 1;
     width: calc((100% - 28px) * (var(--time-ratio) - var(--freeze-ratio)));
     height: 8px;
-    background: color-mix(in srgb, var(--ui-accent) 72%, #fffef9);
+    background: color-mix(in srgb, var(--ui-accent-base) 72%, #fffef9);
     pointer-events: none;
 }
 
@@ -157,7 +157,7 @@
 .freeze-marker-dot {
     left: calc(14px + (100% - 28px) * var(--freeze-ratio));
     top: 50px;
-    border: 2px solid var(--ui-accent);
+    border: 2px solid var(--ui-accent-base);
     box-shadow: 3px 3px 0 rgba(18, 18, 18, 0.06);
 }
 
@@ -173,7 +173,7 @@
     bottom: 32px;
     width: 2px;
     height: 14px;
-    background: var(--ui-accent);
+    background: var(--ui-accent-base);
 }
 
 .time-range {

@@ -1910,7 +1910,7 @@ io.on("connection", (socket) => {
                     room,
                     "system",
                     openRegistration
-                        ? `${nickname} 예비고사 대기실을 열었습니다.`
+                        ? `${nickname} 예비소집일 대기실을 열었습니다.`
                         : `${nickname} 등록 완료. virtual gym 대기실을 열었습니다.`,
                 );
                 const snapshot = emitRoom(room);

@@ -88,8 +88,8 @@
 }
 
 .spectator-problem-nav button.active {
-    background: var(--ui-accent);
-    color: var(--paper);
+    background: var(--ui-accent-base);
+    color: var(--ui-accent-contrast);
 }
 
 @media (max-width: 720px) {

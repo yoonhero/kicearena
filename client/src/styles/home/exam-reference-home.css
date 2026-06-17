@@ -297,6 +297,12 @@
     padding: clamp(16px, 2.4vw, 24px) 0;
 }
 
+.exam-reference-events .gym-event-row.featured {
+    background: transparent;
+    box-shadow: none;
+    padding-left: 0;
+}
+
 .exam-reference-events .gym-event-row h2 {
     font-size: clamp(24px, 3.2vw, 38px);
     font-weight: 850;

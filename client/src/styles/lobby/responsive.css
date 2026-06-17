@@ -18,7 +18,7 @@
     }
 
     .lobby-actions.host-actions {
-        border-top-color: var(--ui-accent);
+        border-top-color: var(--ui-accent-base);
     }
 
     .player-list {

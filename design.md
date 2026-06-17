@@ -3,7 +3,11 @@ version: alpha
 name: KICE Arena
 description: Live competitive mock-exam interface with low-entropy, exam-room precise visual language.
 colors:
-    primary: "#2f6473"
+    primary-soft: "#fbefb2"
+    primary: "#e8c93a"
+    primary-strong: "#f2c94c"
+    primary-ink: "#6d5800"
+    primary-contrast: "#1f2933"
     ink: "#1f2933"
     paper: "#f7f5ef"
     surface: "#ffffff"
@@ -42,10 +46,16 @@ spacing:
     xl: 32px
 components:
     primary-button:
-        backgroundColor: "{colors.primary}"
-        textColor: "{colors.surface}"
+        backgroundColor: "{colors.primary-strong}"
+        textColor: "{colors.primary-contrast}"
         rounded: "{rounded.sm}"
         height: 48px
+    active-state:
+        backgroundColor: "{colors.primary}"
+        textColor: "{colors.primary-contrast}"
+    accent-row:
+        backgroundColor: "{colors.primary-soft}"
+        textColor: "{colors.ink}"
     exam-field:
         backgroundColor: "{colors.paper}"
         textColor: "{colors.ink}"
@@ -103,8 +113,16 @@ report title.
 The palette is intentionally narrow. The interface should feel like paper,
 black ink, and restrained exam administration marks.
 
-- **Primary / UI accent (`#2f6473`):** selected controls, focus affordances,
-  compact active states, timing controls, and primary actions.
+- **Primary yellow family:** use one accent family, but not one flat value.
+  `#fbefb2` is for row/surface tint, `#e8c93a` is the main entrance-screen
+  yellow and active state fill, `#f2c94c` is for filled primary actions and
+  stronger affordances, and `#6d5800` is the accent text/ink. Use `#1f2933` or
+  another ink-dark text color on yellow fills, not white.
+- **Accent hierarchy in components:** primary submit/enter/next buttons use
+  `primary-strong`; selected answers, OMR cells, active problem markers, and
+  timeline markers use `primary`; current-user rows, featured rows, and quiet
+  selection backgrounds use `primary-soft` or `accent-row`; labels and small
+  metadata use `primary-ink`.
 - **Ink (`#1f2933`):** main text, headings, table content, problem text, and
   stable UI labels.
 - **Paper (`#f7f5ef`) and Surface (`#ffffff`):** exam covers, answer sheets,
@@ -113,7 +131,8 @@ black ink, and restrained exam administration marks.
   quiet separators.
 - **Grading red (`#b91c1c`):** grading marks, stamps, warnings, and errors.
 - **Success green (`#15803d`):** correctness and successful submissions.
-- **Live yellow (`#facc15`):** reveal/live emphasis, used sparingly.
+- **Live yellow (`#facc15`):** reveal/live emphasis, used sparingly as a state
+  color. It should not compete with the primary yellow accent.
 
 Avoid extra accent families, decorative gradients, unrelated purple/blue
 marketing palettes, and color used only to make the page look richer.

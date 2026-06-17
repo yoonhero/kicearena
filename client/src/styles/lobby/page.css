@@ -54,7 +54,7 @@
 }
 
 .lobby-actions.host-actions {
-    border-left-color: var(--ui-accent);
+    border-left-color: var(--ui-accent-base);
 }
 
 .lobby-action-title {
@@ -68,7 +68,7 @@
 
 .lobby-action-title svg {
     flex: 0 0 auto;
-    color: var(--ui-accent);
+    color: var(--ui-accent-ink);
 }
 
 .lobby-action-status {

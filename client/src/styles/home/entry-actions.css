@@ -101,7 +101,7 @@
 }
 
 .entry-mode-toggle button.active {
-    border-bottom-color: var(--ui-accent);
+    border-bottom-color: var(--ui-accent-base);
     background: var(--ui-accent-soft);
     color: var(--ink);
 }
@@ -135,9 +135,9 @@
 }
 
 .item-toggle-row button.active {
-    border-color: var(--ui-accent);
-    background: var(--ui-accent);
-    color: #fffef9;
+    border-color: var(--ui-accent-base);
+    background: var(--ui-accent-base);
+    color: var(--ui-accent-contrast);
 }
 
 .item-toggle-row button:disabled {
@@ -295,7 +295,7 @@
     top: 8px;
     width: calc(100% * (var(--preset-time-ratio) - var(--preset-freeze-ratio)));
     height: 3px;
-    background: var(--ui-accent);
+    background: var(--ui-accent-base);
 }
 
 .preset-mini-end,

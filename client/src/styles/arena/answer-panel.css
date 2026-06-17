@@ -38,7 +38,7 @@
     min-height: 44px;
     min-width: 132px;
     background: var(--ui-accent);
-    color: #fffef9;
+    color: var(--ui-accent-contrast);
 }
 
 .answer-bar .feedback {
@@ -138,9 +138,9 @@
 
 .choice-buttons button.selected i,
 .choice-buttons button:active i {
-    background: var(--ui-accent);
-    border-color: var(--ui-accent);
-    color: #fff;
+    background: var(--ui-accent-base);
+    border-color: var(--ui-accent-base);
+    color: var(--ui-accent-contrast);
 }
 
 .choice-buttons button:hover i {
@@ -165,9 +165,9 @@
 
 .choice-buttons button:disabled.selected i {
     opacity: 1;
-    background: var(--ui-accent);
-    border-color: var(--ui-accent);
-    color: #fff;
+    background: var(--ui-accent-base);
+    border-color: var(--ui-accent-base);
+    color: var(--ui-accent-contrast);
 }
 
 .item-toast {
@@ -176,7 +176,7 @@
     bottom: clamp(14px, 3vw, 36px);
     z-index: 10;
     border: 2px solid var(--line);
-    background: var(--accent);
+    background: var(--ui-accent-base);
     padding: 12px 16px;
     font-weight: 1000;
     box-shadow: 8px 8px 0 rgba(18, 18, 18, 0.16);

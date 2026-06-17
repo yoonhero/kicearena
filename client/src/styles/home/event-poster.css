@@ -236,8 +236,13 @@
 .gym-event-row.featured {
     grid-template-columns: minmax(0, 1fr) minmax(210px, 300px);
     border-bottom: 0;
-    background: linear-gradient(90deg, var(--accent-soft), rgba(232, 201, 58, 0.08) 48%, transparent);
-    box-shadow: inset 4px 0 0 var(--accent);
+    background: linear-gradient(
+        90deg,
+        var(--ui-accent-soft),
+        color-mix(in srgb, var(--ui-accent-base) 8%, transparent) 48%,
+        transparent
+    );
+    box-shadow: inset 4px 0 0 var(--ui-accent-base);
     padding-left: 14px;
 }
 

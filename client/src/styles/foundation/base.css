@@ -6,11 +6,16 @@
     --line: #121212;
     --line-soft: rgba(18, 18, 18, 0.28);
     --accent: #e8c93a;
+    --accent-strong: #f2c94c;
     --accent-soft: rgba(232, 201, 58, 0.24);
     --accent-row: #fbefb2;
-    --ui-accent: #2f6473;
-    --ui-accent-soft: rgba(47, 100, 115, 0.13);
-    --ui-accent-ink: #1d4651;
+    --accent-ink: #6d5800;
+    --accent-contrast: var(--ink);
+    --ui-accent: var(--accent-strong);
+    --ui-accent-base: var(--accent);
+    --ui-accent-soft: var(--accent-soft);
+    --ui-accent-ink: var(--accent-ink);
+    --ui-accent-contrast: var(--accent-contrast);
     --blue: #ffffff;
     --danger: #c93c32;
     --ok: #219653;
@@ -171,7 +176,7 @@ input:disabled {
     display: block;
     width: 36%;
     height: 100%;
-    background: var(--accent);
+    background: var(--ui-accent-base);
     animation: loading-scan 900ms ease-in-out infinite alternate;
 }
 
