@@ -113,6 +113,27 @@
         min-height: min(52svh, 520px);
         max-height: none;
     }
+
+    .spectator-problem-nav {
+        position: fixed;
+        left: 10px;
+        right: 10px;
+        bottom: calc(
+            var(--mobile-command-offset) + var(--mobile-command-height) + 14px +
+                env(safe-area-inset-bottom)
+        );
+        z-index: 78;
+        width: auto;
+        max-height: min(36svh, 320px);
+        overflow: auto;
+        margin: 0;
+        padding: 12px;
+        border: 2px solid var(--line);
+        background: rgba(255, 254, 249, 0.98);
+        box-shadow: 0 -12px 34px rgba(18, 18, 18, 0.18);
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
+    }
 }
 
 @media (max-width: 420px) {

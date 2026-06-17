@@ -4,6 +4,9 @@ import type { ExamManifest, ExamPublic, ExamSummary, GymEventSummary } from "../
 import { getProblemPointValue } from "../shared/game.js";
 
 export const ACTIVE_EXAM_IDS = new Set(["preliminary-day"]);
+export const OPEN_REGISTRATION_EXAM_IDS = new Set(["preliminary-day"]);
+
+export const isOpenRegistrationExam = (exam: ExamManifest) => OPEN_REGISTRATION_EXAM_IDS.has(exam.id);
 
 export const readExams = (examsDir: string): ExamManifest[] => {
   if (!fs.existsSync(examsDir)) return [];
@@ -40,7 +43,7 @@ export const toGymEventSummary = (exam: ExamManifest, now = Date.now()): GymEven
     ...toExamSummary(exam),
     startsAt: exam.releaseAt ?? null,
     status: Number.isFinite(releaseAt) && now < releaseAt ? "upcoming" : "open",
-    registration: "invite-only",
+    registration: isOpenRegistrationExam(exam) ? "open" : "invite-only",
     spectatorAllowed: true
   };
 };

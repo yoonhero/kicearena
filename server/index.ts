@@ -67,7 +67,13 @@ import {
     updateExamSettingsInDatabase,
     updateProblemInDatabase,
 } from "./examDatabase.js";
-import { isExamReleased, toExamPublic, toExamSummary, toGymEventSummary } from "./exams.js";
+import {
+    isExamReleased,
+    isOpenRegistrationExam,
+    toExamPublic,
+    toExamSummary,
+    toGymEventSummary,
+} from "./exams.js";
 import {
     activeEffectForItem,
     cleanupEffects,
@@ -1793,7 +1799,7 @@ io.on("connection", (socket) => {
     socket.on(
         "event:register",
         async (
-            payload: { eventId: string; accountId: string; nickname: string },
+            payload: { eventId: string; accountId?: string; nickname: string },
             reply: (response: ServerResponse<RoomPublic>) => void,
         ) => {
             await withRoomMutation("__event_register__", async () => {
@@ -1819,22 +1825,25 @@ io.on("connection", (socket) => {
                     });
                     return;
                 }
-                if (!/^[a-z0-9._-]{3,80}$/.test(accountId)) {
-                    replyAfterRoomCommit(reply, {
-                        ok: false,
-                        error: "계정 ID가 없으면 문제 관전만 가능합니다.",
-                    });
-                    return;
-                }
-                if (
-                    !examCatalogPool ||
-                    !(await readCampaignUserByUsername(examCatalogPool, accountId))
-                ) {
-                    replyAfterRoomCommit(reply, {
-                        ok: false,
-                        error: "등록된 계정만 이벤트에 등록할 수 있습니다.",
-                    });
-                    return;
+                const openRegistration = isOpenRegistrationExam(exam);
+                if (!openRegistration) {
+                    if (!/^[a-z0-9._-]{3,80}$/.test(accountId)) {
+                        replyAfterRoomCommit(reply, {
+                            ok: false,
+                            error: "계정 ID가 없으면 문제 관전만 가능합니다.",
+                        });
+                        return;
+                    }
+                    if (
+                        !examCatalogPool ||
+                        !(await readCampaignUserByUsername(examCatalogPool, accountId))
+                    ) {
+                        replyAfterRoomCommit(reply, {
+                            ok: false,
+                            error: "등록된 계정만 이벤트에 등록할 수 있습니다.",
+                        });
+                        return;
+                    }
                 }
 
                 const nickname = sanitizeNickname(
@@ -1871,8 +1880,8 @@ io.on("connection", (socket) => {
                     code,
                     hostId: playerId,
                     exam,
-                    mode: "contest",
-                    maxPlayers: maxPlayersForRoomMode("contest"),
+                    mode: openRegistration ? "casual" : "contest",
+                    maxPlayers: maxPlayersForRoomMode(openRegistration ? "casual" : "contest"),
                     version: 0,
                     status: "lobby",
                     timeLimitSec: exam.timeLimitSec,
@@ -1897,7 +1906,13 @@ io.on("connection", (socket) => {
                 socket.join(code);
                 setSocketPlayer(socket, { roomCode: code, playerId, socketToken });
                 socket.emit("player:you", playerId);
-                addLog(room, "system", `${nickname} 등록 완료. virtual gym 대기실을 열었습니다.`);
+                addLog(
+                    room,
+                    "system",
+                    openRegistration
+                        ? `${nickname} 예비고사 대기실을 열었습니다.`
+                        : `${nickname} 등록 완료. virtual gym 대기실을 열었습니다.`,
+                );
                 const snapshot = emitRoom(room);
                 replyAfterRoomCommit(reply, { ok: true, data: snapshot });
             });

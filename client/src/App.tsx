@@ -222,7 +222,8 @@ export function App() {
     const registerForEvent = async (eventId: string) => {
         if (pendingEventAction) return;
         setError("");
-        if (!hasReferralVerification || !campaignUser) {
+        const event = events.find((event) => event.id === eventId);
+        if (event?.registration !== "open" && (!hasReferralVerification || !campaignUser)) {
             await spectateEvent(eventId);
             return;
         }
@@ -230,8 +231,8 @@ export function App() {
         try {
             const response = await emitWithAck<RoomPublic>("event:register", {
                 eventId,
-                accountId: campaignUser.username,
-                nickname: entrantNickname(campaignUser),
+                accountId: campaignUser?.username,
+                nickname: campaignUser ? entrantNickname(campaignUser) : "예비응시자",
             });
             if (!response.ok || !response.data) {
                 setError(response.error ?? "등록 실패");

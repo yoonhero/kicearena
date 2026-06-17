@@ -32,6 +32,7 @@
         grid-template-columns: 1fr;
         grid-template-areas:
             "clock"
+            "stats"
             "actions";
         gap: 8px;
         align-items: stretch;
@@ -44,7 +45,19 @@
     }
 
     .compact-stats {
-        display: none;
+        grid-area: stats;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 5px;
+    }
+
+    .compact-stats span {
+        justify-content: center;
+        min-height: 30px;
+        padding: 0 4px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-size: 10px;
     }
 
     .topbar-actions {
@@ -91,6 +104,7 @@
         grid-template-columns: 1fr;
         grid-template-areas:
             "clock"
+            "stats"
             "actions";
     }
 

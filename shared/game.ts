@@ -79,7 +79,7 @@ export type GymEventStatus = "upcoming" | "open";
 export interface GymEventSummary extends ExamSummary {
   startsAt: string | null;
   status: GymEventStatus;
-  registration: "invite-only";
+  registration: "invite-only" | "open";
   spectatorAllowed: true;
 }
 

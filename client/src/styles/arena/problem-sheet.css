@@ -166,13 +166,13 @@
     flex: 1;
     display: grid;
     place-items: center;
-    min-height: clamp(340px, 56vh, 680px);
+    min-height: clamp(300px, 46vh, 620px);
 }
 
 .problem-image-wrap.tall-problem {
     place-items: start center;
     overflow: auto;
-    max-height: clamp(360px, 58vh, 720px);
+    max-height: clamp(320px, 48vh, 660px);
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
 }
@@ -180,14 +180,14 @@
 .problem-image-wrap img {
     display: block;
     width: 100%;
-    max-height: clamp(340px, 56vh, 680px);
+    max-height: clamp(300px, 46vh, 620px);
     object-fit: contain;
     background: var(--paper);
 }
 
 .kice-problem-content {
     width: min(880px, 100%);
-    min-height: clamp(340px, 56vh, 680px);
+    min-height: clamp(300px, 46vh, 620px);
     padding: clamp(22px, 4vw, 48px) clamp(18px, 4vw, 54px);
     background: #fffef9;
     color: #0b0b0b;

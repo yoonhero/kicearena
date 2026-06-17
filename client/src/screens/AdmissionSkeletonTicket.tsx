@@ -1,4 +1,8 @@
-export function AdmissionSkeletonTicket() {
+export function AdmissionSkeletonTicket({
+    note = "추천 링크로 입장하면 성명과 위치 확인 후 자동 발급됩니다.",
+}: {
+    note?: string;
+}) {
     return (
         <section
             className="gym-admission-slip admission-skeleton-ticket"
@@ -33,7 +37,7 @@ export function AdmissionSkeletonTicket() {
             </div>
             <div className="admission-skeleton-note">
                 <span>발급 안내</span>
-                <strong>추천 링크로 입장하면 성명과 위치 확인 후 자동 발급됩니다.</strong>
+                <strong>{note}</strong>
             </div>
         </section>
     );

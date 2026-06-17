@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ExamManifest } from "../shared/game.js";
-import { isExamReleased, toExamPublic, toExamSummary, toGymEventSummary } from "./exams.js";
+import { isExamReleased, isOpenRegistrationExam, toExamPublic, toExamSummary, toGymEventSummary } from "./exams.js";
 
 const exam: ExamManifest = {
   id: "mock-exam",
@@ -84,6 +84,18 @@ describe("exam serialization", () => {
     expect(toGymEventSummary(exam, Date.parse("2026-06-04T00:00:00.000Z"))).toMatchObject({
       startsAt: null,
       status: "open"
+    });
+  });
+
+  it("marks the preliminary exam as always open for registration", () => {
+    const preliminaryExam = { ...exam, id: "preliminary-day" };
+
+    expect(isOpenRegistrationExam(preliminaryExam)).toBe(true);
+    expect(toGymEventSummary(preliminaryExam)).toMatchObject({
+      id: "preliminary-day",
+      status: "open",
+      registration: "open",
+      spectatorAllowed: true
     });
   });
 });

@@ -3,43 +3,24 @@ import { useMemo } from "react";
 import type { CampaignUserPublic, ReferralLocationVerification } from "../../../shared/campaign";
 import type { GymEventSummary } from "../../../shared/game";
 import { AdmissionSkeletonTicket } from "./AdmissionSkeletonTicket";
-import { ExamPaperPreview } from "./ExamPaperPreview";
+import {
+    getAdmissionSkeletonNote,
+    getEntrantStatus,
+    makeEventDisplays,
+    makeIndexEvents,
+    type EventDisplay,
+} from "./eventHomeModels";
 import { SavedAdmissionTicket } from "./SavedAdmissionTicket";
 
 type PendingEventAction = { eventId: string; action: "register" | "spectate" } | null;
-type EventDisplay = GymEventSummary & {
-    startLabel: string;
-    statusLabel: string;
-    durationLabel: string;
-};
 type EventAccess = {
     canRegister: boolean;
     canSpectate: boolean;
     hint: string;
 };
-type IndexDisplay = {
-    title: string;
-    detail: string;
-};
 type EntrantState = {
     hasReferralVerification: boolean;
     isLoggedIn: boolean;
-};
-
-const formatEventStart = (startsAt: string | null) => {
-    if (!startsAt) return "상시 공개";
-    return new Date(startsAt).toLocaleString("ko-KR", {
-        month: "long",
-        day: "numeric",
-        weekday: "short",
-        hour: "2-digit",
-        minute: "2-digit",
-    });
-};
-
-const getEntrantStatus = (hasReferralVerification: boolean, hasOpenEvent: boolean) => {
-    if (hasReferralVerification) return "응시표 저장 완료";
-    return hasOpenEvent ? "공개 관전 가능" : "인증 전";
 };
 
 export function EventHomeScreen({
@@ -77,16 +58,7 @@ export function EventHomeScreen({
     pendingEventAction: PendingEventAction;
     error: string;
 }) {
-    const displayEvents = useMemo<EventDisplay[]>(
-        () =>
-            events.map((event) => ({
-                ...event,
-                startLabel: formatEventStart(event.startsAt),
-                statusLabel: event.status === "upcoming" ? "예정" : "공개",
-                durationLabel: `${Math.round(event.timeLimitSec / 60)}분`,
-            })),
-        [events],
-    );
+    const displayEvents = useMemo(() => makeEventDisplays(events), [events]);
     const entrantState = {
         hasReferralVerification,
         isLoggedIn: Boolean(campaignUser),
@@ -97,17 +69,8 @@ export function EventHomeScreen({
     const hasSavedTicket = Boolean(campaignUser || referralVerification);
     const scheduleCountLabel = eventsUnavailable ? "확인 대기" : `${displayEvents.length}건`;
     const hasDisplayEvents = displayEvents.length > 0;
-    const indexEvents: IndexDisplay[] = hasDisplayEvents
-        ? displayEvents.slice(0, 3).map((event) => ({
-              title: event.title,
-              detail: `${event.statusLabel} · ${event.startLabel}`,
-          }))
-        : [
-              {
-                  title: eventsUnavailable ? "공개 예정 시험 확인 중" : "공개 예정 시험 없음",
-                  detail: eventsUnavailable ? "연결 대기" : "운영자 공개 대기",
-              },
-          ];
+    const indexEvents = makeIndexEvents(displayEvents, eventsUnavailable);
+    const admissionSkeletonNote = getAdmissionSkeletonNote(displayEvents);
 
     if (inviteMode) {
         return (
@@ -200,8 +163,6 @@ export function EventHomeScreen({
                     )}
                 </section>
 
-                <ExamPaperPreview />
-
                 <div className="exam-reference-support">
                     <section className="exam-reference-ticket" aria-label="수험표">
                         {hasSavedTicket ? (
@@ -211,7 +172,7 @@ export function EventHomeScreen({
                                 referralVerification={referralVerification}
                             />
                         ) : (
-                            <AdmissionSkeletonTicket />
+                            <AdmissionSkeletonTicket note={admissionSkeletonNote} />
                         )}
                     </section>
 
@@ -272,6 +233,13 @@ function getEventAccess({
             canRegister: false,
             canSpectate: false,
             hint: "공개 시간이 되면 참가와 관전이 열립니다.",
+        };
+    }
+    if (event.registration === "open") {
+        return {
+            canRegister: true,
+            canSpectate: true,
+            hint: "계정 없이도 바로 예비고사를 풀 수 있습니다.",
         };
     }
     if (!entrantState.hasReferralVerification) {
@@ -336,7 +304,9 @@ function EventRow({
                         <UserRound size={18} />
                         {pendingThisEvent && pendingEventAction?.action === "register"
                             ? "응시 중"
-                            : "시험 응시"}
+                            : event.registration === "open"
+                              ? "예비고사 응시"
+                              : "시험 응시"}
                     </button>
                 )}
                 {access.canSpectate && (
