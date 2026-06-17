@@ -11,9 +11,10 @@
 
 .spectator-topbar,
 .spectator-empty {
-    border: 2px solid var(--line);
+    border-top: 2px solid var(--line);
+    border-bottom: 2px solid var(--line);
     background: var(--paper);
-    padding: 16px;
+    padding: 14px 0;
 }
 
 .spectator-topbar {
@@ -33,6 +34,8 @@
     display: block;
     margin-top: 3px;
     overflow-wrap: anywhere;
+    font-size: clamp(18px, 2.4vw, 26px);
+    line-height: 1.1;
 }
 
 .spectator-topbar em {
@@ -58,7 +61,8 @@
     --mobile-answer-offset: 24px;
     --mobile-command-offset: 18px;
     --mobile-command-height: 56px;
-    margin-top: 18px;
+    margin-top: 14px;
+    border-top: 0;
 }
 
 .spectator-layout .spectator-preview {
@@ -79,13 +83,13 @@
 .spectator-problem-nav button {
     aspect-ratio: 1;
     border: 1px solid rgba(18, 18, 18, 0.3);
-    background: #fff;
+    background: var(--paper);
     font-weight: 1000;
 }
 
 .spectator-problem-nav button.active {
     background: var(--ui-accent);
-    color: #fff;
+    color: var(--paper);
 }
 
 @media (max-width: 720px) {
@@ -96,6 +100,8 @@
 
     .spectator-topbar {
         grid-template-columns: 1fr;
+        gap: 8px;
+        padding: 12px 0;
     }
 
     .spectator-layout .spectator-sheet {

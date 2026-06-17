@@ -1,0 +1,101 @@
+.gym-primary-action {
+    min-height: 44px;
+    border: 0;
+    border-bottom: 2px solid var(--line);
+    background: var(--accent);
+    box-shadow: none;
+    color: var(--ink);
+    font-weight: 1000;
+}
+
+.gym-secondary-action {
+    min-height: 44px;
+    border: 0;
+    border-bottom: 2px solid rgba(18, 18, 18, 0.72);
+    background: transparent;
+    color: var(--ink);
+    font-weight: 1000;
+}
+
+.gym-omr-block,
+.gym-admission-slip {
+    margin-top: clamp(20px, 10vh, 92px);
+    border: 0;
+    border-top: 2px solid var(--line);
+    border-bottom: 1px solid rgba(18, 18, 18, 0.34);
+    background: transparent;
+    padding: 16px 0 14px;
+}
+
+.gym-ticket-block {
+    justify-items: stretch;
+    background: transparent;
+}
+
+.gym-ticket-card {
+    width: 100%;
+    max-width: none;
+    background: rgba(255, 254, 249, 0.64);
+    box-shadow: none;
+}
+
+.gym-admission-slip {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 360px);
+    gap: clamp(16px, 3vw, 36px);
+    align-items: center;
+}
+
+.gym-admission-copy {
+    display: grid;
+    gap: 5px;
+    min-width: 0;
+}
+
+.gym-admission-slip span {
+    color: rgba(18, 18, 18, 0.58);
+    font-size: 12px;
+    font-weight: 1000;
+}
+
+.gym-admission-slip strong {
+    overflow-wrap: anywhere;
+    font-size: 22px;
+    line-height: 1.18;
+}
+
+.gym-admission-fields {
+    display: grid;
+    grid-template-columns: auto minmax(80px, 1fr) auto minmax(80px, 1fr);
+    align-items: center;
+    gap: 8px 12px;
+    min-width: 0;
+}
+
+.gym-admission-fields span {
+    color: rgba(18, 18, 18, 0.58);
+    font-size: 12px;
+    font-weight: 1000;
+}
+
+.gym-admission-fields i {
+    display: block;
+    min-width: 0;
+    height: 24px;
+    border-bottom: 2px solid var(--line);
+}
+
+@media (max-width: 720px) {
+    .gym-admission-slip {
+        grid-template-columns: 1fr;
+        margin-top: 42px;
+    }
+
+    .gym-admission-fields {
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .gym-admission-slip strong {
+        font-size: 20px;
+    }
+}

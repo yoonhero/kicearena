@@ -94,6 +94,7 @@ export function App() {
     const [pendingEventAction, setPendingEventAction] = useState<PendingEventAction>(null);
     const [loadingInitialRoom, setLoadingInitialRoom] = useState(true);
     const [eventsLoaded, setEventsLoaded] = useState(false);
+    const [eventsUnavailable, setEventsUnavailable] = useState(false);
     const rejoinAttempted = useRef(false);
     const spectatorRequestRef = useRef<AbortController | null>(null);
 
@@ -107,9 +108,18 @@ export function App() {
 
     useEffect(() => {
         fetch("/api/events")
-            .then((res) => res.json())
-            .then((data: GymEventSummary[]) => setEvents(data))
-            .catch(() => setError("서버의 이벤트 목록을 불러오지 못했습니다."))
+            .then((res) => {
+                if (!res.ok) throw new Error(`events:${res.status}`);
+                return res.json();
+            })
+            .then((data: GymEventSummary[]) => {
+                setEvents(data);
+                setEventsUnavailable(false);
+            })
+            .catch((error) => {
+                setEventsUnavailable(true);
+                console.warn("Failed to load gym events", error);
+            })
             .finally(() => setEventsLoaded(true));
     }, []);
 
@@ -335,6 +345,7 @@ export function App() {
             completeReferralGate={completeReferralGate}
             exitReferralGate={exitReferralGate}
             events={events}
+            eventsUnavailable={eventsUnavailable}
             campaignUser={campaignUser}
             referralVerification={referralVerification}
             hasReferralVerification={hasReferralVerification}

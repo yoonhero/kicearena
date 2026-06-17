@@ -128,7 +128,7 @@
 }
 
 .reveal-next-btn {
-    min-height: 42px;
+    min-height: 44px;
     border: 2px solid var(--line);
     background: var(--accent);
     display: inline-flex;

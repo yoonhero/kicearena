@@ -4,6 +4,7 @@ import type { AppScreen } from "../components/AppRoutes";
 import {
     hasStoredReferralLocationVerification,
     readAnyStoredReferralVerification,
+    readStoredReferralVerification,
 } from "../lib/referralVerification";
 
 const readReferralCode = () =>
@@ -11,7 +12,10 @@ const readReferralCode = () =>
 
 export function useReferralGateState(screen: AppScreen) {
     const [referralCode, setReferralCode] = useState(readReferralCode);
-    const [referralGatePassed, setReferralGatePassed] = useState(() => !readReferralCode());
+    const [referralGatePassed, setReferralGatePassed] = useState(() => {
+        const initialReferralCode = readReferralCode();
+        return !initialReferralCode || Boolean(readStoredReferralVerification(initialReferralCode));
+    });
     const [hasReferralVerification, setHasReferralVerification] = useState(
         hasStoredReferralLocationVerification,
     );

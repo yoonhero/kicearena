@@ -2,6 +2,11 @@ import type { ReferralLocationVerification } from "../../../shared/campaign";
 
 const REFERRAL_VERIFICATION_KEY = "kice-referral-location-verification";
 
+const isCompleteReferralVerification = (
+    verification: ReferralLocationVerification | null,
+): verification is ReferralLocationVerification =>
+    Boolean(verification?.referralCode && verification.school?.id && verification.nickname?.trim());
+
 export const readStoredReferralVerification = (
     referralCode: string,
 ): ReferralLocationVerification | null => {
@@ -9,7 +14,9 @@ export const readStoredReferralVerification = (
     if (!raw) return null;
     try {
         const parsed = JSON.parse(raw) as ReferralLocationVerification;
-        return parsed.referralCode === referralCode ? parsed : null;
+        return parsed.referralCode === referralCode && isCompleteReferralVerification(parsed)
+            ? parsed
+            : null;
     } catch {
         return null;
     }
@@ -20,7 +27,7 @@ export const readAnyStoredReferralVerification = (): ReferralLocationVerificatio
     if (!raw) return null;
     try {
         const parsed = JSON.parse(raw) as ReferralLocationVerification;
-        return parsed?.referralCode && parsed.school?.id ? parsed : null;
+        return isCompleteReferralVerification(parsed) ? parsed : null;
     } catch {
         return null;
     }
@@ -35,7 +42,7 @@ export const hasStoredReferralLocationVerification = () => {
     if (!raw) return false;
     try {
         const parsed = JSON.parse(raw) as ReferralLocationVerification;
-        return Boolean(parsed.referralCode && parsed.school?.id);
+        return isCompleteReferralVerification(parsed);
     } catch {
         return false;
     }

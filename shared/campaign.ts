@@ -27,6 +27,7 @@ export type ReferralLocationVerification = {
     school: HighSchool;
     distanceKm: number;
     verifiedAt: string;
+    nickname?: string;
 };
 
 export type CampaignStats = {

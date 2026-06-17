@@ -49,6 +49,7 @@ export function AppRoutes(props: {
     completeReferralGate: (verification: ReferralLocationVerification) => void;
     exitReferralGate: () => void;
     events: GymEventSummary[];
+    eventsUnavailable: boolean;
     campaignUser: CampaignUserPublic | null;
     hasReferralVerification: boolean;
     nickname: string;
@@ -85,6 +86,7 @@ export function AppRoutes(props: {
             {props.screen === "home" && !props.needsReferralGate && (
                 <EventHomeScreen
                     events={props.events}
+                    eventsUnavailable={props.eventsUnavailable}
                     campaignUser={props.campaignUser}
                     referralVerification={props.referralVerification}
                     hasReferralVerification={props.hasReferralVerification}

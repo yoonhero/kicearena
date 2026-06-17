@@ -1,11 +1,13 @@
 .gym-exam-cover {
     background:
+        radial-gradient(ellipse at 50% 22%, rgba(255, 255, 255, 0.74), transparent 30%),
         linear-gradient(
             180deg,
             transparent 0 84px,
             rgba(18, 18, 18, 0.045) 84px 86px,
             transparent 86px
         ),
+        repeating-linear-gradient(0deg, transparent 0 31px, rgba(18, 18, 18, 0.026) 31px 32px),
         linear-gradient(90deg, rgba(18, 18, 18, 0.028) 0 1px, transparent 1px 18px), var(--paper);
 }
 
@@ -16,8 +18,8 @@
 .gym-cover-title::after {
     content: "";
     width: min(360px, 72vw);
-    height: 28px;
-    margin-top: 8px;
+    height: 20px;
+    margin-top: 4px;
     background:
         radial-gradient(
                 circle at center,
@@ -36,6 +38,16 @@
     background: rgba(255, 254, 249, 0.64);
 }
 
+.gym-cover-title small {
+    justify-self: end;
+    border: 1.5px solid rgba(18, 18, 18, 0.62);
+    background: rgba(255, 254, 249, 0.72);
+    padding: 3px 8px;
+    color: rgba(18, 18, 18, 0.62);
+    font-size: 11px;
+    font-weight: 1000;
+}
+
 .gym-ticket-block {
     justify-items: center;
     background: repeating-linear-gradient(
@@ -48,13 +60,13 @@
 .gym-ticket-card {
     display: grid;
     width: min(720px, 100%);
-    min-height: 168px;
+    min-height: 176px;
     grid-template-columns: minmax(0, 1fr) minmax(136px, 0.42fr);
     grid-template-areas:
         "title side"
         "main side";
     border: 2px solid rgba(18, 18, 18, 0.74);
-    background: rgba(255, 254, 249, 0.72);
+    background: rgba(255, 254, 249, 0.84);
 }
 
 .gym-ticket-title {
@@ -78,7 +90,7 @@
 .gym-ticket-title strong {
     font-size: clamp(24px, 3.6vw, 38px);
     line-height: 1;
-    letter-spacing: 0.2em;
+    letter-spacing: 0.28em;
 }
 
 .gym-ticket-main {
@@ -123,7 +135,8 @@
     gap: 8px;
     min-width: 0;
     padding: 12px;
-    background: rgba(213, 235, 220, 0.78);
+    border-left: 2px solid rgba(18, 18, 18, 0.72);
+    background: rgba(213, 235, 220, 0.82);
 }
 
 .gym-ticket-side span {
@@ -141,7 +154,8 @@
 }
 
 .gym-ticket-side strong {
-    font-size: clamp(17px, 2.4vw, 24px);
+    font-size: clamp(18px, 2.6vw, 26px);
+    letter-spacing: 0.04em;
 }
 
 .gym-ticket-side small {
@@ -158,13 +172,12 @@
 
 .gym-admission-slip {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
+    grid-template-columns: minmax(0, 1fr);
     gap: 12px;
     margin-top: clamp(18px, 3vh, 28px);
-    border-top: 2px solid rgba(18, 18, 18, 0.72);
-    border-bottom: 2px solid rgba(18, 18, 18, 0.72);
-    padding: 14px 0;
+    border: 2px solid rgba(18, 18, 18, 0.74);
+    background: rgba(255, 254, 249, 0.56);
+    padding: 12px 14px;
 }
 
 .gym-admission-slip div {
@@ -185,7 +198,39 @@
     line-height: 1.12;
 }
 
+.gym-admission-omr {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+    border-top: 1.5px solid rgba(18, 18, 18, 0.52);
+    padding-top: 10px;
+}
+
+.gym-admission-omr i {
+    display: block;
+    width: min(24px, 100%);
+    aspect-ratio: 1;
+    justify-self: center;
+    border: 1.5px solid rgba(18, 18, 18, 0.58);
+    border-radius: 50%;
+    background: rgba(255, 254, 249, 0.66);
+}
+
 @media (max-width: 720px) {
+    .gym-cover-title > span {
+        padding: 2px 12px;
+        font-size: clamp(14px, 4.6vw, 18px);
+    }
+
+    .gym-cover-title em {
+        font-size: clamp(12px, 3.6vw, 16px);
+    }
+
+    .gym-cover-title > strong {
+        padding: 4px 10px;
+        font-size: clamp(15px, 4.4vw, 18px);
+    }
+
     .gym-ticket-card {
         width: 100%;
         grid-template-columns: minmax(0, 1fr);
@@ -207,8 +252,7 @@
         border-top: 2px solid rgba(18, 18, 18, 0.72);
     }
 
-    .gym-ticket-main,
-    .gym-admission-slip {
+    .gym-ticket-main {
         grid-template-columns: 1fr;
     }
 }
@@ -228,7 +272,26 @@
         border-right: 0;
     }
 
-    .gym-admission-slip .gym-secondary-action {
-        width: 100%;
+    .gym-cover-title small {
+        justify-self: center;
+    }
+
+    .gym-cover-title > span {
+        font-size: 15px;
+    }
+
+    .gym-admission-slip {
+        gap: 10px;
+        padding: 10px;
+    }
+
+    .gym-admission-omr {
+        gap: 6px;
+        padding-top: 8px;
+    }
+
+    .gym-cover-title::after {
+        height: 16px;
+        margin-top: 2px;
     }
 }

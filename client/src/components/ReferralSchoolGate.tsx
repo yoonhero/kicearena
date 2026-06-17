@@ -5,6 +5,11 @@ import {
     readStoredReferralVerification,
     saveReferralVerification,
 } from "../lib/referralVerification";
+import {
+    shouldHandleDefaultSnuReferralInDev,
+    verifyDefaultSnuReferralInDev,
+} from "../lib/devReferralFallback";
+import { ReferralNicknameOmr } from "./ReferralNicknameOmr";
 
 export function ReferralSchoolGate({
     referralCode,
@@ -18,6 +23,7 @@ export function ReferralSchoolGate({
     const [verification, setVerification] = useState<ReferralLocationVerification | null>(() =>
         readStoredReferralVerification(referralCode),
     );
+    const [nickname, setNickname] = useState(() => verification?.nickname ?? "");
     const [status, setStatus] = useState("");
     const [error, setError] = useState("");
     const [checking, setChecking] = useState(false);
@@ -35,6 +41,10 @@ export function ReferralSchoolGate({
 
     const verifyLocation = async () => {
         setError("");
+        if (!nickname.trim()) {
+            setError("성명을 먼저 정하세요.");
+            return;
+        }
         setStatus("위치 확인 중");
         setChecking(true);
         let timeout = 0;
@@ -46,6 +56,20 @@ export function ReferralSchoolGate({
                     maximumAge: 30000,
                 });
             });
+            const devFallback = verifyDefaultSnuReferralInDev(
+                referralCode,
+                position.coords.latitude,
+                position.coords.longitude,
+            );
+            if (devFallback) {
+                issueTicket(devFallback);
+                return;
+            }
+            if (shouldHandleDefaultSnuReferralInDev(referralCode)) {
+                setError("서울대학교 근처에서만 발급할 수 있습니다.");
+                setStatus("");
+                return;
+            }
             const controller = new AbortController();
             timeout = window.setTimeout(() => controller.abort(), 10000);
             const response = await fetch("/api/campaign/referral-location-verify", {
@@ -63,18 +87,13 @@ export function ReferralSchoolGate({
                 setError(
                     response.status === 403
                         ? "이 위치에서는 학교 인증을 완료할 수 없습니다."
-                        : "인증 요청을 처리하지 못했습니다.",
+                        : "인증 서버가 실행 중인지 확인하세요.",
                 );
                 setStatus("");
                 return;
             }
             const nextVerification = (await response.json()) as ReferralLocationVerification;
-            saveReferralVerification(nextVerification);
-            setVerification(nextVerification);
-            setStatus("수험표 발행 완료");
-            window.setTimeout(() => {
-                if (mountedRef.current) onVerified(nextVerification);
-            }, 650);
+            issueTicket(nextVerification);
         } catch (error) {
             if (mountedRef.current) {
                 setError(
@@ -88,6 +107,16 @@ export function ReferralSchoolGate({
             if (timeout) window.clearTimeout(timeout);
             if (mountedRef.current) setChecking(false);
         }
+    };
+
+    const issueTicket = (nextVerification: ReferralLocationVerification) => {
+        const ticket = { ...nextVerification, nickname: nickname.trim() };
+        saveReferralVerification(ticket);
+        setVerification(ticket);
+        setStatus("수험표 발행 완료");
+        window.setTimeout(() => {
+            if (mountedRef.current) onVerified(ticket);
+        }, 650);
     };
 
     return (
@@ -109,10 +138,13 @@ export function ReferralSchoolGate({
                         <em>{distanceLabel}</em>
                     </div>
                 ) : (
-                    <div className="referral-gate-copy">
-                        <strong>학교 위치를 확인하면 응시표가 발급됩니다.</strong>
-                        <span>발급된 응시표는 이 기기에 저장됩니다.</span>
-                    </div>
+                    <>
+                        <div className="referral-gate-copy">
+                            <strong>성명을 정한 뒤 학교 위치를 확인하세요.</strong>
+                            <span>인증이 끝나면 응시표가 이 기기에 저장됩니다.</span>
+                        </div>
+                        <ReferralNicknameOmr nickname={nickname} setNickname={setNickname} />
+                    </>
                 )}
 
                 {!verification ? (
@@ -120,7 +152,7 @@ export function ReferralSchoolGate({
                         type="button"
                         className="omr-action referral-gate-action"
                         onClick={() => void verifyLocation()}
-                        disabled={checking}
+                        disabled={!nickname.trim() || checking}
                     >
                         <LocateFixed size={18} />
                         {checking ? "확인 중" : "위치 확인"}

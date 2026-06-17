@@ -1,6 +1,8 @@
-import type { RoomStatus } from "./game.js";
+import type { RoomMode, RoomStatus } from "./game.js";
 
 export interface RoomMetricInput {
+  mode: RoomMode;
+  eventId: string;
   status: RoomStatus;
   endsAt: number | null;
   createdAt: number;
@@ -54,6 +56,9 @@ export interface RuntimeMetricSummary {
   };
   roomDisconnectRiskScore: number;
   roomCleanupPressureScore: number;
+  contestCount: number;
+  contestSessionsByStatus: Record<string, Record<RoomStatus, number>>;
+  contestParticipantsByState: Record<string, { total: number; connected: number; disconnected: number }>;
 }
 
 export interface RuntimeMetricGaugeSample {
@@ -112,6 +117,9 @@ export const summarizeRoomMetrics = (rooms: RoomMetricInput[], now: number, ttl:
   const expirySeconds: number[] = [];
   const overdueSeconds: number[] = [];
   const playingTimeRemainingSeconds: number[] = [];
+  const activeContestIds = new Set<string>();
+  const contestSessionsByStatus: RuntimeMetricSummary["contestSessionsByStatus"] = {};
+  const contestParticipantsByState: RuntimeMetricSummary["contestParticipantsByState"] = {};
 
   for (const room of rooms) {
     statusCounts[room.status] += 1;
@@ -144,6 +152,17 @@ export const summarizeRoomMetrics = (rooms: RoomMetricInput[], now: number, ttl:
     if (room.status === "playing" && room.endsAt !== null) {
       playingTimeRemainingSeconds.push(Math.max(0, (room.endsAt - now) / 1000));
     }
+
+    if (room.mode === "contest") {
+      const eventId = room.eventId || "unknown";
+      contestSessionsByStatus[eventId] ??= { lobby: 0, playing: 0, finished: 0 };
+      contestParticipantsByState[eventId] ??= { total: 0, connected: 0, disconnected: 0 };
+      contestSessionsByStatus[eventId][room.status] += 1;
+      contestParticipantsByState[eventId].total += room.playerCount;
+      contestParticipantsByState[eventId].connected += room.connectedPlayerCount;
+      contestParticipantsByState[eventId].disconnected += Math.max(0, room.playerCount - room.connectedPlayerCount);
+      if (room.status !== "finished") activeContestIds.add(eventId);
+    }
   }
 
   const activeRoomCount = rooms.filter((room) => room.status !== "finished").length;
@@ -174,7 +193,10 @@ export const summarizeRoomMetrics = (rooms: RoomMetricInput[], now: number, ttl:
     roomExpiryOverdueSeconds: summarizeSeconds(overdueSeconds),
     playingRoomTimeRemainingSeconds: summarizeSeconds(playingTimeRemainingSeconds),
     roomDisconnectRiskScore: boundedScore(ratio(disconnectRiskNumerator, activeRoomCount)),
-    roomCleanupPressureScore: boundedScore(ratio(cleanupRiskNumerator, activeRoomCount))
+    roomCleanupPressureScore: boundedScore(ratio(cleanupRiskNumerator, activeRoomCount)),
+    contestCount: activeContestIds.size,
+    contestSessionsByStatus,
+    contestParticipantsByState
   };
 };
 
@@ -332,7 +354,28 @@ export const derivedRuntimeMetricSamples = (summary: RuntimeMetricSummary): Runt
     name: "kice_arena_room_cleanup_pressure_score",
     help: "Weighted room cleanup pressure score. Value range: 0..1.",
     value: summary.roomCleanupPressureScore
-  }
+  },
+  {
+    name: "kice_arena_contests_active",
+    help: "Distinct contest events with at least one non-finished participant session.",
+    value: summary.contestCount
+  },
+  ...Object.entries(summary.contestSessionsByStatus).flatMap(([eventId, counts]) =>
+    (["lobby", "playing", "finished"] as const).map((status) => ({
+      name: "kice_arena_contest_sessions",
+      help: "Contest participant sessions by event and room status.",
+      labels: { event_id: eventId, status },
+      value: counts[status]
+    }))
+  ),
+  ...Object.entries(summary.contestParticipantsByState).flatMap(([eventId, counts]) =>
+    (["total", "connected", "disconnected"] as const).map((state) => ({
+      name: "kice_arena_contest_participants",
+      help: "Contest participants by event and connection state.",
+      labels: { event_id: eventId, state },
+      value: counts[state]
+    }))
+  )
 ];
 
 export const runtimeMetricSamples = (

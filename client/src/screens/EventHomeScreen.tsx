@@ -1,11 +1,9 @@
 import { DoorOpen, Eye, LogIn, UserRound } from "lucide-react";
 import { useMemo } from "react";
-import {
-    DEFAULT_SNU_REFERRAL_CODE,
-    type CampaignUserPublic,
-    type ReferralLocationVerification,
-} from "../../../shared/campaign";
+import type { CampaignUserPublic, ReferralLocationVerification } from "../../../shared/campaign";
 import type { GymEventSummary } from "../../../shared/game";
+import { AdmissionSkeletonTicket } from "./AdmissionSkeletonTicket";
+import { ExamPaperPreview } from "./ExamPaperPreview";
 import { SavedAdmissionTicket } from "./SavedAdmissionTicket";
 
 type PendingEventAction = { eventId: string; action: "register" | "spectate" } | null;
@@ -18,6 +16,10 @@ type EventAccess = {
     canRegister: boolean;
     canSpectate: boolean;
     hint: string;
+};
+type IndexDisplay = {
+    title: string;
+    detail: string;
 };
 type EntrantState = {
     hasReferralVerification: boolean;
@@ -35,18 +37,14 @@ const formatEventStart = (startsAt: string | null) => {
     });
 };
 
-const getEntrantStatus = (
-    hasReferralVerification: boolean,
-    isLoggedIn: boolean,
-    hasOpenEvent: boolean,
-) => {
-    if (hasReferralVerification && isLoggedIn) return "응시표 저장 완료";
-    if (!hasReferralVerification) return hasOpenEvent ? "공개 관전 가능" : "인증 전";
-    return "등록 정보 없음";
+const getEntrantStatus = (hasReferralVerification: boolean, hasOpenEvent: boolean) => {
+    if (hasReferralVerification) return "응시표 저장 완료";
+    return hasOpenEvent ? "공개 관전 가능" : "인증 전";
 };
 
 export function EventHomeScreen({
     events,
+    eventsUnavailable,
     campaignUser,
     referralVerification,
     hasReferralVerification,
@@ -63,6 +61,7 @@ export function EventHomeScreen({
     error,
 }: {
     events: GymEventSummary[];
+    eventsUnavailable: boolean;
     campaignUser: CampaignUserPublic | null;
     referralVerification: ReferralLocationVerification | null;
     hasReferralVerification: boolean;
@@ -93,19 +92,32 @@ export function EventHomeScreen({
         isLoggedIn: Boolean(campaignUser),
     };
     const hasOpenEvent = displayEvents.some((event) => event.status === "open");
-    const entrantStatus = getEntrantStatus(
-        hasReferralVerification,
-        entrantState.isLoggedIn,
-        hasOpenEvent,
-    );
+    const entrantStatus = getEntrantStatus(hasReferralVerification, hasOpenEvent);
     const nextEvent = displayEvents[0];
     const hasSavedTicket = Boolean(campaignUser || referralVerification);
+    const scheduleCountLabel = eventsUnavailable ? "확인 대기" : `${displayEvents.length}건`;
+    const hasDisplayEvents = displayEvents.length > 0;
+    const indexEvents: IndexDisplay[] = hasDisplayEvents
+        ? displayEvents.slice(0, 3).map((event) => ({
+              title: event.title,
+              detail: `${event.statusLabel} · ${event.startLabel}`,
+          }))
+        : [
+              {
+                  title: eventsUnavailable ? "공개 예정 시험 확인 중" : "공개 예정 시험 없음",
+                  detail: eventsUnavailable ? "연결 대기" : "운영자 공개 대기",
+              },
+          ];
 
     if (inviteMode) {
         return (
             <main className="gym-layout gym-invite-layout">
                 <section className="gym-exam-cover gym-invite-ticket">
-                    <CoverHead marker="초대 시험실" page="1" />
+                    <CoverHead
+                        marker="2026. 06. 초대 시험실"
+                        descriptor="KICE ARENA 수학 영역"
+                        page="1"
+                    />
                     <div className="gym-cover-title">
                         <span>제 2 교시</span>
                         <em>2026학년도 KICE ARENA 문제지</em>
@@ -149,32 +161,25 @@ export function EventHomeScreen({
     }
 
     return (
-        <main className="gym-layout">
-            <section className="gym-exam-cover">
-                <CoverHead marker="모의평가 대회" page="1" />
-                <div className="gym-cover-title">
-                    <span>제 2 교시</span>
-                    <em>2026학년도 KICE ARENA 문제지</em>
-                    <h1>수학 영역</h1>
-                    <strong>{nextEvent?.statusLabel ?? "대기"}</strong>
-                </div>
+        <main className="gym-layout exam-reference-layout">
+            <section className="exam-reference-paper" aria-labelledby="exam-reference-title">
+                <header className="exam-reference-head">
+                    <strong>제 2 교시</strong>
+                    <span>2026학년도 KICE ARENA 모의고사 문제지</span>
+                    <em>{nextEvent?.statusLabel ?? "대기"}</em>
+                </header>
 
-                {hasSavedTicket && (
-                    <SavedAdmissionTicket
-                        campaignUser={campaignUser}
-                        entrantStatus={entrantStatus}
-                        referralVerification={referralVerification}
-                    />
-                )}
+                <h1 id="exam-reference-title">수학 영역</h1>
 
-                <section className="gym-event-list" aria-label="예정 대회">
+                <section
+                    className="gym-event-list exam-reference-events"
+                    aria-label="응시 가능한 시험"
+                >
                     <div className="gym-section-label">
-                        <span>시험 일정</span>
-                        <strong>{displayEvents.length}건</strong>
+                        <span>시험 시간표</span>
+                        <strong>{scheduleCountLabel}</strong>
                     </div>
-                    {displayEvents.length === 0 ? (
-                        <div className="gym-empty">현재 공개된 대회 일정이 없습니다.</div>
-                    ) : (
+                    {hasDisplayEvents ? (
                         displayEvents.map((event, index) => (
                             <EventRow
                                 key={event.id}
@@ -186,36 +191,72 @@ export function EventHomeScreen({
                                 pendingEventAction={pendingEventAction}
                             />
                         ))
+                    ) : (
+                        <p className="gym-empty">
+                            {eventsUnavailable
+                                ? "시험 일정을 불러오는 중입니다."
+                                : "운영자가 공개한 시험이 없습니다."}
+                        </p>
                     )}
                 </section>
-                {!hasSavedTicket && <AdmissionIssueSlip />}
+
+                <ExamPaperPreview />
+
+                <div className="exam-reference-support">
+                    <section className="exam-reference-ticket" aria-label="수험표">
+                        {hasSavedTicket ? (
+                            <SavedAdmissionTicket
+                                campaignUser={campaignUser}
+                                entrantStatus={entrantStatus}
+                                referralVerification={referralVerification}
+                            />
+                        ) : (
+                            <AdmissionSkeletonTicket />
+                        )}
+                    </section>
+
+                    <section className="exam-reference-index" aria-label="시험지 확인">
+                        <p>※ 시험 목록은 현재 공개 상태를 요약한 보조 확인란입니다.</p>
+                        <div className="exam-index-row">
+                            <span>시험 목록</span>
+                            <i />
+                            <strong>{scheduleCountLabel}</strong>
+                        </div>
+                        {indexEvents.map((event) => (
+                            <div
+                                className="exam-index-row nested"
+                                key={`${event.title}-${event.detail}`}
+                            >
+                                <span>{event.title}</span>
+                                <i />
+                                <strong>{event.detail}</strong>
+                            </div>
+                        ))}
+                    </section>
+                </div>
                 {error && <p className="gym-error error-text">{error}</p>}
             </section>
         </main>
     );
 }
 
-function CoverHead({ marker, page }: { marker: string; page: string }) {
+function CoverHead({
+    descriptor,
+    marker,
+    page,
+}: {
+    descriptor: string;
+    marker: string;
+    page: string;
+}) {
     return (
         <div className="gym-cover-head">
-            <span>{marker}</span>
+            <div>
+                <span>{marker}</span>
+                <em>{descriptor}</em>
+            </div>
             <strong>{page}</strong>
         </div>
-    );
-}
-
-function AdmissionIssueSlip() {
-    const href = `/?c=${DEFAULT_SNU_REFERRAL_CODE}`;
-    return (
-        <section className="gym-admission-slip" aria-label="응시표 발급 안내">
-            <div>
-                <span>응시표 없음</span>
-                <strong>추천 링크에서 위치 인증 후 자동 발급됩니다.</strong>
-            </div>
-            <a className="gym-secondary-action" href={href}>
-                서울대 인증 링크
-            </a>
-        </section>
     );
 }
 
@@ -283,20 +324,6 @@ function EventRow({
                 <span className={`gym-event-status ${event.status}`}>{event.statusLabel}</span>
                 <h2>{event.title}</h2>
                 <p>{event.subtitle}</p>
-                <dl>
-                    <div>
-                        <dt>시작</dt>
-                        <dd>{event.startLabel}</dd>
-                    </div>
-                    <div>
-                        <dt>시간</dt>
-                        <dd>{event.durationLabel}</dd>
-                    </div>
-                    <div>
-                        <dt>문항</dt>
-                        <dd>{event.problemCount}문항</dd>
-                    </div>
-                </dl>
             </div>
             <div className="gym-event-actions">
                 {access.canRegister && (
@@ -309,7 +336,7 @@ function EventRow({
                         <UserRound size={18} />
                         {pendingThisEvent && pendingEventAction?.action === "register"
                             ? "응시 중"
-                            : "대회 참가"}
+                            : "시험 응시"}
                     </button>
                 )}
                 {access.canSpectate && (
@@ -324,7 +351,7 @@ function EventRow({
                         <Eye size={18} />
                         {pendingThisEvent && pendingEventAction?.action === "spectate"
                             ? "관전 입장 중"
-                            : "관전 입장"}
+                            : "관전하기"}
                     </button>
                 )}
                 {!access.canSpectate && (
@@ -334,6 +361,20 @@ function EventRow({
                 )}
                 <p className="gym-action-hint">{access.hint}</p>
             </div>
+            <dl className="gym-event-meta">
+                <div>
+                    <dt>시작</dt>
+                    <dd>{event.startLabel}</dd>
+                </div>
+                <div>
+                    <dt>시간</dt>
+                    <dd>{event.durationLabel}</dd>
+                </div>
+                <div>
+                    <dt>문항</dt>
+                    <dd>{event.problemCount}문항</dd>
+                </div>
+            </dl>
         </article>
     );
 }

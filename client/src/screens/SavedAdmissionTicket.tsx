@@ -29,7 +29,7 @@ const readAdmissionTicketData = (
 ): AdmissionTicketData => {
     const school = ticketSchool(campaignUser, referralVerification);
     return {
-        badgeLabel: campaignUser?.badgeLabel ?? "",
+        badgeLabel: campaignUser?.badgeLabel ?? referralVerification?.nickname ?? "",
         referralCode: campaignUser?.referralCode ?? referralVerification?.referralCode ?? "",
         region: school?.region ?? "",
         schoolName: school?.name ?? "",
@@ -59,7 +59,7 @@ export function SavedAdmissionTicket({
             <div className="gym-ticket-card">
                 <div className="gym-ticket-title">
                     <span>2026학년도 KICE ARENA</span>
-                    <strong>응시표</strong>
+                    <strong>수 험 표</strong>
                 </div>
                 <div className="gym-ticket-main">
                     <div className="gym-ticket-row">
@@ -80,9 +80,9 @@ export function SavedAdmissionTicket({
                     </div>
                 </div>
                 <div className="gym-ticket-side">
-                    <span>추천코드</span>
+                    <span>수험번호</span>
                     <strong>{ticket.referralCode}</strong>
-                    <em>{ticket.username}</em>
+                    {ticket.username && <em>{ticket.username}</em>}
                 </div>
             </div>
             <p className="gym-ticket-note">이 기기에 저장된 응시표로 참가합니다.</p>

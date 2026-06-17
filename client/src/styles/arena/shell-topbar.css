@@ -123,7 +123,7 @@
 
 .status-link {
     width: fit-content;
-    min-height: 36px;
+    min-height: 44px;
     border: 0;
     border-bottom: 2px solid var(--line);
     background: transparent;
@@ -149,7 +149,7 @@
 }
 
 .status-link.ranking-link {
-    min-height: 38px;
+    min-height: 44px;
     border: 2px solid var(--line);
     background: var(--ui-accent);
     color: #fffef9;

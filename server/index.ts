@@ -371,6 +371,32 @@ const runtimeMetricGauges = new Map<string, Gauge<string>>([
             registers: [metricsRegistry],
         }),
     ],
+    [
+        "kice_arena_contests_active",
+        new Gauge({
+            name: "kice_arena_contests_active",
+            help: "Distinct contest events with at least one non-finished participant session.",
+            registers: [metricsRegistry],
+        }),
+    ],
+    [
+        "kice_arena_contest_sessions",
+        new Gauge({
+            name: "kice_arena_contest_sessions",
+            help: "Contest participant sessions by event and room status.",
+            labelNames: ["event_id", "status"],
+            registers: [metricsRegistry],
+        }),
+    ],
+    [
+        "kice_arena_contest_participants",
+        new Gauge({
+            name: "kice_arena_contest_participants",
+            help: "Contest participants by event and connection state.",
+            labelNames: ["event_id", "state"],
+            registers: [metricsRegistry],
+        }),
+    ],
 ]);
 
 const socketConnectionsGauge = new Gauge({
@@ -401,6 +427,13 @@ const answersSubmittedCounter = new Counter({
     name: "kice_arena_answers_submitted_total",
     help: "Total answer submissions since server start, labeled by correctness.",
     labelNames: ["correct"],
+    registers: [metricsRegistry],
+});
+
+const contestSubmissionsCounter = new Counter({
+    name: "kice_arena_contest_submissions_total",
+    help: "Total contest answer submissions since server start, labeled by event and correctness.",
+    labelNames: ["event_id", "correct"],
     registers: [metricsRegistry],
 });
 
@@ -757,6 +790,8 @@ const updateRuntimeMetrics = () => {
     const summary = summarizeRoomMetrics(
         [...rooms.values()].map((room) => ({
             status: room.status,
+            mode: room.mode,
+            eventId: room.exam.id,
             endsAt: room.endsAt,
             createdAt: room.createdAt,
             lastActivityAt: room.lastActivityAt,
@@ -2296,6 +2331,12 @@ io.on("connection", (socket) => {
                     return;
                 }
                 answersSubmittedCounter.inc({ correct: String(correct) });
+                if (room.mode === "contest") {
+                    contestSubmissionsCounter.inc({
+                        event_id: room.exam.id,
+                        correct: String(correct),
+                    });
+                }
                 const previousCorrect = player.submissions.some(
                     (submission) => submission.problemId === problem.id && submission.correct,
                 );

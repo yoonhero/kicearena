@@ -84,6 +84,7 @@ class DesignQuantTest(unittest.TestCase):
 
         self.assertGreater(report["scores"]["geometry_score"], 0.9)
         self.assertGreater(report["scores"]["copy_score"], 0.9)
+        self.assertGreater(report["scores"]["kice_flavor_score"], 0.75)
         self.assertEqual(report["aestheticDecision"], "aesthetically_good")
 
     def test_aesthetic_gate_catches_visual_noise(self) -> None:
@@ -126,6 +127,58 @@ class DesignQuantTest(unittest.TestCase):
         self.assertIn(report["decision"], {"revise", "fail"})
         self.assertNotEqual(report["aestheticDecision"], "aesthetically_good")
         self.assertLess(report["scores"]["contrast_score"], 0.8)
+        self.assertLess(report["scores"]["kice_flavor_score"], 0.65)
+
+    def test_kice_flavor_rewards_exam_specific_visual_language(self) -> None:
+        manifest = {
+            "route": "scoreboard",
+            "viewport": {"width": 1024, "height": 720},
+            "backgroundColor": "#f7f5ef",
+            "palette": ["#f7f5ef", "#1f2933", "#2f6473", "#b91c1c", "#16a34a"],
+            "dominantRoles": ["data", "status"],
+            "flavorSignals": ["paper", "ruled", "ink"],
+            "elements": [
+                {
+                    "id": "rank-grid",
+                    "role": "data",
+                    "text": "순위",
+                    "bbox": [32, 120, 860, 420],
+                    "signals": ["table", "rank", "score", "attempt", "accepted", "freeze"],
+                    "color": "#1f2933",
+                    "backgroundColor": "#f7f5ef",
+                    "borderColor": "#2f6473",
+                    "fontSize": 14,
+                },
+                {
+                    "id": "freeze-state",
+                    "role": "status",
+                    "text": "공개 순위는 종료 10분 전 고정됩니다",
+                    "bbox": [32, 72, 360, 32],
+                    "signals": ["state", "timer", "freeze"],
+                    "color": "#1f2933",
+                    "backgroundColor": "#f7f5ef",
+                    "fontSize": 14,
+                },
+                {
+                    "id": "back",
+                    "role": "secondary_action",
+                    "text": "시험실로 이동",
+                    "bbox": [32, 568, 160, 48],
+                    "signals": ["action", "verb", "exam_room"],
+                    "color": "#ffffff",
+                    "backgroundColor": "#2f6473",
+                    "accentColor": "#2f6473",
+                    "fontSize": 16,
+                },
+            ],
+        }
+
+        report = evaluate(manifest, root=Path.cwd())
+
+        self.assertGreater(report["scores"]["kice_flavor_score"], 0.85)
+        flavor_report = next(item for item in report["subsubagents"] if item["name"] == "kice_visual_flavor")
+        self.assertGreater(flavor_report["submetrics"]["contestTableFidelity"], 0.9)
+        self.assertGreater(flavor_report["submetrics"]["paperInkRestraint"], 0.9)
 
 
 if __name__ == "__main__":

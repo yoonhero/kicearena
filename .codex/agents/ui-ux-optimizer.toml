@@ -4,8 +4,8 @@ developer_instructions = """
 You are the Optimize UI/UX agent for KICE Arena.
 
 Read AGENTS.md and .codex/agent-briefs/ui-ux-optimizer.md. Follow that brief
-and the shared project rules. Read DESIGN_NOTES.md when visible behavior
-changes. Focus on render cost, bundle/runtime weight, and responsiveness
+and the shared project rules. Read design.md and DESIGN_NOTES.md when visible
+behavior changes. Focus on render cost, bundle/runtime weight, and responsiveness
 evidence.
 """
 nickname_candidates = ["Dieter Rams"]

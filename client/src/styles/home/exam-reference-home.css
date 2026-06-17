@@ -1,0 +1,395 @@
+.exam-reference-layout {
+    width: min(1180px, calc(100vw - 32px));
+    min-height: 100dvh;
+    padding: 28px 0;
+    background: #f3f3f0;
+}
+
+.exam-reference-paper {
+    width: 100%;
+    min-height: calc(100dvh - 56px);
+    border: 1.5px solid rgba(18, 18, 18, 0.62);
+    background:
+        linear-gradient(90deg, rgba(18, 18, 18, 0.01) 0 1px, transparent 1px 23px),
+        linear-gradient(180deg, rgba(18, 18, 18, 0.008) 0 1px, transparent 1px 28px), #fffef9;
+    padding: clamp(22px, 4vw, 46px);
+    color: #050505;
+    box-shadow: 0 22px 60px rgba(18, 18, 18, 0.12);
+}
+
+.exam-reference-head {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: start;
+    column-gap: clamp(12px, 2.4vw, 28px);
+    row-gap: clamp(10px, 1.8vw, 18px);
+    margin-bottom: clamp(8px, 1.8vw, 16px);
+}
+
+.exam-reference-head strong,
+.exam-reference-head em {
+    border: 1.5px solid rgba(18, 18, 18, 0.72);
+    border-radius: 999px;
+    padding: 7px 13px;
+    font-size: clamp(15px, 1.7vw, 21px);
+    font-style: normal;
+    font-weight: 750;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.exam-reference-head strong {
+    justify-self: start;
+}
+
+.exam-reference-head em {
+    justify-self: end;
+    color: rgba(18, 18, 18, 0.66);
+}
+
+.exam-reference-head span {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: center;
+    text-align: center;
+    font-size: clamp(22px, 2.4vw, 31px);
+    font-weight: 500;
+    letter-spacing: 0;
+    line-height: 1.25;
+    white-space: normal;
+}
+
+.exam-reference-paper h1 {
+    margin: 0 0 clamp(24px, 3.8vw, 44px);
+    text-align: center;
+    font-size: clamp(44px, 5.7vw, 72px);
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: 0;
+}
+
+.exam-reference-index {
+    border-top: 1.5px solid rgba(18, 18, 18, 0.58);
+    padding: clamp(12px, 2vw, 18px) 0;
+}
+
+.exam-reference-index p {
+    margin: 0 0 12px;
+    color: rgba(18, 18, 18, 0.64);
+    font-size: clamp(14px, 1.5vw, 18px);
+    line-height: 1.25;
+}
+
+.exam-index-row {
+    display: grid;
+    grid-template-columns: auto minmax(36px, 1fr) auto;
+    align-items: end;
+    gap: 12px;
+    min-width: 0;
+    padding: 5px 0;
+    font-size: clamp(17px, 2vw, 24px);
+    font-weight: 700;
+    line-height: 1.12;
+}
+
+.exam-index-row span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: keep-all;
+}
+
+.exam-index-row i {
+    height: 0.55em;
+    border-bottom: 1.5px dotted rgba(18, 18, 18, 0.36);
+}
+
+.exam-index-row strong {
+    color: rgba(18, 18, 18, 0.66);
+    font-size: clamp(13px, 1.5vw, 18px);
+    font-weight: 650;
+    overflow-wrap: anywhere;
+    text-align: right;
+    white-space: normal;
+}
+
+.exam-index-row.nested {
+    padding-left: clamp(18px, 4vw, 54px);
+    font-size: clamp(16px, 1.8vw, 22px);
+}
+
+.exam-reference-support {
+    display: grid;
+    grid-template-columns: minmax(300px, 0.86fr) minmax(0, 1.14fr);
+    gap: clamp(22px, 4vw, 42px);
+    align-items: start;
+    margin-top: clamp(22px, 4vw, 40px);
+}
+
+.exam-reference-ticket .gym-ticket-card,
+.exam-reference-ticket .gym-admission-slip {
+    width: 100%;
+    box-shadow: 9px 9px 0 rgba(18, 18, 18, 0.045);
+}
+
+.exam-reference-ticket .gym-admission-slip {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0;
+    margin-top: 0;
+    border: 1.5px solid rgba(18, 18, 18, 0.58);
+    background: rgba(255, 254, 249, 0.92);
+    padding: 0;
+}
+
+.admission-skeleton-title {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    gap: 12px;
+    min-height: 52px;
+    border-bottom: 1px solid rgba(18, 18, 18, 0.34);
+    padding: 8px 12px;
+}
+
+.admission-skeleton-title span,
+.admission-skeleton-row span,
+.admission-skeleton-note span {
+    color: rgba(18, 18, 18, 0.58);
+    font-size: 12px;
+    font-weight: 750;
+}
+
+.admission-skeleton-title strong {
+    font-size: clamp(24px, 3vw, 34px);
+    letter-spacing: 0.22em;
+    white-space: nowrap;
+}
+
+.admission-skeleton-body {
+    display: grid;
+    grid-template-columns: 118px minmax(0, 1fr);
+    min-height: 168px;
+}
+
+.admission-photo-placeholder {
+    display: grid;
+    place-items: center;
+    border-right: 1px solid rgba(18, 18, 18, 0.32);
+    background:
+        linear-gradient(135deg, transparent 49%, rgba(18, 18, 18, 0.18) 49% 51%, transparent 51%),
+        linear-gradient(45deg, transparent 49%, rgba(18, 18, 18, 0.18) 49% 51%, transparent 51%),
+        rgba(18, 18, 18, 0.035);
+    color: rgba(18, 18, 18, 0.48);
+    font-size: 13px;
+    font-weight: 750;
+}
+
+.admission-skeleton-row {
+    display: grid;
+    grid-template-columns: 74px minmax(0, 1fr);
+    min-width: 0;
+    border-bottom: 1px solid rgba(18, 18, 18, 0.24);
+}
+
+.admission-skeleton-row:last-child {
+    border-bottom: 0;
+}
+
+.admission-skeleton-row span,
+.admission-skeleton-note span {
+    display: grid;
+    align-items: center;
+    border-right: 1px solid rgba(18, 18, 18, 0.22);
+    padding: 7px 9px;
+}
+
+.admission-skeleton-row i,
+.admission-skeleton-row strong {
+    min-width: 0;
+    padding: 7px 10px;
+    font-weight: 800;
+}
+
+.admission-skeleton-row i::before {
+    content: "";
+    display: block;
+    height: 100%;
+    min-height: 18px;
+    background: repeating-linear-gradient(
+        90deg,
+        transparent 0 16px,
+        rgba(18, 18, 18, 0.16) 16px 17px,
+        transparent 17px 28px
+    );
+}
+
+.admission-skeleton-note {
+    display: grid;
+    grid-template-columns: 74px minmax(0, 1fr);
+    border-top: 1px solid rgba(18, 18, 18, 0.3);
+}
+
+.admission-skeleton-note span,
+.admission-skeleton-note strong {
+    padding: 9px 10px;
+}
+
+.admission-skeleton-note strong {
+    font-size: clamp(15px, 1.8vw, 19px);
+    line-height: 1.2;
+    word-break: keep-all;
+}
+
+.exam-reference-ticket .gym-ticket-card {
+    border: 1.5px solid rgba(18, 18, 18, 0.58);
+}
+
+.exam-reference-ticket .gym-ticket-title {
+    border-right-color: rgba(18, 18, 18, 0.24);
+    border-bottom: 1px solid rgba(18, 18, 18, 0.34);
+}
+
+.exam-reference-ticket .gym-ticket-row {
+    border-right: 1px solid rgba(18, 18, 18, 0.24);
+    border-bottom: 1px solid rgba(18, 18, 18, 0.24);
+}
+
+.exam-reference-ticket .gym-ticket-row > span {
+    border-right: 1px solid rgba(18, 18, 18, 0.22);
+}
+
+.exam-reference-ticket .gym-ticket-side {
+    border-left: 1px solid rgba(18, 18, 18, 0.28);
+}
+
+.exam-reference-events {
+    margin: 0;
+    border-top: 1.5px solid rgba(18, 18, 18, 0.64);
+    border-bottom: 0;
+    padding: clamp(10px, 1.8vw, 18px) 0;
+}
+
+.exam-reference-events .gym-section-label {
+    padding-bottom: 8px;
+    color: rgba(18, 18, 18, 0.72);
+    font-size: clamp(14px, 1.8vw, 20px);
+}
+
+.exam-reference-events .gym-section-label span,
+.exam-reference-events .gym-section-label strong,
+.exam-reference-events .gym-empty,
+.exam-reference-events .gym-action-hint,
+.exam-reference-events .gym-event-status {
+    font-weight: 700;
+}
+
+.exam-reference-events .gym-empty {
+    margin: 0;
+    padding: clamp(16px, 2.6vw, 28px) 0;
+    font-size: clamp(18px, 2.4vw, 26px);
+    font-weight: 800;
+}
+
+.exam-reference-events .gym-event-row {
+    grid-template-columns: minmax(0, 1fr) minmax(190px, 250px);
+    gap: clamp(14px, 2.4vw, 28px);
+    background: transparent;
+    padding: clamp(16px, 2.4vw, 24px) 0;
+}
+
+.exam-reference-events .gym-event-row h2 {
+    font-size: clamp(24px, 3.2vw, 38px);
+    font-weight: 850;
+}
+
+.exam-reference-events .gym-primary-action,
+.exam-reference-events .gym-secondary-action {
+    min-height: 48px;
+    font-weight: 800;
+}
+
+.exam-reference-events .gym-event-actions {
+    align-self: center;
+}
+
+@media (max-width: 820px) {
+    .exam-reference-layout {
+        width: min(100vw - 14px, 560px);
+        padding: 7px 0 18px;
+    }
+
+    .exam-reference-paper {
+        min-height: calc(100dvh - 24px);
+        padding: 16px 14px;
+    }
+
+    .exam-reference-head {
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        column-gap: 8px;
+        row-gap: 10px;
+        margin-bottom: 10px;
+    }
+
+    .exam-reference-head span {
+        font-size: clamp(17px, 4.6vw, 22px);
+    }
+
+    .exam-reference-head strong,
+    .exam-reference-head em {
+        padding: 6px 9px;
+        font-size: clamp(13px, 3.6vw, 16px);
+    }
+
+    .exam-reference-paper h1 {
+        margin: 0 0 20px;
+        font-size: clamp(38px, 10.4vw, 48px);
+    }
+
+    .exam-reference-index {
+        padding: 12px 0;
+    }
+
+    .exam-reference-index p {
+        font-size: clamp(15px, 4.4vw, 18px);
+    }
+
+    .exam-index-row,
+    .exam-index-row.nested {
+        grid-template-columns: minmax(0, auto) minmax(14px, 1fr) minmax(76px, auto);
+        gap: 8px;
+        padding-left: 0;
+        font-size: clamp(15px, 4.8vw, 18px);
+    }
+
+    .exam-index-row strong {
+        font-size: clamp(13px, 3.8vw, 16px);
+        white-space: normal;
+    }
+
+    .exam-index-row i {
+        border-bottom-width: 3px;
+    }
+
+    .exam-reference-support,
+    .exam-reference-events .gym-event-row {
+        grid-template-columns: 1fr;
+    }
+
+    .exam-reference-events {
+        padding: 10px 0;
+    }
+
+    .admission-skeleton-body {
+        grid-template-columns: 92px minmax(0, 1fr);
+        min-height: 142px;
+    }
+
+    .admission-skeleton-row,
+    .admission-skeleton-note {
+        grid-template-columns: 64px minmax(0, 1fr);
+    }
+
+    .admission-skeleton-title strong {
+        font-size: clamp(20px, 6vw, 26px);
+    }
+}

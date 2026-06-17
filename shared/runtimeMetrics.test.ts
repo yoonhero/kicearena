@@ -17,6 +17,8 @@ const ttl: RoomTtlConfig = {
 const now = 1_000_000;
 
 const room = (overrides: Partial<RoomMetricInput>): RoomMetricInput => ({
+  mode: "casual",
+  eventId: "preliminary-day",
   status: "lobby",
   endsAt: null,
   createdAt: now,
@@ -230,5 +232,43 @@ describe("runtimeMetricSamples", () => {
     expect(derivedRuntimeMetricSamples(summary).some((sample) => sample.name === "kice_arena_rooms_active")).toBe(false);
     expect(runtimeMetricSamples(summary).some((sample) => sample.name === "kice_arena_rooms_active")).toBe(true);
     expect(runtimeMetricSamples(summary).some((sample) => sample.name === "kice_arena_room_disconnect_risk_score")).toBe(true);
+  });
+
+  it("emits contest event metrics separately from casual room metrics", () => {
+    const summary = summarizeRoomMetrics(
+      [
+        room({
+          mode: "contest",
+          eventId: "preliminary-day",
+          status: "playing",
+          endsAt: now + 60_000,
+          playerCount: 2,
+          connectedPlayerCount: 1
+        }),
+        room({
+          mode: "contest",
+          eventId: "preliminary-day",
+          status: "lobby",
+          playerCount: 1,
+          connectedPlayerCount: 1
+        }),
+        room({
+          mode: "casual",
+          eventId: "problemset-later",
+          playerCount: 3,
+          connectedPlayerCount: 3
+        })
+      ],
+      now,
+      ttl
+    );
+
+    const samples = runtimeMetricSamples(summary);
+    expect(sampleValue(samples, "kice_arena_contests_active")).toBe(1);
+    expect(sampleValue(samples, "kice_arena_contest_sessions", { event_id: "preliminary-day", status: "playing" })).toBe(1);
+    expect(sampleValue(samples, "kice_arena_contest_sessions", { event_id: "preliminary-day", status: "lobby" })).toBe(1);
+    expect(sampleValue(samples, "kice_arena_contest_participants", { event_id: "preliminary-day", state: "total" })).toBe(3);
+    expect(sampleValue(samples, "kice_arena_contest_participants", { event_id: "preliminary-day", state: "connected" })).toBe(2);
+    expect(sampleValue(samples, "kice_arena_contest_participants", { event_id: "preliminary-day", state: "disconnected" })).toBe(1);
   });
 });

@@ -23,27 +23,29 @@ from core_metrics import (
     role_entropy,
     screen_embedding_diff,
 )
+from flavor_metrics import kice_visual_flavor
 
 
 DECISION_WEIGHTS = {
     "consistency_score": 0.08,
-    "minimalism_score": 0.12,
-    "role_entropy_score": 0.12,
+    "minimalism_score": 0.11,
+    "role_entropy_score": 0.11,
     "geometry_score": 0.09,
     "copy_score": 0.07,
     "next_action_score": 0.11,
-    "kice_entropy_score": 0.07,
+    "kice_entropy_score": 0.06,
     "visual_balance_score": 0.08,
     "hierarchy_score": 0.07,
     "rhythm_score": 0.05,
     "color_harmony_score": 0.05,
     "contrast_score": 0.06,
     "typography_score": 0.03,
+    "kice_flavor_score": 0.03,
 }
 
 AESTHETIC_WEIGHTS = {
-    "minimalism_score": 0.15,
-    "visual_balance_score": 0.16,
+    "minimalism_score": 0.13,
+    "visual_balance_score": 0.15,
     "hierarchy_score": 0.16,
     "rhythm_score": 0.12,
     "color_harmony_score": 0.12,
@@ -51,6 +53,7 @@ AESTHETIC_WEIGHTS = {
     "typography_score": 0.08,
     "copy_score": 0.05,
     "geometry_score": 0.04,
+    "kice_flavor_score": 0.03,
 }
 
 
@@ -74,6 +77,7 @@ def evaluate(manifest: dict[str, Any], root: Path) -> dict[str, Any]:
         color_harmony(manifest, elements),
         contrast_legibility(manifest, elements),
         typographic_scale(manifest, elements),
+        kice_visual_flavor(manifest, elements),
     ]
     scores = {report["scoreKey"]: report["score"] for report in subreports}
     combined = weighted_score(scores, DECISION_WEIGHTS)

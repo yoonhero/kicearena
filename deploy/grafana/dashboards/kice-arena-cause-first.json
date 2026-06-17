@@ -1187,8 +1187,8 @@
     {
       "id": 16,
       "type": "timeseries",
-      "title": "Rooms and players overview",
-      "description": "서비스 규모와 상태 분포를 원인 패널 아래로 내려 배치했습니다.",
+      "title": "Contest overview",
+      "description": "Codeforces-style contest 운영 규모를 event 기준으로 봅니다. 친구 문제집 흐름은 이 패널에 섞지 않습니다.",
       "datasource": {
         "type": "prometheus",
         "uid": "$datasource"
@@ -1228,36 +1228,36 @@
             "type": "prometheus",
             "uid": "$datasource"
           },
-          "expr": "(sum(kice_arena_rooms_active) or vector(0))",
+          "expr": "(sum(kice_arena_contests_active) or vector(0))",
           "refId": "A",
-          "legendFormat": "active rooms"
+          "legendFormat": "active contests"
         },
         {
           "datasource": {
             "type": "prometheus",
             "uid": "$datasource"
           },
-          "expr": "(sum by (status) (kice_arena_rooms_by_status))",
+          "expr": "(sum by (event_id, status) (kice_arena_contest_sessions) or vector(0))",
           "refId": "B",
-          "legendFormat": "rooms {{status}}"
+          "legendFormat": "{{event_id}} sessions {{status}}"
         },
         {
           "datasource": {
             "type": "prometheus",
             "uid": "$datasource"
           },
-          "expr": "(sum by (state) (kice_arena_players))",
+          "expr": "(sum by (event_id, state) (kice_arena_contest_participants) or vector(0))",
           "refId": "C",
-          "legendFormat": "players {{state}}"
+          "legendFormat": "{{event_id}} participants {{state}}"
         },
         {
           "datasource": {
             "type": "prometheus",
             "uid": "$datasource"
           },
-          "expr": "(max(kice_arena_players_per_active_room{state=\"connected\"}) or vector(0))",
+          "expr": "(sum(kice_arena_contest_participants{state=\"connected\"}) or vector(0))",
           "refId": "D",
-          "legendFormat": "connected players / active room"
+          "legendFormat": "connected contest participants"
         }
       ]
     },
@@ -1391,8 +1391,8 @@
     {
       "id": 19,
       "type": "timeseries",
-      "title": "Answer submissions per second",
-      "description": "플레이 중인데 제출량이 0에 가까워지면 socket/game-loop 측 장애를 의심합니다.",
+      "title": "Contest submissions per second",
+      "description": "진행 중인 contest에서 제출량이 0에 가까워지면 socket/game-loop 측 장애를 의심합니다.",
       "datasource": {
         "type": "prometheus",
         "uid": "$datasource"
@@ -1432,16 +1432,16 @@
             "type": "prometheus",
             "uid": "$datasource"
           },
-          "expr": "sum by (correct) (rate(kice_arena_answers_submitted_total[5m]))",
+          "expr": "(sum by (event_id, correct) (rate(kice_arena_contest_submissions_total[5m])) or vector(0))",
           "refId": "A",
-          "legendFormat": "correct={{correct}}"
+          "legendFormat": "{{event_id}} correct={{correct}}"
         }
       ]
     },
     {
       "id": 20,
       "type": "timeseries",
-      "title": "Answer submissions in last 15m",
+      "title": "Contest submissions in last 15m",
       "description": "",
       "datasource": {
         "type": "prometheus",
@@ -1482,9 +1482,9 @@
             "type": "prometheus",
             "uid": "$datasource"
           },
-          "expr": "sum by (correct) (increase(kice_arena_answers_submitted_total[15m]))",
+          "expr": "(sum by (event_id, correct) (increase(kice_arena_contest_submissions_total[15m])) or vector(0))",
           "refId": "A",
-          "legendFormat": "correct={{correct}}"
+          "legendFormat": "{{event_id}} correct={{correct}}"
         }
       ]
     },

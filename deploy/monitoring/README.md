@@ -81,11 +81,15 @@ Useful custom metrics:
 - `kice_arena_room_expiry_seconds{stat="avg|max"}`: time until playing rooms finish or inactive rooms become eligible for cleanup
 - `kice_arena_playing_room_time_remaining_seconds{stat="avg|max"}`
 - `kice_arena_players{state="total|connected|disconnected"}`
+- `kice_arena_contests_active`: distinct contest events with at least one active participant session
+- `kice_arena_contest_sessions{event_id,status="lobby|playing|finished"}`: contest participant sessions by event
+- `kice_arena_contest_participants{event_id,state="total|connected|disconnected"}`: contest participants by event
 - `kice_arena_socket_connections`: all current Socket.IO connections, including visitors that have not joined a room
 - `kice_arena_registered_socket_connections`: Socket.IO connections currently associated with a tracked room player
 - `kice_arena_rooms_created_total`
 - `kice_arena_players_joined_total`
 - `kice_arena_answers_submitted_total{correct="true|false"}`
+- `kice_arena_contest_submissions_total{event_id,correct="true|false"}`
 - `kice_arena_http_request_duration_seconds`
 - `kice_arena_players_disconnected_ratio`
 - `kice_arena_players_per_active_room{state="total|connected"}`

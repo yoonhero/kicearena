@@ -65,6 +65,22 @@ groups:
         expr: |
           max(kice_arena_room_cleanup_pressure_score) or vector(0)
 
+      - record: "kice_arena:contest_participants"
+        labels:
+          state: "connected"
+        expr: |
+          sum(kice_arena_contest_participants{state="connected"}) or vector(0)
+
+      - record: "kice_arena:contest_sessions"
+        labels:
+          status: "playing"
+        expr: |
+          sum(kice_arena_contest_sessions{status="playing"}) or vector(0)
+
+      - record: "kice_arena:contest_submission_rps:5m"
+        expr: |
+          sum(rate(kice_arena_contest_submissions_total[5m])) or vector(0)
+
       - record: "kice_arena:cause_score"
         labels:
           cause: "http_5xx"
@@ -239,16 +255,16 @@ groups:
 
       - alert: KiceArenaGameplaySubmissionsStalled
         expr: |
-          (sum(kice_arena_rooms_by_status{status="playing"}) > 0)
+          ((kice_arena:contest_sessions{status="playing"} or vector(0)) > 0)
           and
-          ((sum(rate(kice_arena_answers_submitted_total[10m])) or vector(0)) == 0)
+          ((sum(rate(kice_arena_contest_submissions_total[10m])) or vector(0)) == 0)
         for: 10m
         labels:
           severity: warning
           service: kice-arena
         annotations:
-          summary: "KICE Arena gameplay submissions appear stalled"
-          description: "There are playing rooms but no answer submissions for 10 minutes. Check socket delivery, room timers, and client connectivity."
+          summary: "KICE Arena contest submissions appear stalled"
+          description: "There are playing contest sessions but no contest answer submissions for 10 minutes. Check socket delivery, room timers, and contest client connectivity."
 
       - alert: KiceArenaPostgresExporterDown
         expr: up{job="postgres"} == 0

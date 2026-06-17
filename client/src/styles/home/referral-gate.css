@@ -1,16 +1,19 @@
 .referral-gate-layout {
+    box-sizing: border-box;
     min-height: 100dvh;
     display: grid;
     place-items: center;
     padding: 24px;
+    overflow-x: clip;
     background: var(--paper);
 }
 
 .referral-gate-sheet {
     position: relative;
     isolation: isolate;
+    box-sizing: border-box;
     overflow: hidden;
-    width: min(680px, 100%);
+    width: min(680px, calc(100vw - 48px));
     min-height: min(520px, calc(100dvh - 48px));
     display: grid;
     align-content: center;
@@ -92,6 +95,27 @@
     padding: 22px 0;
 }
 
+.referral-omr-name {
+    box-sizing: border-box;
+    display: grid;
+    justify-items: center;
+    gap: 10px;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.referral-omr-name .omr-name-maker {
+    box-sizing: border-box;
+    width: min(420px, 100%);
+    min-width: 0;
+}
+
+.referral-nickname-direct {
+    box-sizing: border-box;
+    width: min(420px, 100%);
+    min-width: 0;
+}
+
 .referral-gate-copy::before,
 .referral-gate-copy::after {
     content: none;
@@ -102,11 +126,13 @@
 }
 
 .referral-gate-exit {
+    min-height: 44px;
     border: 0;
     background: transparent;
     color: var(--muted);
     font-weight: 700;
     cursor: pointer;
+    padding: 0 12px;
 }
 
 .referral-gate-sheet .campaign-status,
@@ -121,7 +147,12 @@
     }
 
     .referral-gate-sheet {
+        width: calc(100vw - 20px);
         min-height: calc(100dvh - 20px);
         padding: 18px;
+    }
+
+    .referral-omr-name .omr-syllable-row {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
     }
 }

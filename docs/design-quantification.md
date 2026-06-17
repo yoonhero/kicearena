@@ -1,7 +1,7 @@
 # Quantitative Design Review
 
 KICE Arena design review can use small quantitative evaluators before a human
-UI decision. The numbers do not replace `DESIGN_NOTES.md`; they make the design
+UI decision. The numbers do not replace `design.md`; they make the design
 argument checkable.
 
 ## Subsubagents
@@ -25,23 +25,25 @@ depth to 1.
 | `color_harmony`         | Is the palette restrained and aligned to the KICE accent?                  | `color_harmony_score`  |
 | `contrast_legibility`   | Is text contrast readable enough for its scale?                            | `contrast_score`       |
 | `typographic_scale`     | Does type use a limited, meaningful scale?                                 | `typography_score`     |
+| `kice_visual_flavor`    | Does the screen look like KICE Arena rather than a generic AI web UI?      | `kice_flavor_score`    |
 
 The combined decision score is a weighted average:
 
 ```text
 0.08 * consistency_score
-+ 0.12 * minimalism_score
-+ 0.12 * role_entropy_score
++ 0.11 * minimalism_score
++ 0.11 * role_entropy_score
 + 0.09 * geometry_score
 + 0.07 * copy_score
 + 0.11 * next_action_score
-+ 0.07 * kice_entropy_score
++ 0.06 * kice_entropy_score
 + 0.08 * visual_balance_score
 + 0.07 * hierarchy_score
 + 0.05 * rhythm_score
 + 0.05 * color_harmony_score
 + 0.06 * contrast_score
 + 0.03 * typography_score
++ 0.03 * kice_flavor_score
 ```
 
 Scores are in `[0, 1]`. A route should usually be revised below `0.72`, and it
@@ -50,8 +52,8 @@ should be treated as a failed design review below `0.60`.
 The report also returns `aestheticScore`, weighted toward aesthetic qualities:
 
 ```text
-0.15 * minimalism_score
-+ 0.16 * visual_balance_score
+0.13 * minimalism_score
++ 0.15 * visual_balance_score
 + 0.16 * hierarchy_score
 + 0.12 * rhythm_score
 + 0.12 * color_harmony_score
@@ -59,6 +61,7 @@ The report also returns `aestheticScore`, weighted toward aesthetic qualities:
 + 0.08 * typography_score
 + 0.05 * copy_score
 + 0.04 * geometry_score
++ 0.03 * kice_flavor_score
 ```
 
 `aestheticDecision` is `aesthetically_good` above `0.74`,
@@ -109,6 +112,7 @@ Create a manifest with screenshots and optional element boxes:
     "typographyScale": [14, 16, 20],
     "dominantRoles": ["primary_action", "content"],
     "emphasisStyles": ["accent", "bold", "stamp"],
+    "flavorSignals": ["paper", "ruled", "ink"],
     "screenshots": [
         {
             "label": "desktop",
@@ -145,6 +149,32 @@ Create a manifest with screenshots and optional element boxes:
 }
 ```
 
+## KICE Visual Flavor Metric
+
+`kice_visual_flavor` turns the project-specific direction in `design.md`
+into one score with seven exposed submetrics:
+
+- `examSurface`: rewards paper, ruled-line, black-ink, and exam-cover signals.
+- `omrAffordance`: rewards underlined fields, answer-sheet writing, number
+  bubbles, identity fields, and examinee-ticket affordances.
+- `structuralMotif`: rewards exam motifs when they support the task, and
+  penalizes motif elements marked as ornament, decoration, overlap risk, or
+  alignment risk.
+- `paperInkRestraint`: rewards the KICE accent `#2f6473`, paper/ink neutrals,
+  and narrow red/green/yellow state roles.
+- `contestTableFidelity`: rewards DOMjudge-like scoreboard signals such as
+  table, rank, score, attempt, accepted, and freeze.
+- `antiAiWeb`: penalizes generic AI-web phrases, hero patterns, three-step
+  sections, blinking dots, gradients, and glow signals.
+- `pageJobAlignment`: compares the route against expected roles and signals for
+  entrance, lobby, solving, scoreboard, reveal, and report screens.
+
+Use `flavorSignals` in a manifest for page-level visual cues that are not tied
+to one DOM element. Use element `signals` for local cues such as `omr`,
+`underlined`, `bubble`, `table`, `rank`, `score`, `attempt`, `accepted`,
+`freeze`, `paper`, `ruled`, `ink`, `exam_room`, `ticket`, `gradient`, or
+`ai_smell`.
+
 Run:
 
 ```bash
@@ -164,7 +194,7 @@ conda run -n mlenv python scripts/design_quant/evaluate.py \
 - A low `next_action_score` means the primary CTA is ambiguous, missing an
   action verb, or competing with too many nearby secondary actions.
 - A high `kice_entropy_rubric.rawEntropy` should be read against
-  `DESIGN_NOTES.md`; the top terms identify the first changes to make.
+  `design.md`; the top terms identify the first changes to make.
 - A low `visual_balance_score` means the visual center of mass is drifting from
   the page axis, or the screen lacks either quadrant balance or a deliberate
   single-column flow.

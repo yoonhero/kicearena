@@ -123,7 +123,7 @@ Optional GitHub Secrets:
 
 Before changing a subsystem, read the matching notes.
 
-- UI direction: `DESIGN_NOTES.md`
+- UI direction: `design.md`; historical route/review notes: `DESIGN_NOTES.md`
 - Item additions: `docs/item-protocol.md`
 - Runtime metrics and monitoring: `deploy/monitoring/README.md`
 - Current roadmap: `todo.md`
