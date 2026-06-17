@@ -1,8 +1,20 @@
-import { memo, useCallback, useMemo } from "react";
-import { CheckCircle2, Copy, Crown, Flag, Link, LogOut, Play, UserX, Users } from "lucide-react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import {
+    CheckCircle2,
+    Clock,
+    Copy,
+    Crown,
+    Flag,
+    Link,
+    LogOut,
+    Play,
+    UserX,
+    Users,
+} from "lucide-react";
 import type { PlayerPublic, RoomPublic } from "../../../shared/game";
 import { emitWithAck } from "../lib/socket";
 import { socket } from "../lib/socket";
+import { formatTime } from "../lib/format";
 
 const formatMinutes = (seconds: number) => `${Math.round(seconds / 60)}분`;
 
@@ -11,6 +23,16 @@ type LobbyPlayerRowProps = {
     isHostPlayer: boolean;
     canKick: boolean;
     onKick: (targetPlayerId: string) => void;
+};
+
+type LobbyTiming = {
+    startsInSec: number;
+    isTimedEventWaiting: boolean;
+};
+
+type LobbyActionStatus = {
+    title: string;
+    detail: string;
 };
 
 const LobbyPlayerRow = memo(
@@ -49,6 +71,137 @@ const LobbyPlayerRow = memo(
         prev.canKick === next.canKick,
 );
 
+function getLobbyTiming(room: RoomPublic, now: number): LobbyTiming {
+    const startsAtMs = room.startsAt ? Date.parse(room.startsAt) : NaN;
+    const startsInSec =
+        Number.isFinite(startsAtMs) && room.status === "lobby"
+            ? Math.max(0, Math.ceil((startsAtMs - now) / 1000))
+            : 0;
+    return {
+        startsInSec,
+        isTimedEventWaiting: room.eventRoom && Number.isFinite(startsAtMs) && startsInSec > 0,
+    };
+}
+
+function getLobbyActionStatus({
+    allReady,
+    isHost,
+    isSpectator,
+    isTimedEventWaiting,
+    ownPlayer,
+    readyCount,
+    playerCount,
+}: {
+    allReady: boolean;
+    isHost: boolean;
+    isSpectator: boolean;
+    isTimedEventWaiting: boolean;
+    ownPlayer: PlayerPublic | null;
+    readyCount: number;
+    playerCount: number;
+}): LobbyActionStatus {
+    if (isSpectator) {
+        return {
+            title: "관전 대기 중입니다.",
+            detail: "문제 제출 없이 입실 현황과 순위표를 확인할 수 있습니다.",
+        };
+    }
+    if (isTimedEventWaiting) {
+        return {
+            title: "등록 완료. 공개 시각까지 대기합니다.",
+            detail: "시간이 되면 문제지를 한 번에 받아 풀이 화면으로 이동합니다.",
+        };
+    }
+    if (isHost && allReady) {
+        return {
+            title: "시험을 시작할 수 있습니다.",
+            detail: "시작하면 모든 응시자가 문제 풀이 화면으로 이동합니다.",
+        };
+    }
+    if (isHost) {
+        return {
+            title: `${readyCount}/${playerCount}명 준비`,
+            detail: "모든 응시자가 준비하면 시험을 시작할 수 있습니다.",
+        };
+    }
+    if (ownPlayer?.ready) {
+        return {
+            title: "준비 완료 상태입니다.",
+            detail: "감독이 시험을 시작하면 바로 풀이가 시작됩니다.",
+        };
+    }
+    return {
+        title: "준비 완료를 눌러주세요.",
+        detail: "준비가 끝나야 감독이 시험을 시작할 수 있습니다.",
+    };
+}
+
+function LobbyCountdown({ timing }: { timing: LobbyTiming }) {
+    return (
+        <div className="lobby-countdown" aria-live="polite">
+            <span>
+                <Clock size={18} />
+                {timing.isTimedEventWaiting ? "공개까지" : "문제지 배부 대기"}
+            </span>
+            <strong>{timing.isTimedEventWaiting ? formatTime(timing.startsInSec) : "00:00"}</strong>
+            <small>
+                {timing.isTimedEventWaiting
+                    ? "로비에서 인원과 상태를 확인하며 기다립니다."
+                    : "문제를 불러오고 있습니다."}
+            </small>
+        </div>
+    );
+}
+
+function LobbyActions({
+    actionStatus,
+    allReady,
+    isHost,
+    isTimedEventWaiting,
+    ownPlayer,
+    onLeave,
+    onStart,
+    onToggleReady,
+}: {
+    actionStatus: LobbyActionStatus;
+    allReady: boolean;
+    isHost: boolean;
+    isTimedEventWaiting: boolean;
+    ownPlayer: PlayerPublic | null;
+    onLeave: () => void;
+    onStart: () => void;
+    onToggleReady: () => void;
+}) {
+    return (
+        <div className={`lobby-actions ${isHost ? "host-actions" : "examinee-actions"}`}>
+            <strong className="lobby-action-title">
+                <CheckCircle2 size={18} />
+                시작 확인
+            </strong>
+            <span className="lobby-action-status" aria-live="polite">
+                <strong>{actionStatus.title}</strong>
+                <span>{actionStatus.detail}</span>
+            </span>
+            {!isHost && ownPlayer && !isTimedEventWaiting && (
+                <button className="primary-btn" onClick={onToggleReady}>
+                    <Flag size={18} />
+                    {ownPlayer.ready ? "준비 취소" : "준비 완료"}
+                </button>
+            )}
+            {isHost && !isTimedEventWaiting && (
+                <button className="primary-btn" disabled={!allReady} onClick={onStart}>
+                    <Play size={18} />
+                    시험 시작
+                </button>
+            )}
+            <button className="secondary-btn lobby-leave-btn" type="button" onClick={onLeave}>
+                <LogOut size={18} />
+                나가기
+            </button>
+        </div>
+    );
+}
+
 export function LobbyScreen({
     room,
     ownPlayer,
@@ -66,7 +219,10 @@ export function LobbyScreen({
     copiedLink: boolean;
     leaveRoom: () => Promise<void>;
 }) {
+    const [now, setNow] = useState(Date.now());
     const isHost = ownPlayer?.id === room.hostId;
+    const isSpectator = !ownPlayer;
+    const timing = getLobbyTiming(room, now);
     const readyCount = useMemo(
         () => room.players.reduce((count, player) => count + (player.ready ? 1 : 0), 0),
         [room.players],
@@ -76,32 +232,30 @@ export function LobbyScreen({
         () => room.exam.problems.reduce((sum, problem) => sum + problem.pointValue, 0),
         [room.exam.problems],
     );
+    const totalPointLabel = room.exam.problems.length > 0 ? `총 ${totalPoints}점` : "공개 전";
     const modeLabel = room.mode === "contest" ? "콘테스트" : "캐주얼";
     const itemLabel = room.itemEnabled ? "아이템 사용" : "아이템 없음";
     const freezeLabel = `${formatMinutes(room.freezeBeforeSec)} 전`;
-    const actionStatus = useMemo(
-        () =>
-            isHost
-                ? allReady
-                    ? {
-                          title: "시험을 시작할 수 있습니다.",
-                          detail: "시작하면 모든 응시자가 문제 풀이 화면으로 이동합니다.",
-                      }
-                    : {
-                          title: `${readyCount}/${room.players.length}명 준비`,
-                          detail: "모든 응시자가 준비하면 시험을 시작할 수 있습니다.",
-                      }
-                : ownPlayer?.ready
-                  ? {
-                        title: "준비 완료 상태입니다.",
-                        detail: "감독이 시험을 시작하면 바로 풀이가 시작됩니다.",
-                    }
-                  : {
-                        title: "준비 완료를 눌러주세요.",
-                        detail: "준비가 끝나야 감독이 시험을 시작할 수 있습니다.",
-                    },
-        [allReady, isHost, ownPlayer?.ready, readyCount, room.players.length],
-    );
+    const actionStatus = getLobbyActionStatus({
+        allReady,
+        isHost,
+        isSpectator,
+        isTimedEventWaiting: timing.isTimedEventWaiting,
+        ownPlayer,
+        readyCount,
+        playerCount: room.players.length,
+    });
+    useEffect(() => {
+        if (!room.eventRoom || room.status !== "lobby" || !room.startsAt) return undefined;
+        const id = window.setInterval(() => setNow(Date.now()), 500);
+        return () => window.clearInterval(id);
+    }, [room.eventRoom, room.startsAt, room.status]);
+    useEffect(() => {
+        if (!room.eventRoom || room.status !== "lobby" || !room.startsAt) return;
+        const startsAt = Date.parse(room.startsAt);
+        if (!Number.isFinite(startsAt) || now < startsAt) return;
+        void emitWithAck<RoomPublic>("room:start-if-released", {});
+    }, [now, room.eventRoom, room.startsAt, room.status]);
     const kickPlayer = useCallback((targetPlayerId: string) => {
         void emitWithAck<RoomPublic>("room:kick", { targetPlayerId });
     }, []);
@@ -142,10 +296,11 @@ export function LobbyScreen({
                     </button>
                     {copiedLink && <em>링크 복사됨</em>}
                 </div>
+                {room.eventRoom && room.status === "lobby" && <LobbyCountdown timing={timing} />}
                 <div className="problem-preview-grid" aria-label="시험 설정">
                     <span>
-                        <strong>{room.exam.problems.length}문항</strong>
-                        <small>총 {totalPoints}점</small>
+                        <strong>{room.exam.problemCount}문항</strong>
+                        <small>{totalPointLabel}</small>
                     </span>
                     <span>
                         <strong>{formatMinutes(room.timeLimitSec)}</strong>
@@ -167,7 +322,8 @@ export function LobbyScreen({
                             응시자 확인
                         </h2>
                         <span>
-                            {room.players.length}/{room.maxPlayers}명 입실 · {readyCount}명 준비
+                            {room.players.length}/{room.maxPlayers}명 등록 · 관전{" "}
+                            {room.spectatorCount}명 · {readyCount}명 준비
                         </span>
                     </div>
                     <div className="player-list">
@@ -181,42 +337,16 @@ export function LobbyScreen({
                             />
                         ))}
                     </div>
-                    <div
-                        className={`lobby-actions ${isHost ? "host-actions" : "examinee-actions"}`}
-                    >
-                        <strong className="lobby-action-title">
-                            <CheckCircle2 size={18} />
-                            시작 확인
-                        </strong>
-                        <span className="lobby-action-status" aria-live="polite">
-                            <strong>{actionStatus.title}</strong>
-                            <span>{actionStatus.detail}</span>
-                        </span>
-                        {!isHost && (
-                            <button className="primary-btn" onClick={toggleReady}>
-                                <Flag size={18} />
-                                {ownPlayer?.ready ? "준비 취소" : "준비 완료"}
-                            </button>
-                        )}
-                        {isHost && (
-                            <button
-                                className="primary-btn"
-                                disabled={!allReady}
-                                onClick={startRoom}
-                            >
-                                <Play size={18} />
-                                시험 시작
-                            </button>
-                        )}
-                        <button
-                            className="secondary-btn lobby-leave-btn"
-                            type="button"
-                            onClick={handleLeave}
-                        >
-                            <LogOut size={18} />
-                            나가기
-                        </button>
-                    </div>
+                    <LobbyActions
+                        actionStatus={actionStatus}
+                        allReady={allReady}
+                        isHost={isHost}
+                        isTimedEventWaiting={timing.isTimedEventWaiting}
+                        ownPlayer={ownPlayer}
+                        onLeave={handleLeave}
+                        onStart={startRoom}
+                        onToggleReady={toggleReady}
+                    />
                 </div>
             </section>
         </main>

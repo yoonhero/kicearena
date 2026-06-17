@@ -70,11 +70,16 @@ const waitForSocketConnection = () =>
         socket.once("connect", onConnect);
     });
 
-const getScreen = (room: RoomPublic | null, spectatorExam: ExamPublic | null): AppScreen => {
+const getScreen = (
+    room: RoomPublic | null,
+    spectatorExam: ExamPublic | null,
+    ownPlayerId: string,
+): AppScreen => {
     if (!room && spectatorExam) return "spectator";
     if (!room) return "home";
     if (room.status === "lobby") return "lobby";
     if (room.status === "finished") return "results";
+    if (!room.players.some((player) => player.id === ownPlayerId)) return "rankings";
     return "arena";
 };
 
@@ -96,7 +101,6 @@ export function App() {
     const [eventsLoaded, setEventsLoaded] = useState(false);
     const [eventsUnavailable, setEventsUnavailable] = useState(false);
     const rejoinAttempted = useRef(false);
-    const spectatorRequestRef = useRef<AbortController | null>(null);
 
     const resetRoomSession = useCallback((nextRoomCode = "") => {
         window.localStorage.removeItem(ROOM_SESSION_KEY);
@@ -198,12 +202,23 @@ export function App() {
         );
     }, [room?.code, ownPlayerId]);
 
+    useEffect(() => {
+        if (room?.status !== "playing") return;
+        for (const imageUrl of room.exam.problems.flatMap((problem) =>
+            problem.imageUrl ? [problem.imageUrl] : [],
+        )) {
+            const image = new Image();
+            image.decoding = "async";
+            image.src = imageUrl;
+        }
+    }, [room?.status, room?.exam.problems]);
+
     const ownPlayer = useMemo<PlayerPublic | null>(() => {
         if (!room) return null;
         return room.players.find((player) => player.id === ownPlayerId) ?? null;
     }, [room, ownPlayerId]);
 
-    const screen = getScreen(room, spectatorExam);
+    const screen = getScreen(room, spectatorExam, ownPlayerId);
     const isInviteMode = screen === "home" && Boolean(inviteCode);
     const {
         referralCode,
@@ -231,7 +246,6 @@ export function App() {
         try {
             const response = await emitWithAck<RoomPublic>("event:register", {
                 eventId,
-                accountId: campaignUser?.username,
                 nickname: campaignUser ? entrantNickname(campaignUser) : "예비응시자",
             });
             if (!response.ok || !response.data) {
@@ -248,29 +262,21 @@ export function App() {
     const spectateEvent = async (eventId: string) => {
         if (pendingEventAction) return;
         setError("");
-        spectatorRequestRef.current?.abort();
-        const controller = new AbortController();
-        spectatorRequestRef.current = controller;
         setPendingEventAction({ eventId, action: "spectate" });
         try {
-            const response = await fetch(`/api/events/${encodeURIComponent(eventId)}/problems`, {
-                signal: controller.signal,
+            const response = await emitWithAck<RoomPublic>("event:spectate", {
+                eventId,
             });
-            if (!response.ok) {
-                setError(
-                    response.status === 403
-                        ? "아직 공개 전인 이벤트입니다."
-                        : "문제를 불러오지 못했습니다.",
-                );
+            if (!response.ok || !response.data) {
+                setError(response.error ?? "관전 입장 실패");
                 return;
             }
-            setSpectatorExam((await response.json()) as ExamPublic);
-        } catch (error) {
-            if (!(error instanceof DOMException && error.name === "AbortError")) {
-                setError("문제를 불러오지 못했습니다.");
-            }
+            setSpectatorExam(null);
+            setRoom(response.data);
+            setRoomCode(response.data.code);
+        } catch (_error) {
+            setError("관전 입장 실패");
         } finally {
-            if (spectatorRequestRef.current === controller) spectatorRequestRef.current = null;
             setPendingEventAction(null);
         }
     };

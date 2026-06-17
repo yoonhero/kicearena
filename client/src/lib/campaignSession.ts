@@ -6,15 +6,27 @@ export const readStoredCampaignUser = (): CampaignUserPublic | null => {
     const raw = window.localStorage.getItem(CAMPAIGN_USER_KEY);
     if (!raw) return null;
     try {
-        const parsed = JSON.parse(raw) as CampaignUserPublic;
-        return parsed?.username && parsed?.school?.id ? parsed : null;
+        const parsed = JSON.parse(raw) as Partial<CampaignUserPublic>;
+        return parsed?.username && parsed?.school?.id ? (parsed as CampaignUserPublic) : null;
     } catch {
         return null;
     }
 };
 
 export const saveCampaignUser = (user: CampaignUserPublic) => {
-    window.localStorage.setItem(CAMPAIGN_USER_KEY, JSON.stringify(user));
+    const { id, username, studentStatus, school, referralCode, referralAllowed, badgeLabel } = user;
+    window.localStorage.setItem(
+        CAMPAIGN_USER_KEY,
+        JSON.stringify({
+            id,
+            username,
+            studentStatus,
+            school,
+            referralCode,
+            referralAllowed,
+            badgeLabel,
+        }),
+    );
 };
 
 export const entrantNickname = (user: CampaignUserPublic) =>

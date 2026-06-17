@@ -9,7 +9,7 @@
 
     .admin-preview {
         border-left: 0;
-        border-top: 2px solid var(--line);
+        border-top: 1px solid var(--admin-border);
         padding-left: 0;
         padding-top: 18px;
     }
@@ -37,7 +37,7 @@
     .admin-editor,
     .admin-preview {
         border-left: 0;
-        border-top: 2px solid var(--line);
+        border-top: 1px solid var(--admin-border);
         padding-left: 0;
         padding-top: 18px;
     }

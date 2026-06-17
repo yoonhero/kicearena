@@ -14,8 +14,8 @@
 .campaign-stat-grid div {
     display: grid;
     gap: 4px;
-    border: 2px solid var(--line);
-    background: #fffdf5;
+    border: 1px solid var(--admin-border);
+    background: var(--admin-surface);
     padding: 10px;
 }
 
@@ -26,12 +26,12 @@
     color: var(--muted);
     font-size: 11px;
     font-style: normal;
-    font-weight: 1000;
+    font-weight: 800;
 }
 
 .campaign-stat-grid strong {
     font-size: 24px;
-    font-weight: 1000;
+    font-weight: 900;
 }
 
 .campaign-rank-list,
@@ -46,7 +46,7 @@
     grid-template-columns: 18px minmax(0, 1fr) auto auto;
     align-items: center;
     gap: 8px;
-    border-bottom: 1px solid rgba(18, 18, 18, 0.16);
+    border-bottom: 1px solid var(--admin-rule);
     padding: 6px 0;
 }
 
@@ -78,5 +78,175 @@
     .campaign-rank-list em,
     .campaign-recent-list span {
         grid-column: 2;
+    }
+}
+
+.campaign-admin-shell {
+    display: grid;
+    gap: 18px;
+    align-content: start;
+}
+
+.campaign-admin-topbar {
+    grid-template-columns: minmax(190px, 1fr) minmax(240px, 340px) repeat(3, auto);
+}
+
+.campaign-dashboard {
+    display: grid;
+    grid-template-columns: minmax(360px, 1.2fr) minmax(320px, 0.8fr);
+    gap: 16px;
+    align-items: start;
+}
+
+.campaign-metrics {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(120px, 1fr));
+    gap: 8px;
+}
+
+.campaign-metrics div,
+.campaign-chart-panel,
+.campaign-referral-admin,
+.campaign-whitelist-panel,
+.campaign-recent-panel {
+    border: 1px solid var(--admin-border);
+    background: var(--admin-surface);
+    padding: 14px;
+}
+
+.campaign-metrics div {
+    display: grid;
+    gap: 4px;
+}
+
+.campaign-metrics span,
+.campaign-bar-row em,
+.campaign-whitelist-table em,
+.campaign-recent-list em {
+    color: var(--muted);
+    font-size: 11px;
+    font-style: normal;
+    font-weight: 800;
+}
+
+.campaign-metrics strong {
+    font-size: 22px;
+    font-weight: 900;
+}
+
+.campaign-chart-panel,
+.campaign-referral-admin,
+.campaign-whitelist-panel,
+.campaign-recent-panel,
+.campaign-referral-form,
+.campaign-bar-chart,
+.campaign-whitelist-table {
+    display: grid;
+    gap: 12px;
+}
+
+.campaign-bar-row {
+    display: grid;
+    grid-template-columns: minmax(120px, 190px) minmax(160px, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    min-height: 38px;
+}
+
+.campaign-bar-row > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 850;
+}
+
+.campaign-bar-row > div {
+    display: grid;
+    gap: 5px;
+}
+
+.campaign-bar-row i,
+.campaign-bar-row b {
+    display: block;
+    min-width: 4px;
+    height: 7px;
+}
+
+.campaign-bar-row i {
+    background: var(--ok);
+}
+
+.campaign-bar-row b {
+    background: var(--danger);
+}
+
+.campaign-school-search {
+    display: grid;
+    grid-template-columns: 18px minmax(0, 1fr);
+    align-items: center;
+    gap: 6px;
+}
+
+.campaign-school-results {
+    display: grid;
+    gap: 6px;
+    max-height: 220px;
+    overflow: auto;
+}
+
+.campaign-school-results button {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    border: 1px solid var(--admin-border);
+    background: var(--paper);
+    color: var(--ink);
+    padding: 9px 10px;
+    text-align: left;
+}
+
+.campaign-whitelist-table > div {
+    display: grid;
+    grid-template-columns: 110px minmax(130px, 0.8fr) minmax(180px, 1.2fr) auto;
+    gap: 10px;
+    align-items: center;
+    border-bottom: 1px solid var(--admin-rule);
+    padding: 8px 0;
+}
+
+.campaign-whitelist-table .admin-icon-btn {
+    width: 44px;
+    height: 44px;
+}
+
+.campaign-whitelist-table span,
+.campaign-whitelist-table em {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.campaign-recent-panel .campaign-recent-list div {
+    grid-template-columns: minmax(0, 1fr) minmax(120px, auto) auto;
+}
+
+@media (max-width: 900px) {
+    .campaign-admin-topbar,
+    .admin-topbar {
+        grid-template-columns: 1fr;
+        align-items: stretch;
+    }
+
+    .campaign-dashboard,
+    .campaign-metrics {
+        grid-template-columns: 1fr;
+    }
+
+    .campaign-bar-row,
+    .campaign-whitelist-table > div {
+        grid-template-columns: 1fr;
     }
 }

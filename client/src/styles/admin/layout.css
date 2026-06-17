@@ -1,17 +1,26 @@
 .admin-shell {
+    --admin-surface: var(--paper);
+    --admin-surface-quiet: var(--paper-deep);
+    --admin-border: rgba(18, 18, 18, 0.18);
+    --admin-border-strong: var(--line-soft);
+    --admin-rule: rgba(18, 18, 18, 0.12);
+    --admin-muted: var(--muted);
+    --admin-shadow: 0 18px 44px rgba(18, 18, 18, 0.07);
     min-height: 100vh;
     background: var(--paper);
     color: var(--ink);
-    padding: 20px;
+    padding: 24px;
 }
 
 .admin-topbar {
     display: grid;
-    grid-template-columns: minmax(180px, 1fr) minmax(240px, 340px) auto auto;
-    gap: 12px;
-    align-items: end;
-    border-bottom: 2px solid var(--line);
-    padding-bottom: 14px;
+    grid-template-columns: minmax(180px, 1fr) minmax(240px, 340px) repeat(3, auto);
+    gap: 10px;
+    align-items: center;
+    border: 1px solid var(--admin-border);
+    background: var(--paper);
+    padding: 14px;
+    box-shadow: var(--admin-shadow);
 }
 
 .admin-topbar > div {
@@ -21,14 +30,14 @@
 
 .admin-topbar > div span,
 .admin-section-head span {
-    color: var(--muted);
+    color: var(--admin-muted);
     font-size: 12px;
-    font-weight: 1000;
+    font-weight: 800;
 }
 
 .admin-topbar > div strong {
-    font-size: 24px;
-    font-weight: 1000;
+    font-size: 22px;
+    font-weight: 900;
 }
 
 .admin-layout {
@@ -37,9 +46,9 @@
     grid-template-areas:
         "exams editor preview"
         "problems editor preview";
-    gap: 18px;
+    gap: 16px;
     align-items: start;
-    padding-top: 18px;
+    padding-top: 16px;
 }
 
 .admin-exam-list,
@@ -73,13 +82,13 @@
     align-items: baseline;
     justify-content: space-between;
     gap: 12px;
-    border-bottom: 2px solid var(--line);
-    padding-bottom: 8px;
+    border-bottom: 1px solid var(--admin-rule);
+    padding-bottom: 9px;
 }
 
 .admin-section-head strong {
     font-size: 13px;
-    font-weight: 1000;
+    font-weight: 800;
 }
 
 .admin-section-actions,
@@ -97,8 +106,8 @@
 .admin-icon-btn {
     width: 34px;
     height: 34px;
-    border: 2px solid var(--line);
-    background: var(--line);
+    border: 1px solid var(--admin-border-strong);
+    background: var(--ink);
     color: var(--paper);
     display: grid;
     place-items: center;
@@ -107,24 +116,25 @@
 .admin-exam-list > button {
     display: grid;
     gap: 4px;
-    border: 2px solid var(--line);
-    background: #fffdf5;
+    border: 1px solid var(--admin-border);
+    background: var(--admin-surface);
     color: var(--ink);
-    padding: 10px 12px;
+    padding: 11px 12px;
     text-align: left;
 }
 
 .admin-new-exam,
 .admin-exam-settings {
     display: grid;
-    gap: 9px;
-    border: 2px solid var(--line);
-    background: #fffdf5;
-    padding: 10px;
+    gap: 10px;
+    border: 1px solid var(--admin-border-strong);
+    background: var(--admin-surface);
+    padding: 12px;
 }
 
 .admin-exam-settings {
-    border-color: rgba(18, 18, 18, 0.32);
+    border-color: var(--admin-border);
+    box-shadow: inset 3px 0 0 var(--ui-accent-base);
 }
 
 .admin-new-exam-row {
@@ -136,23 +146,23 @@
 
 .admin-visibility-btn {
     min-height: 44px;
-    border: 2px solid rgba(18, 18, 18, 0.24);
+    border: 1px solid var(--admin-border);
     background: transparent;
-    color: var(--muted);
+    color: var(--admin-muted);
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
     padding: 0 10px;
     font-size: 12px;
-    font-weight: 1000;
+    font-weight: 800;
     white-space: nowrap;
 }
 
 .admin-visibility-btn.published {
-    border-color: #1c6b41;
-    background: #dfeee5;
-    color: #1c6b41;
+    border-color: color-mix(in srgb, var(--ok) 34%, transparent);
+    background: color-mix(in srgb, var(--ok) 10%, var(--paper));
+    color: var(--ok);
 }
 
 .admin-subsection-head {
@@ -165,26 +175,27 @@
 
 .admin-exam-list > button.selected,
 .admin-problem-row.selected {
-    background: var(--ui-accent-soft);
-    box-shadow: inset 4px 0 0 var(--ui-accent-base);
+    background: color-mix(in srgb, var(--accent-row) 68%, var(--paper));
+    box-shadow: inset 3px 0 0 var(--ui-accent-base);
 }
 
 .admin-exam-list > button strong {
     font-size: 14px;
-    font-weight: 1000;
+    font-weight: 900;
 }
 
 .admin-exam-list > button span {
-    color: var(--muted);
+    color: var(--admin-muted);
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 700;
 }
 
 .admin-problem-table {
     display: grid;
-    border: 2px solid var(--line);
+    border: 1px solid var(--admin-border);
     overflow: auto;
     max-height: min(430px, calc(100vh - 500px));
+    background: var(--admin-surface);
 }
 
 .admin-problem-row {
@@ -194,21 +205,22 @@
     align-items: center;
     min-height: 42px;
     border: 0;
-    border-bottom: 1px solid var(--line-soft);
-    background: #fffdf5;
+    border-bottom: 1px solid var(--admin-rule);
+    background: transparent;
     color: var(--ink);
     padding: 0 10px;
     text-align: left;
-    font-weight: 900;
+    font-weight: 760;
 }
 
 .admin-problem-row.head {
     position: sticky;
     top: 0;
     z-index: 1;
-    background: #242424;
-    color: #fffdf5;
+    background: var(--admin-surface-quiet);
+    color: var(--admin-muted);
     font-size: 12px;
+    font-weight: 800;
 }
 
 .admin-problem-row span {
@@ -219,15 +231,15 @@
 }
 
 .admin-editor {
-    border-left: 2px solid var(--line);
-    padding-left: 18px;
+    border-left: 1px solid var(--admin-border);
+    padding-left: 16px;
 }
 
 .admin-edit-state-strip {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    border: 2px solid var(--line);
-    background: #fffdf5;
+    border: 1px solid var(--admin-border);
+    background: var(--admin-surface);
 }
 
 .admin-edit-state-strip span {
@@ -236,11 +248,11 @@
     gap: 3px;
     min-height: 52px;
     align-content: center;
-    border-right: 1px solid rgba(18, 18, 18, 0.24);
+    border-right: 1px solid var(--admin-rule);
     padding: 8px 10px;
     color: var(--ink);
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 760;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -251,19 +263,19 @@
 }
 
 .admin-edit-state-strip b {
-    color: var(--muted);
+    color: var(--admin-muted);
     font-size: 10px;
-    font-weight: 1000;
+    font-weight: 800;
 }
 
 .admin-edit-state-strip .valid,
 .admin-edit-state-strip .clean {
-    box-shadow: inset 0 -3px 0 #1c6b41;
+    box-shadow: inset 0 -2px 0 var(--ok);
 }
 
 .admin-edit-state-strip .invalid,
 .admin-edit-state-strip .dirty {
-    box-shadow: inset 0 -3px 0 var(--danger);
+    box-shadow: inset 0 -2px 0 var(--danger);
 }
 
 .admin-editor-grid {
@@ -298,10 +310,10 @@
 .admin-difficulty-picks button,
 .admin-answer-picks button {
     min-height: 42px;
-    border: 2px solid rgba(18, 18, 18, 0.2);
-    background: #fffdf5;
+    border: 1px solid var(--admin-border);
+    background: var(--admin-surface);
     color: var(--ink);
-    font-weight: 1000;
+    font-weight: 800;
 }
 
 .admin-segmented button.selected,

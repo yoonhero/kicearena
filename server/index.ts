@@ -42,6 +42,7 @@ import {
 } from "../shared/roomLifecycle.js";
 import { runtimeMetricSamples, summarizeRoomMetrics } from "../shared/runtimeMetrics.js";
 import { normalizeStudentStatus } from "../shared/campaign.js";
+import { createCampaignAuthToken, verifyCampaignAuthToken } from "./campaignAuth.js";
 import {
     attachReferralConversion,
     createCampaignUser,
@@ -54,6 +55,11 @@ import {
     syncReferralWhitelist,
 } from "./campaignDatabase.js";
 import { readCampaignStats } from "./campaignStatsDatabase.js";
+import {
+    deleteReferralWhitelistEntry,
+    readReferralWhitelist,
+    upsertReferralWhitelistEntry,
+} from "./campaignWhitelistDatabase.js";
 import { findHighSchoolNearLocation } from "./highSchoolGeo.js";
 import {
     createExamCatalogPool,
@@ -83,6 +89,12 @@ import {
     validateItemTarget,
 } from "./items.js";
 import { shouldRateLimit as shouldRateLimitEvent } from "./rateLimit.js";
+import {
+    pruneHttpRateLimitStore,
+    shouldRateLimitHttp,
+    type HttpRateLimitStore,
+} from "./httpRateLimit.js";
+import { apiNotFound } from "./notFound.js";
 import {
     contestSubmissionToPublic,
     countActiveRoomStates,
@@ -122,6 +134,13 @@ const readMetricsBearerToken = () => {
 };
 const metricsBearerToken = readMetricsBearerToken();
 const adminToken = process.env.ADMIN_TOKEN?.trim() ?? "";
+const campaignAuthSecret =
+    process.env.CAMPAIGN_AUTH_SECRET?.trim() ||
+    (process.env.NODE_ENV === "production"
+        ? ""
+        : adminToken || crypto.randomBytes(32).toString("base64url"));
+const campaignAuthCookieName = "kice_campaign_auth";
+const campaignAuthCookieMaxAgeSec = 7 * 24 * 60 * 60;
 const referralWhitelist = (process.env.CAMPAIGN_REFERRAL_WHITELIST ?? "")
     .split(/[\s,]+/)
     .map((entry) => entry.trim())
@@ -151,6 +170,8 @@ const io = new Server(httpServer, {
 const rooms = new Map<string, RoomState>();
 type SocketPlayerRef = { roomCode: string; playerId: string; socketToken: string };
 const socketToPlayer = new Map<string, SocketPlayerRef>();
+type SocketSpectatorRef = { roomCode: string };
+const socketToSpectator = new Map<string, SocketSpectatorRef>();
 type RoomSocketCleanupPayload = {
     roomCode: string;
     playerIds?: string[];
@@ -158,6 +179,7 @@ type RoomSocketCleanupPayload = {
     excludeSocketIds?: string[];
 };
 const socketEventTimestamps = new Map<string, Map<string, number>>();
+const httpRateLimitStore: HttpRateLimitStore = new Map();
 const remotePresenceFetchedAt = new Map<string, number>();
 const metricsRegistry = new Registry();
 const EXPIRED_EFFECT_NOTICE_MS = 3000;
@@ -573,6 +595,32 @@ const readPositiveSeconds = (value: unknown, fallback: number, min: number, max:
 
 const readString = (value: unknown, maxLength: number) =>
     typeof value === "string" ? value.trim().slice(0, maxLength) : "";
+const readCookie = (cookieHeader: string | undefined, name: string) => {
+    if (!cookieHeader) return "";
+    for (const part of cookieHeader.split(";")) {
+        const [rawKey, ...rawValue] = part.trim().split("=");
+        if (rawKey !== name) continue;
+        try {
+            return decodeURIComponent(rawValue.join("="));
+        } catch {
+            return "";
+        }
+    }
+    return "";
+};
+const campaignAuthCookie = (token: string) => {
+    const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
+    return `${campaignAuthCookieName}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${campaignAuthCookieMaxAgeSec}${secure}`;
+};
+const setCampaignAuthCookie = (
+    res: express.Response,
+    user: Parameters<typeof createCampaignAuthToken>[0],
+) => {
+    res.setHeader(
+        "Set-Cookie",
+        campaignAuthCookie(createCampaignAuthToken(user, campaignAuthSecret)),
+    );
+};
 const hashPassword = (password: string) => {
     const salt = crypto.randomBytes(16).toString("base64url");
     const key = crypto.scryptSync(password, salt, 64).toString("base64url");
@@ -592,6 +640,22 @@ const visitorFingerprint = (req: express.Request) =>
             `${normalizeRemoteAddress(req.socket.remoteAddress)}:${req.get("user-agent") ?? ""}`,
         )
         .digest("base64url");
+const shouldRateLimitHttpRequest = (
+    req: express.Request,
+    scope: string,
+    identity: string,
+    limit: number,
+    windowMs: number,
+) => {
+    pruneHttpRateLimitStore(httpRateLimitStore);
+    const address = normalizeRemoteAddress(req.socket.remoteAddress);
+    return shouldRateLimitHttp(
+        httpRateLimitStore,
+        `${scope}:${address}:${identity}`,
+        limit,
+        windowMs,
+    );
+};
 const sanitizeAssetFileName = (value: string) => {
     const safeName = value
         .trim()
@@ -625,10 +689,12 @@ const readOptionalBodyBlocks = (value: unknown): ProblemBodyBlock[] | null | und
 };
 
 const setSocketPlayer = (socket: Socket, ref: SocketPlayerRef) => {
+    socketToSpectator.delete(socket.id);
     socketToPlayer.set(socket.id, ref);
     socket.data.roomCode = ref.roomCode;
     socket.data.playerId = ref.playerId;
     socket.data.socketToken = ref.socketToken;
+    delete socket.data.spectator;
 };
 
 const clearLocalSocketPlayer = (socketId: string) => {
@@ -638,6 +704,21 @@ const clearLocalSocketPlayer = (socketId: string) => {
     delete socket.data.roomCode;
     delete socket.data.playerId;
     delete socket.data.socketToken;
+};
+
+const setSocketSpectator = (socket: Socket, ref: SocketSpectatorRef) => {
+    clearLocalSocketPlayer(socket.id);
+    socketToSpectator.set(socket.id, ref);
+    socket.data.roomCode = ref.roomCode;
+    socket.data.spectator = true;
+};
+
+const clearLocalSocketSpectator = (socketId: string) => {
+    socketToSpectator.delete(socketId);
+    const socket = io.sockets.sockets.get(socketId);
+    if (!socket) return;
+    delete socket.data.roomCode;
+    delete socket.data.spectator;
 };
 
 const cleanupLocalRoomSockets = ({
@@ -660,6 +741,13 @@ const cleanupLocalRoomSockets = ({
             continue;
         io.sockets.sockets.get(socketId)?.leave(roomCode);
         clearLocalSocketPlayer(socketId);
+    }
+    for (const [socketId, ref] of socketToSpectator.entries()) {
+        if (excludedSocketIds.has(socketId)) continue;
+        if (ref.roomCode !== roomCode) continue;
+        if (socketIdSet && !socketIdSet.has(socketId)) continue;
+        io.sockets.sockets.get(socketId)?.leave(roomCode);
+        clearLocalSocketSpectator(socketId);
     }
 };
 
@@ -789,6 +877,18 @@ const activeRoomCount = async () => {
     const db = roomDatabase();
     if (db) return countActiveRoomStates(db);
     return [...rooms.values()].filter((room) => room.status !== "finished").length;
+};
+
+const findReusableEventRoom = async (examId: string) => {
+    const db = roomDatabase();
+    const candidates = db ? await readRoomStates(db, examById) : [...rooms.values()];
+    const room = candidates.find(
+        (candidate) =>
+            candidate.eventId === examId &&
+            candidate.status !== "finished" &&
+            candidate.players.size < candidate.maxPlayers,
+    );
+    return room ? getPersistedRoom(room.code) : null;
 };
 
 const updateRuntimeMetrics = () => {
@@ -927,10 +1027,35 @@ const maybeFreezeScoreboard = (room: RoomState) => {
     return true;
 };
 
+const roomSpectatorCount = (roomCode: string) =>
+    [...socketToSpectator.values()].filter((ref) => ref.roomCode === roomCode).length;
+
+const maybeStartReleasedEventRoom = (room: RoomState) => {
+    if (!room.eventId || room.status !== "lobby" || !isExamReleased(room.exam)) return false;
+    const startedAt = Math.max(Date.now(), Date.parse(room.exam.releaseAt ?? "") || Date.now());
+    room.status = "playing";
+    room.startedAt = startedAt;
+    room.endsAt = startedAt + room.timeLimitSec * 1000;
+    room.scoreboardFrozenAt =
+        room.freezeBeforeSec === 0
+            ? null
+            : Math.max(startedAt, room.endsAt - room.freezeBeforeSec * 1000);
+    room.frozenStandings = [];
+    room.scoreboardRevealCount = 0;
+    for (const player of room.players.values()) player.ready = true;
+    touchRoom(room);
+    addLog(room, "system", "공개 시각 도달. 문제지를 배부하고 시험을 시작합니다.");
+    return true;
+};
+
 const publicRoom = (room: RoomState): RoomPublic => ({
     code: room.code,
     hostId: room.hostId,
-    exam: toExamPublic(room.exam),
+    exam: isExamReleased(room.exam)
+        ? toExamPublic(room.exam)
+        : { ...toExamSummary(room.exam), problems: [] },
+    startsAt: room.exam.releaseAt ?? null,
+    eventRoom: Boolean(room.eventId),
     mode: room.mode,
     maxPlayers: room.maxPlayers,
     version: room.version,
@@ -944,6 +1069,7 @@ const publicRoom = (room: RoomState): RoomPublic => ({
     scoreboardFrozenAt: room.scoreboardFrozenAt,
     frozenStandings: room.frozenStandings,
     scoreboardRevealCount: room.scoreboardRevealCount,
+    spectatorCount: roomSpectatorCount(room.code),
     players: [...room.players.values()].map(
         ({ socketId: _socketId, socketToken: _socketToken, ...player }) => {
             const derived = derivePlayerScoreState(room, player);
@@ -971,6 +1097,7 @@ const publicRoom = (room: RoomState): RoomPublic => ({
 });
 
 const emitRoom = (room: RoomState): RoomPublic => {
+    maybeStartReleasedEventRoom(room);
     maybeFreezeScoreboard(room);
     bumpRoomVersion(room);
     persistRoom(room);
@@ -1195,6 +1322,10 @@ app.post("/api/campaign/register", async (req, res) => {
         res.sendStatus(503);
         return;
     }
+    if (!campaignAuthSecret) {
+        res.status(503).json({ error: "Campaign auth is not configured." });
+        return;
+    }
     const username = readString(req.body?.username, 32).toLowerCase();
     const password = readString(req.body?.password, 120);
     const phone = readString(req.body?.phone, 32);
@@ -1207,6 +1338,10 @@ app.post("/api/campaign/register", async (req, res) => {
 
     if (!/^[a-z0-9._-]{3,32}$/.test(username) || password.length < 8 || !phone || !schoolId) {
         res.status(400).json({ error: "Invalid campaign registration payload." });
+        return;
+    }
+    if (shouldRateLimitHttpRequest(req, "campaign-register", username, 5, 10 * 60 * 1000)) {
+        res.status(429).json({ error: "Too many registration attempts. Try again later." });
         return;
     }
     if (referredByCode) {
@@ -1235,6 +1370,7 @@ app.post("/api/campaign/register", async (req, res) => {
                 visitorFingerprint(req),
             );
         }
+        setCampaignAuthCookie(res, user);
         res.status(201).json(user);
     } catch (error) {
         const code =
@@ -1258,13 +1394,24 @@ app.post("/api/campaign/login", async (req, res) => {
         res.sendStatus(503);
         return;
     }
+    if (!campaignAuthSecret) {
+        res.status(503).json({ error: "Campaign auth is not configured." });
+        return;
+    }
     const username = readString(req.body?.username, 32).toLowerCase();
     const password = readString(req.body?.password, 120);
+    if (
+        shouldRateLimitHttpRequest(req, "campaign-login", username || "unknown", 8, 10 * 60 * 1000)
+    ) {
+        res.status(429).json({ error: "Too many login attempts. Try again later." });
+        return;
+    }
     const record = username ? await readCampaignUserByUsername(examCatalogPool, username) : null;
     if (!record || !verifyPassword(password, record.passwordHash)) {
         res.status(401).json({ error: "Invalid username or password." });
         return;
     }
+    setCampaignAuthCookie(res, record.user);
     res.json(record.user);
 });
 
@@ -1278,6 +1425,68 @@ app.get("/api/admin/campaign/stats", async (req, res) => {
         return;
     }
     res.json(await readCampaignStats(examCatalogPool));
+});
+
+app.get("/api/admin/campaign/referral-whitelist", async (req, res) => {
+    if (!hasAdminAccess(req)) {
+        res.sendStatus(adminToken ? 401 : 403);
+        return;
+    }
+    if (!examCatalogPool) {
+        res.sendStatus(503);
+        return;
+    }
+    res.json(await readReferralWhitelist(examCatalogPool));
+});
+
+app.put("/api/admin/campaign/referral-whitelist/:referralCode", async (req, res) => {
+    if (!hasAdminAccess(req)) {
+        res.sendStatus(adminToken ? 401 : 403);
+        return;
+    }
+    if (!examCatalogPool) {
+        res.sendStatus(503);
+        return;
+    }
+
+    const referralCode = readString(req.params.referralCode, 32).toLowerCase();
+    const schoolId = readString(req.body?.schoolId, 80);
+    const note = readString(req.body?.note, 160) || "admin";
+    if (!/^[2-9a-z]{4,32}$/.test(referralCode) || !schoolId) {
+        res.status(400).json({ error: "Invalid referral whitelist payload." });
+        return;
+    }
+
+    const entry = await upsertReferralWhitelistEntry(examCatalogPool, {
+        referralCode,
+        schoolId,
+        note,
+    });
+    if (!entry) {
+        res.status(404).json({ error: "School not found." });
+        return;
+    }
+    res.json(entry);
+});
+
+app.delete("/api/admin/campaign/referral-whitelist/:referralCode", async (req, res) => {
+    if (!hasAdminAccess(req)) {
+        res.sendStatus(adminToken ? 401 : 403);
+        return;
+    }
+    if (!examCatalogPool) {
+        res.sendStatus(503);
+        return;
+    }
+
+    const referralCode = readString(req.params.referralCode, 32).toLowerCase();
+    if (!/^[2-9a-z]{4,32}$/.test(referralCode)) {
+        res.status(400).json({ error: "Invalid referral code." });
+        return;
+    }
+
+    const deleted = await deleteReferralWhitelistEntry(examCatalogPool, referralCode);
+    res.sendStatus(deleted ? 204 : 404);
 });
 
 app.get("/api/admin/exams", async (req, res) => {
@@ -1379,6 +1588,9 @@ app.post("/api/admin/exams", async (req, res) => {
     const subtitle = readString(req.body?.subtitle, 160);
     const timeLimitSec = Number(req.body?.timeLimitSec);
     const active = req.body?.active === true;
+    const releaseAtRaw = req.body?.releaseAt;
+    const releaseAt =
+        typeof releaseAtRaw === "string" && releaseAtRaw.trim() ? releaseAtRaw.trim() : null;
 
     if (
         !/^[a-z0-9][a-z0-9-]{1,78}[a-z0-9]$/.test(id) ||
@@ -1391,6 +1603,10 @@ app.post("/api/admin/exams", async (req, res) => {
         res.status(400).json({ error: "Invalid exam payload." });
         return;
     }
+    if (releaseAt && Number.isNaN(Date.parse(releaseAt))) {
+        res.status(400).json({ error: "Invalid release date." });
+        return;
+    }
 
     try {
         const exam = await createExamInDatabase(examCatalogPool, {
@@ -1399,6 +1615,7 @@ app.post("/api/admin/exams", async (req, res) => {
             subtitle,
             timeLimitSec,
             active,
+            releaseAt,
         });
         exams = await readExamsFromDatabase(examCatalogPool);
         examById = new Map(exams.map((candidate) => [candidate.id, candidate]));
@@ -1615,6 +1832,8 @@ app.get("/api/rooms/:code", async (req, res) => {
     });
 });
 
+app.use("/api", apiNotFound);
+
 if (process.env.NODE_ENV === "production") {
     const clientDir = path.join(rootDir, "dist/client");
     app.use(express.static(clientDir));
@@ -1799,7 +2018,7 @@ io.on("connection", (socket) => {
     socket.on(
         "event:register",
         async (
-            payload: { eventId: string; accountId?: string; nickname: string },
+            payload: { eventId: string; nickname: string },
             reply: (response: ServerResponse<RoomPublic>) => void,
         ) => {
             await withRoomMutation("__event_register__", async () => {
@@ -1812,32 +2031,29 @@ io.on("connection", (socket) => {
                 }
 
                 const eventId = readString(payload?.eventId, 80);
-                const accountId = readString(payload?.accountId, 80).toLowerCase();
                 const exam = examById.get(eventId);
                 if (!exam) {
                     replyAfterRoomCommit(reply, { ok: false, error: "이벤트를 찾을 수 없습니다." });
                     return;
                 }
-                if (!isExamReleased(exam)) {
-                    replyAfterRoomCommit(reply, {
-                        ok: false,
-                        error: "아직 등록을 시작하지 않은 이벤트입니다.",
-                    });
-                    return;
-                }
                 const openRegistration = isOpenRegistrationExam(exam);
                 if (!openRegistration) {
-                    if (!/^[a-z0-9._-]{3,80}$/.test(accountId)) {
+                    const authToken = readCookie(
+                        socket.handshake.headers.cookie,
+                        campaignAuthCookieName,
+                    );
+                    const claims = verifyCampaignAuthToken(authToken, campaignAuthSecret);
+                    if (!claims) {
                         replyAfterRoomCommit(reply, {
                             ok: false,
-                            error: "계정 ID가 없으면 문제 관전만 가능합니다.",
+                            error: "로그인 인증이 만료되었습니다. 다시 로그인하세요.",
                         });
                         return;
                     }
-                    if (
-                        !examCatalogPool ||
-                        !(await readCampaignUserByUsername(examCatalogPool, accountId))
-                    ) {
+                    const record = examCatalogPool
+                        ? await readCampaignUserByUsername(examCatalogPool, claims.username)
+                        : null;
+                    if (!record || record.user.id !== claims.sub) {
                         replyAfterRoomCommit(reply, {
                             ok: false,
                             error: "등록된 계정만 이벤트에 등록할 수 있습니다.",
@@ -1851,6 +2067,45 @@ io.on("connection", (socket) => {
                 );
                 if (!nickname) {
                     replyAfterRoomCommit(reply, { ok: false, error: "닉네임을 입력하세요." });
+                    return;
+                }
+
+                const existingRoom = await findReusableEventRoom(exam.id);
+                if (existingRoom) {
+                    const playerId = makeId();
+                    const socketToken = makeSocketToken();
+                    const player: PlayerState = {
+                        id: playerId,
+                        socketId: socket.id,
+                        socketToken,
+                        nickname,
+                        score: 0,
+                        penaltyMs: 0,
+                        scoreBreakdown: { solved: 0, timeBonus: 0, difficultyBonus: 0 },
+                        ready: existingRoom.status === "playing" || Boolean(existingRoom.eventId),
+                        currentProblemId: exam.problems[0]?.id ?? "",
+                        consecutiveWrong: 0,
+                        inventory: [],
+                        itemCooldowns: {},
+                        effects: [],
+                        expiredEffects: [],
+                        submissions: [],
+                        submissionHistory: [],
+                        connected: true,
+                    };
+                    existingRoom.players.set(playerId, player);
+                    playersJoinedCounter.inc();
+                    socket.join(existingRoom.code);
+                    setSocketPlayer(socket, {
+                        roomCode: existingRoom.code,
+                        playerId,
+                        socketToken,
+                    });
+                    socket.emit("player:you", playerId);
+                    touchRoom(existingRoom);
+                    addLog(existingRoom, "system", `${nickname} 등록 완료. 대기실에 합류했습니다.`);
+                    const snapshot = emitRoom(existingRoom);
+                    replyAfterRoomCommit(reply, { ok: true, data: snapshot });
                     return;
                 }
 
@@ -1880,6 +2135,7 @@ io.on("connection", (socket) => {
                     code,
                     hostId: playerId,
                     exam,
+                    eventId: exam.id,
                     mode: openRegistration ? "casual" : "contest",
                     maxPlayers: maxPlayersForRoomMode(openRegistration ? "casual" : "contest"),
                     version: 0,
@@ -1996,6 +2252,72 @@ io.on("connection", (socket) => {
         },
     );
 
+    socket.on(
+        "event:spectate",
+        async (
+            payload: { eventId: string },
+            reply: (response: ServerResponse<RoomPublic>) => void,
+        ) => {
+            await withRoomMutation("__event_register__", async () => {
+                if ((await activeRoomCount()) >= ROOM_GUARDRAILS.maxActiveRooms) {
+                    replyAfterRoomCommit(reply, {
+                        ok: false,
+                        error: "현재 입장 가능한 이벤트 방 수를 초과했습니다. 잠시 후 다시 시도하세요.",
+                    });
+                    return;
+                }
+
+                const eventId = readString(payload?.eventId, 80);
+                const exam = examById.get(eventId);
+                if (!exam) {
+                    replyAfterRoomCommit(reply, { ok: false, error: "이벤트를 찾을 수 없습니다." });
+                    return;
+                }
+
+                let room = await findReusableEventRoom(exam.id);
+                if (!room) {
+                    const code = await makeAvailableCode();
+                    room = {
+                        code,
+                        hostId: "",
+                        exam,
+                        eventId: exam.id,
+                        mode: isOpenRegistrationExam(exam) ? "casual" : "contest",
+                        maxPlayers: maxPlayersForRoomMode(
+                            isOpenRegistrationExam(exam) ? "casual" : "contest",
+                        ),
+                        version: 0,
+                        status: "lobby",
+                        timeLimitSec: exam.timeLimitSec,
+                        freezeBeforeSec: Math.min(
+                            ROOM_GUARDRAILS.defaultFreezeBeforeSec,
+                            exam.timeLimitSec,
+                        ),
+                        itemEnabled: false,
+                        startedAt: null,
+                        endsAt: null,
+                        scoreboardFrozenAt: null,
+                        frozenStandings: [],
+                        scoreboardRevealCount: 0,
+                        players: new Map(),
+                        logs: [],
+                        createdAt: Date.now(),
+                        lastActivityAt: Date.now(),
+                    };
+                    rooms.set(code, room);
+                    roomsCreatedCounter.inc();
+                    addLog(room, "system", "관전자 대기실이 열렸습니다.");
+                }
+
+                socket.join(room.code);
+                setSocketSpectator(socket, { roomCode: room.code });
+                touchRoom(room);
+                const snapshot = emitRoom(room);
+                replyAfterRoomCommit(reply, { ok: true, data: snapshot });
+            });
+        },
+    );
+
     socket.on("player:ready", async (payload: { ready: boolean }) => {
         if (shouldRateLimit(socket.id, "player:ready", RATE_LIMIT_MS.ready)) return;
         const ref = socketToPlayer.get(socket.id);
@@ -2041,6 +2363,13 @@ io.on("connection", (socket) => {
                     });
                     return;
                 }
+                if (room.eventId && !isExamReleased(room.exam)) {
+                    replyAfterRoomCommit(reply, {
+                        ok: false,
+                        error: "공개 시간이 되어야 시험을 시작할 수 있습니다.",
+                    });
+                    return;
+                }
                 room.status = "playing";
                 room.startedAt = Date.now();
                 room.endsAt = room.startedAt + room.timeLimitSec * 1000;
@@ -2053,6 +2382,41 @@ io.on("connection", (socket) => {
                 for (const player of room.players.values()) player.ready = true;
                 touchRoom(room);
                 addLog(room, "system", "타종. 1교시 수학 영역을 시작합니다.");
+                const snapshot = emitRoom(room);
+                replyAfterRoomCommit(reply, { ok: true, data: snapshot });
+            });
+        },
+    );
+
+    socket.on(
+        "room:start-if-released",
+        async (_payload?: unknown, reply?: (response: ServerResponse<RoomPublic>) => void) => {
+            const playerRef = socketToPlayer.get(socket.id);
+            const spectatorRef = socketToSpectator.get(socket.id);
+            const roomCode = playerRef?.roomCode ?? spectatorRef?.roomCode;
+            if (!roomCode) {
+                replyAfterRoomCommit(reply, {
+                    ok: false,
+                    error: "대기실 정보를 찾을 수 없습니다.",
+                });
+                return;
+            }
+            await withRoomMutation(roomCode, async () => {
+                const room = await getPersistedRoom(roomCode);
+                if (!room || !room.eventId) {
+                    replyAfterRoomCommit(reply, {
+                        ok: false,
+                        error: "이벤트 대기실을 찾을 수 없습니다.",
+                    });
+                    return;
+                }
+                if (!isExamReleased(room.exam)) {
+                    replyAfterRoomCommit(reply, {
+                        ok: false,
+                        error: "아직 공개 시간이 되지 않았습니다.",
+                    });
+                    return;
+                }
                 const snapshot = emitRoom(room);
                 replyAfterRoomCommit(reply, { ok: true, data: snapshot });
             });
@@ -2147,7 +2511,17 @@ io.on("connection", (socket) => {
         "room:leave",
         async (_payload: unknown, reply?: (response: ServerResponse) => void) => {
             const ref = socketToPlayer.get(socket.id);
+            const spectatorRef = socketToSpectator.get(socket.id);
             if (!ref) {
+                if (spectatorRef) {
+                    const room = await getPersistedRoom(spectatorRef.roomCode);
+                    socket.leave(spectatorRef.roomCode);
+                    clearLocalSocketSpectator(socket.id);
+                    if (room) {
+                        touchRoom(room);
+                        emitRoom(room);
+                    }
+                }
                 replyAfterRoomCommit(reply, { ok: true });
                 return;
             }
@@ -2159,13 +2533,19 @@ io.on("connection", (socket) => {
                     replyAfterRoomCommit(reply, { ok: true });
                     return;
                 }
-                const action = getRoomLeaveAction(room ?? undefined, player?.id);
+                const action =
+                    room?.eventId && room.status === "lobby"
+                        ? "remove-player"
+                        : getRoomLeaveAction(room ?? undefined, player?.id);
 
                 if (room && player && action === "close-room") {
                     addLog(room, "system", `${player.nickname} 방장이 퇴실하여 방이 닫혔습니다.`);
                     closeLobbyRoom(room);
                 } else if (room && player && action === "remove-player") {
                     removePlayerFromRoom(room, player);
+                    if (room.hostId === player.id) {
+                        room.hostId = room.players.values().next().value?.id ?? "";
+                    }
                     addLog(room, "system", `${player.nickname} 퇴실.`);
                     touchRoom(room);
                     emitRoom(room);
@@ -2611,7 +2991,17 @@ io.on("connection", (socket) => {
     socket.on("disconnect", async () => {
         socketEventTimestamps.delete(socket.id);
         const ref = socketToPlayer.get(socket.id);
-        if (!ref) return;
+        if (!ref) {
+            const spectatorRef = socketToSpectator.get(socket.id);
+            if (!spectatorRef) return;
+            const room = await getPersistedRoom(spectatorRef.roomCode);
+            clearLocalSocketSpectator(socket.id);
+            if (room) {
+                touchRoom(room);
+                emitRoom(room);
+            }
+            return;
+        }
         await withRoomMutation(ref.roomCode, async () => {
             const room = await getPersistedRoom(ref.roomCode);
             const player = room?.players.get(ref.playerId);

@@ -85,7 +85,10 @@ export function EventHomeScreen({
 
                     <h1 id="invite-reference-title">수학 영역</h1>
 
-                    <section className="gym-event-list exam-reference-events" aria-label="초대 시험실 입장">
+                    <section
+                        className="gym-event-list exam-reference-events"
+                        aria-label="초대 시험실 입장"
+                    >
                         <div className="gym-section-label">
                             <span>시험실 입장</span>
                             <strong>{inviteRoomCode}</strong>
@@ -217,38 +220,43 @@ function getEventAccess({
     event: EventDisplay;
     entrantState: EntrantState;
 }): EventAccess {
-    if (event.status !== "open") {
-        return {
-            canRegister: false,
-            canSpectate: false,
-            hint: "공개 시간이 되면 참가와 관전이 열립니다.",
-        };
-    }
     if (event.registration === "open") {
         return {
             canRegister: true,
             canSpectate: true,
-            hint: "계정 없이 바로 응시할 수 있습니다.",
+            hint:
+                event.status === "open"
+                    ? "계정 없이 바로 응시할 수 있습니다."
+                    : "공개 전에도 등록하고 대기실에서 기다릴 수 있습니다.",
         };
     }
     if (!entrantState.hasReferralVerification) {
         return {
             canRegister: false,
             canSpectate: true,
-            hint: "응시표가 없으면 관전만 가능합니다.",
+            hint:
+                event.status === "open"
+                    ? "응시표가 없으면 관전만 가능합니다."
+                    : "미인증 사용자는 관전 대기실까지만 입장합니다.",
         };
     }
     if (!entrantState.isLoggedIn) {
         return {
             canRegister: false,
             canSpectate: true,
-            hint: "추천 링크에서 발급된 응시표로 참가합니다.",
+            hint:
+                event.status === "open"
+                    ? "추천 링크에서 발급된 응시표로 참가합니다."
+                    : "추천 응시표 확인 후 공개 전 등록할 수 있습니다.",
         };
     }
     return {
         canRegister: true,
         canSpectate: true,
-        hint: "저장된 추천 등록 정보로 참가합니다.",
+        hint:
+            event.status === "open"
+                ? "저장된 추천 등록 정보로 참가합니다."
+                : "공개 전 등록 후 대기실에서 카운트다운을 봅니다.",
     };
 }
 

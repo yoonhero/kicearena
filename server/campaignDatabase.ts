@@ -94,7 +94,6 @@ const toPublicUser = (row: CampaignUserRow): CampaignUserPublic => {
         id: row.id,
         username: row.username,
         studentStatus: row.student_status,
-        phone: row.phone,
         school,
         referralCode: row.referral_code,
         referralAllowed: row.referral_allowed === true,

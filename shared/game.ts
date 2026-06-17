@@ -1,3 +1,7 @@
+import type { ProblemBodyBlock } from "./problemBody.js";
+export type { ProblemBodyBlock } from "./problemBody.js";
+export { isProblemBody, isProblemBodyBlock } from "./problemBody.js";
+
 export type AnswerKind = "choice" | "short";
 export type RoomStatus = "lobby" | "playing" | "finished";
 export type RoomMode = "casual" | "contest";
@@ -13,48 +17,6 @@ export const ITEM_IDS = [
 ] as const;
 export type ItemId = (typeof ITEM_IDS)[number];
 export type DebuffId = "blur" | "slowInput" | "hideAssist";
-
-export type ProblemBodyBlock =
-    | { kind: "paragraph"; text: string; inlineMath?: string[] }
-    | { kind: "displayMath"; latex: string }
-    | { kind: "choices"; choices: string[] }
-    | { kind: "diagram"; src: string; alt: string; caption?: string }
-    | { kind: "note"; text: string };
-
-const isStringArray = (value: unknown) =>
-    Array.isArray(value) && value.every((item) => typeof item === "string");
-
-export const isProblemBodyBlock = (value: unknown): value is ProblemBodyBlock => {
-    if (!value || typeof value !== "object") return false;
-    const block = value as Record<string, unknown>;
-
-    if (block.kind === "paragraph") {
-        return (
-            typeof block.text === "string" &&
-            (block.inlineMath === undefined || isStringArray(block.inlineMath))
-        );
-    }
-    if (block.kind === "displayMath") {
-        return typeof block.latex === "string";
-    }
-    if (block.kind === "choices") {
-        return isStringArray(block.choices);
-    }
-    if (block.kind === "diagram") {
-        return (
-            typeof block.src === "string" &&
-            typeof block.alt === "string" &&
-            (block.caption === undefined || typeof block.caption === "string")
-        );
-    }
-    if (block.kind === "note") {
-        return typeof block.text === "string";
-    }
-    return false;
-};
-
-export const isProblemBody = (value: unknown): value is ProblemBodyBlock[] =>
-    Array.isArray(value) && value.every(isProblemBodyBlock);
 
 export interface ProblemManifest {
     id: string;
@@ -356,6 +318,8 @@ export interface RoomPublic {
     code: string;
     hostId: string;
     exam: ExamPublic;
+    startsAt: string | null;
+    eventRoom: boolean;
     mode: RoomMode;
     maxPlayers: number;
     version: number;
@@ -369,6 +333,7 @@ export interface RoomPublic {
     scoreboardFrozenAt: number | null;
     frozenStandings: StandingPublic[];
     scoreboardRevealCount: number;
+    spectatorCount: number;
     players: PlayerPublic[];
     logs: ArenaLog[];
 }

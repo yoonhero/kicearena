@@ -66,6 +66,8 @@ jobs:
                   DATABASE_URL: ${{ secrets.DATABASE_URL }}
                   POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
                   ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+                  CAMPAIGN_AUTH_SECRET: ${{ secrets.CAMPAIGN_AUTH_SECRET }}
+                  ADMIN_BASIC_AUTH_HTPASSWD: ${{ secrets.ADMIN_BASIC_AUTH_HTPASSWD }}
                   METRICS_BEARER_TOKEN: ${{ secrets.METRICS_BEARER_TOKEN }}
                   GRAFANA_ADMIN_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
                   DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
@@ -87,6 +89,8 @@ jobs:
                   require_env DEPLOY_PATH "$DEPLOY_PATH"
                   require_env POSTGRES_PASSWORD "${POSTGRES_PASSWORD:-}"
                   require_env ADMIN_TOKEN "${ADMIN_TOKEN:-}"
+                  require_env CAMPAIGN_AUTH_SECRET "${CAMPAIGN_AUTH_SECRET:-}"
+                  require_env ADMIN_BASIC_AUTH_HTPASSWD "${ADMIN_BASIC_AUTH_HTPASSWD:-}"
                   require_env METRICS_BEARER_TOKEN "${METRICS_BEARER_TOKEN:-}"
                   require_env GRAFANA_ADMIN_PASSWORD "${GRAFANA_ADMIN_PASSWORD:-}"
 
@@ -104,6 +108,7 @@ jobs:
 
                   ENV_FILE="$(mktemp)"
                   METRICS_TOKEN_FILE="$(mktemp)"
+                  ADMIN_BASIC_AUTH_FILE="$(mktemp)"
                   add_env() {
                     local key="$1"
                     local value="$2"
@@ -127,6 +132,8 @@ jobs:
                   add_env DATABASE_URL "${DATABASE_URL:-}"
                   add_env REDIS_URL "${REDIS_URL:-}"
                   add_env ADMIN_TOKEN "${ADMIN_TOKEN:-}"
+                  add_env CAMPAIGN_AUTH_SECRET "${CAMPAIGN_AUTH_SECRET:-}"
+                  add_env ADMIN_BASIC_AUTH_FILE ./secrets/kice-admin.htpasswd
                   add_env CORS_ORIGINS "${CORS_ORIGINS:-}"
                   add_env CAMPAIGN_REFERRAL_WHITELIST "${CAMPAIGN_REFERRAL_WHITELIST:-}"
                   add_env CAMPAIGN_LOCATION_RADIUS_KM "${CAMPAIGN_LOCATION_RADIUS_KM:-}"
@@ -140,6 +147,7 @@ jobs:
                     add_env METRICS_TOKEN_FILE ./secrets/kice-arena-metrics-token
                     printf '%s' "$METRICS_BEARER_TOKEN" > "$METRICS_TOKEN_FILE"
                   fi
+                  printf '%s\n' "$ADMIN_BASIC_AUTH_HTPASSWD" > "$ADMIN_BASIC_AUTH_FILE"
 
                   ssh \
                     -i ~/.ssh/deploy_key \
@@ -162,6 +170,16 @@ jobs:
                       "$DEPLOY_USER@$DEPLOY_HOST" \
                       "mkdir -p $Q_DEPLOY_PATH/secrets && cat > $Q_DEPLOY_PATH/secrets/kice-arena-metrics-token && chmod 600 $Q_DEPLOY_PATH/secrets/kice-arena-metrics-token" < "$METRICS_TOKEN_FILE"
                   fi
+
+                  ssh \
+                    -i ~/.ssh/deploy_key \
+                    -p 222 \
+                    -o IdentitiesOnly=yes \
+                    -o PreferredAuthentications=publickey \
+                    -o PasswordAuthentication=no \
+                    -o StrictHostKeyChecking=yes \
+                    "$DEPLOY_USER@$DEPLOY_HOST" \
+                    "mkdir -p $Q_DEPLOY_PATH/secrets && cat > $Q_DEPLOY_PATH/secrets/kice-admin.htpasswd && chmod 600 $Q_DEPLOY_PATH/secrets/kice-admin.htpasswd" < "$ADMIN_BASIC_AUTH_FILE"
 
                   ssh \
                       -i ~/.ssh/deploy_key \
@@ -221,6 +239,45 @@ jobs:
                     return 1
                   }
 
+                  require_service_container() {
+                    local service="$1"
+                    local container_id=""
+                    container_id="$(compose ps -q "$service" 2>/dev/null || true)"
+                    if [ -z "$container_id" ]; then
+                      echo "Required deploy service is missing: $service" >&2
+                      compose ps -a
+                      return 1
+                    fi
+                  }
+
+                  remove_legacy_app_container() {
+                    local legacy_ids=""
+                    legacy_ids="$("$DOCKER" ps -aq --filter "name=^/kice-arena$" || true)"
+                    if [ -n "$legacy_ids" ]; then
+                      "$DOCKER" stop $legacy_ids >/dev/null 2>&1 || true
+                      "$DOCKER" rm -f $legacy_ids
+                    fi
+                  }
+
+                  run_seed() {
+                    compose rm -f -s kice-arena-seed >/dev/null 2>&1 || true
+                    if ! compose up --no-deps --force-recreate --abort-on-container-exit --exit-code-from kice-arena-seed kice-arena-seed; then
+                      compose ps -a
+                      compose logs --tail=200 kice-arena-seed postgres
+                      exit 1
+                    fi
+                    compose rm -f -s kice-arena-seed >/dev/null 2>&1 || true
+                  }
+
+                  verify_deploy() {
+                    require_service_container kice-arena-blue
+                    require_service_container kice-arena-green
+                    require_service_container kice-arena-gateway
+                    wait_healthy kice-arena-blue
+                    wait_healthy kice-arena-green
+                    wait_healthy kice-arena-gateway
+                  }
+
                   reload_gateway() {
                     local gateway_id=""
                     gateway_id="$(compose ps -q kice-arena-gateway 2>/dev/null || true)"
@@ -249,16 +306,9 @@ jobs:
                     exit 1
                   fi
 
-                  compose rm -f -s kice-arena-seed >/dev/null 2>&1 || true
-                  if ! compose run --rm kice-arena-seed; then
-                    compose ps
-                    compose logs --tail=200 kice-arena-seed postgres
-                    exit 1
-                  fi
-                  compose rm -f -s kice-arena-seed >/dev/null 2>&1 || true
+                  run_seed
 
                   gateway_id="$(compose ps -q kice-arena-gateway 2>/dev/null || true)"
-                  legacy_id="$("$DOCKER" ps -q --filter "name=^/kice-arena$" || true)"
 
                   if [ -z "$gateway_id" ]; then
                     compose up -d --no-deps kice-arena-blue
@@ -266,10 +316,7 @@ jobs:
                     compose up -d --no-deps kice-arena-green
                     wait_healthy kice-arena-green
 
-                    if [ -n "$legacy_id" ]; then
-                      "$DOCKER" stop "$legacy_id"
-                      "$DOCKER" rm "$legacy_id"
-                    fi
+                    remove_legacy_app_container
 
                     compose up -d --no-deps kice-arena-gateway
                     wait_healthy kice-arena-gateway
@@ -284,6 +331,7 @@ jobs:
                     compose logs --tail=200 kice-arena-blue kice-arena-green kice-arena-gateway prometheus grafana
                     exit 1
                   fi
+                  verify_deploy
                   wait_healthy prometheus
                   wait_healthy grafana
                   REMOTE

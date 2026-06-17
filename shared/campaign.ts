@@ -15,7 +15,6 @@ export type CampaignUserPublic = {
     id: string;
     username: string;
     studentStatus: StudentStatus;
-    phone: string;
     school: HighSchool;
     referralCode: string;
     referralAllowed: boolean;
@@ -36,6 +35,7 @@ export type CampaignStats = {
         schools: number;
         referralVisits: number;
         convertedReferrals: number;
+        whitelistedLinks: number;
     };
     topSchools: Array<{
         schoolId: string;
@@ -50,6 +50,14 @@ export type CampaignStats = {
         studentStatus: StudentStatus;
         schoolName: string;
         region: string;
+        createdAt: string;
+    }>;
+    whitelist: Array<{
+        referralCode: string;
+        schoolId: string;
+        schoolName: string;
+        region: string;
+        note: string;
         createdAt: string;
     }>;
 };

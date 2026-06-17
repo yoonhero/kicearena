@@ -3,11 +3,12 @@ import type { ExamPublic, PlayerPublic, RoomPublic, GymEventSummary } from "../.
 import { ArenaScreen } from "../screens/ArenaScreen";
 import { EventHomeScreen } from "../screens/EventHomeScreen";
 import { LobbyScreen } from "../screens/LobbyScreen";
+import { RankingsScreen } from "../screens/RankingsScreen";
 import { ResultsScreen } from "../screens/ResultsScreen";
 import { SpectatorProblemScreen } from "../screens/SpectatorProblemScreen";
 import { ReferralSchoolGate } from "./ReferralSchoolGate";
 
-export type AppScreen = "home" | "lobby" | "arena" | "results" | "spectator";
+export type AppScreen = "home" | "lobby" | "arena" | "rankings" | "results" | "spectator";
 
 export function AppLoading({
     inviteCode,
@@ -125,6 +126,14 @@ export function AppRoutes(props: {
                     room={props.room}
                     ownPlayer={props.ownPlayer}
                     onLeave={props.leaveRoom}
+                />
+            )}
+
+            {props.screen === "rankings" && props.room && (
+                <RankingsScreen
+                    room={props.room}
+                    ownPlayer={props.ownPlayer}
+                    onBack={props.leaveRoom}
                 />
             )}
 

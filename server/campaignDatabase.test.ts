@@ -11,6 +11,11 @@ import {
     upsertHighSchools,
 } from "./campaignDatabase.js";
 import { readCampaignStats } from "./campaignStatsDatabase.js";
+import {
+    deleteReferralWhitelistEntry,
+    readReferralWhitelist,
+    upsertReferralWhitelistEntry,
+} from "./campaignWhitelistDatabase.js";
 import { readDefaultHighSchools } from "./defaultHighSchools.js";
 import { findHighSchoolNearLocation } from "./highSchoolGeo.js";
 
@@ -78,23 +83,24 @@ describe("campaign database persistence", () => {
             },
         };
 
-        await expect(
-            createCampaignUser(db, {
-                username: "student2",
-                passwordHash: "scrypt:hash",
-                studentStatus: "g3",
-                phone: "01012345678",
-                schoolId: "school-1",
-                paymentMeta: { noticeOptIn: true },
-                referredByCode: "ref1",
-            }),
-        ).resolves.toMatchObject({
+        const user = await createCampaignUser(db, {
+            username: "student2",
+            passwordHash: "scrypt:hash",
+            studentStatus: "g3",
+            phone: "01012345678",
+            schoolId: "school-1",
+            paymentMeta: { noticeOptIn: true },
+            referredByCode: "ref1",
+        });
+
+        expect(user).toMatchObject({
             username: "student2",
             studentStatus: "g3",
             school: { id: "school-1", name: "KICE High" },
             referralAllowed: true,
             badgeLabel: "KICE High 대표",
         });
+        expect(user).not.toHaveProperty("phone");
         expect(queries[0]?.text).toContain(
             "SELECT id FROM campaign_users WHERE referral_code = $7",
         );
@@ -163,6 +169,44 @@ describe("campaign database persistence", () => {
         expect(queries[1]?.values).toEqual(["abc234", "B100000546"]);
     });
 
+    it("manages admin referral whitelist entries by school", async () => {
+        const queries: { text: string; values?: unknown[] }[] = [];
+        const db: CampaignDatabase = {
+            query: async <T extends object>(text: string, values?: unknown[]) => {
+                queries.push({ text, values });
+                if (text.startsWith("DELETE")) return { ...makeQueryResult(), rowCount: 1 };
+                return makeQueryResult([
+                    {
+                        referral_code: values?.[0] ?? "abc234",
+                        school_id: values?.[1] ?? "B100000546",
+                        school_name: "KICE High",
+                        region: "Seoul",
+                        note: values?.[2] ?? "admin",
+                        created_at: "2026-06-12T00:00:00.000Z",
+                    } as T,
+                ]);
+            },
+        };
+
+        await expect(readReferralWhitelist(db)).resolves.toMatchObject([
+            { referralCode: "abc234", schoolName: "KICE High" },
+        ]);
+        await expect(
+            upsertReferralWhitelistEntry(db, {
+                referralCode: "abc234",
+                schoolId: "B100000546",
+                note: "manual",
+            }),
+        ).resolves.toMatchObject({
+            referralCode: "abc234",
+            schoolId: "B100000546",
+            note: "manual",
+        });
+        await expect(deleteReferralWhitelistEntry(db, "abc234")).resolves.toBe(true);
+        expect(queries[1]?.text).toContain("ON CONFLICT (referral_code) DO UPDATE");
+        expect(queries[1]?.values).toEqual(["abc234", "B100000546", "manual"]);
+    });
+
     it("verifies only the code-bound high school within radius", async () => {
         const queries: { text: string; values?: unknown[] }[] = [];
         const db: CampaignDatabase = {
@@ -222,6 +266,7 @@ describe("campaign database persistence", () => {
                             schools: "15",
                             referral_visits: "3",
                             converted_referrals: "1",
+                            whitelisted_links: "2",
                         } as T,
                     ]);
                 }
@@ -233,6 +278,18 @@ describe("campaign database persistence", () => {
                             region: "Seoul",
                             users: "2",
                             referrals: "1",
+                        } as T,
+                    ]);
+                }
+                if (text.includes("FROM campaign_referral_whitelist whitelist")) {
+                    return makeQueryResult([
+                        {
+                            referral_code: "abc234",
+                            school_id: "school-1",
+                            school_name: "KICE High",
+                            region: "Seoul",
+                            note: "admin",
+                            created_at: "2026-06-12T00:00:00.000Z",
                         } as T,
                     ]);
                 }
@@ -251,9 +308,16 @@ describe("campaign database persistence", () => {
 
         await expect(searchHighSchools(db, "KICE")).resolves.toHaveLength(1);
         await expect(readCampaignStats(db)).resolves.toMatchObject({
-            totals: { users: 2, schools: 15, referralVisits: 3, convertedReferrals: 1 },
+            totals: {
+                users: 2,
+                schools: 15,
+                referralVisits: 3,
+                convertedReferrals: 1,
+                whitelistedLinks: 2,
+            },
             topSchools: [{ schoolName: "KICE High", users: 2, referrals: 1 }],
             recentUsers: [{ username: "student", schoolName: "KICE High" }],
+            whitelist: [{ referralCode: "abc234", schoolName: "KICE High" }],
         });
         expect(queries[0]?.values).toEqual(["KICE", "%KICE%", "KICE%", 12]);
     });

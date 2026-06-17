@@ -73,6 +73,8 @@ Required GitHub Secrets:
 - `DEPLOY_KNOWN_HOSTS`
 - `POSTGRES_PASSWORD`
 - `ADMIN_TOKEN`
+- `CAMPAIGN_AUTH_SECRET`: 캠페인 로그인 쿠키 서명키. 운영에서는 `openssl rand -base64 32`처럼 긴 랜덤 값을 사용한다.
+- `ADMIN_BASIC_AUTH_HTPASSWD`: `/admin`과 `/api/admin/*`를 nginx Basic Auth로 보호할 htpasswd 내용. 예: `htpasswd -nbB admin 'strong-password'` 출력 전체를 secret에 저장한다.
 - `METRICS_BEARER_TOKEN`
 - `GRAFANA_ADMIN_PASSWORD`
 

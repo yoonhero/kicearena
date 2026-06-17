@@ -7,6 +7,48 @@
     border-bottom: 1px solid rgba(18, 18, 18, 0.1);
 }
 
+.lobby-countdown {
+    margin-top: 18px;
+    display: grid;
+    grid-template-columns: minmax(96px, auto) minmax(0, 1fr) minmax(160px, auto);
+    align-items: center;
+    gap: 12px 18px;
+    padding: 14px 0;
+    border-top: 2px solid var(--ink);
+    border-bottom: 2px solid var(--ink);
+}
+
+.lobby-countdown span {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 1000;
+    color: var(--muted);
+}
+
+.lobby-countdown span svg {
+    color: var(--ui-accent-ink);
+    flex: 0 0 auto;
+}
+
+.lobby-countdown strong {
+    font-size: clamp(46px, 8vw, 88px);
+    line-height: 0.9;
+    font-weight: 1000;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0;
+    color: var(--ink);
+}
+
+.lobby-countdown small {
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 900;
+    line-height: 1.35;
+    word-break: keep-all;
+}
+
 .problem-preview-grid span {
     min-width: 0;
     min-height: 58px;

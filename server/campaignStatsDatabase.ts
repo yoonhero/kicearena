@@ -69,18 +69,20 @@ export const readHighSchoolCampaignAdminStats = async (
 };
 
 export const readCampaignStats = async (db: CampaignDatabase): Promise<CampaignStats> => {
-    const [totals, topSchools, recentUsers] = await Promise.all([
+    const [totals, topSchools, recentUsers, whitelist] = await Promise.all([
         db.query<{
             users: string;
             schools: string;
             referral_visits: string;
             converted_referrals: string;
+            whitelisted_links: string;
         }>(
             `SELECT
          (SELECT count(*)::text FROM campaign_users) AS users,
          (SELECT count(*)::text FROM high_schools) AS schools,
          (SELECT count(*)::text FROM campaign_referral_events) AS referral_visits,
-         (SELECT count(*)::text FROM campaign_referral_events WHERE converted_user_id IS NOT NULL) AS converted_referrals`,
+         (SELECT count(*)::text FROM campaign_referral_events WHERE converted_user_id IS NOT NULL) AS converted_referrals,
+         (SELECT count(*)::text FROM campaign_referral_whitelist) AS whitelisted_links`,
         ),
         db.query<{
             school_id: string;
@@ -127,6 +129,20 @@ export const readCampaignStats = async (db: CampaignDatabase): Promise<CampaignS
        ORDER BY user_account.created_at DESC
        LIMIT 12`,
         ),
+        db.query<{
+            referral_code: string;
+            school_id: string;
+            school_name: string;
+            region: string;
+            note: string;
+            created_at: Date | string;
+        }>(
+            `SELECT whitelist.referral_code, whitelist.school_id, school.name AS school_name,
+              school.region, whitelist.note, whitelist.created_at
+       FROM campaign_referral_whitelist whitelist
+       JOIN high_schools school ON school.id = whitelist.school_id
+       ORDER BY whitelist.created_at DESC, whitelist.referral_code`,
+        ),
     ]);
     const totalRow = totals.rows[0];
     return {
@@ -135,6 +151,7 @@ export const readCampaignStats = async (db: CampaignDatabase): Promise<CampaignS
             schools: Number(totalRow?.schools ?? 0),
             referralVisits: Number(totalRow?.referral_visits ?? 0),
             convertedReferrals: Number(totalRow?.converted_referrals ?? 0),
+            whitelistedLinks: Number(totalRow?.whitelisted_links ?? 0),
         },
         topSchools: topSchools.rows.map((row) => ({
             schoolId: row.school_id,
@@ -149,6 +166,15 @@ export const readCampaignStats = async (db: CampaignDatabase): Promise<CampaignS
             studentStatus: row.student_status,
             schoolName: row.school_name,
             region: row.region,
+            createdAt:
+                row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
+        })),
+        whitelist: whitelist.rows.map((row) => ({
+            referralCode: row.referral_code,
+            schoolId: row.school_id,
+            schoolName: row.school_name,
+            region: row.region,
+            note: row.note,
             createdAt:
                 row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
         })),
