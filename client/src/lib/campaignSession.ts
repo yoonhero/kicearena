@@ -14,17 +14,31 @@ export const readStoredCampaignUser = (): CampaignUserPublic | null => {
 };
 
 export const saveCampaignUser = (user: CampaignUserPublic) => {
-    const { id, username, studentStatus, school, referralCode, referralAllowed, badgeLabel } = user;
+    const {
+        id,
+        username,
+        email,
+        emailVerified,
+        studentStatus,
+        school,
+        referralCode,
+        referralAllowed,
+        badgeLabel,
+        marketingEmailConsent,
+    } = user;
     window.localStorage.setItem(
         CAMPAIGN_USER_KEY,
         JSON.stringify({
             id,
             username,
+            email,
+            emailVerified,
             studentStatus,
             school,
             referralCode,
             referralAllowed,
             badgeLabel,
+            marketingEmailConsent,
         }),
     );
 };

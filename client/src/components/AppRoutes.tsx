@@ -1,14 +1,18 @@
 import type { CampaignUserPublic, ReferralLocationVerification } from "../../../shared/campaign";
 import type { ExamPublic, PlayerPublic, RoomPublic, GymEventSummary } from "../../../shared/game";
 import { ArenaScreen } from "../screens/ArenaScreen";
+import { AuthSignupScreen } from "../screens/AuthSignupScreen";
 import { EventHomeScreen } from "../screens/EventHomeScreen";
+import { HomeLandingScreen } from "../screens/HomeLandingScreen";
 import { LobbyScreen } from "../screens/LobbyScreen";
+import { ProfileScreen } from "../screens/ProfileScreen";
 import { RankingsScreen } from "../screens/RankingsScreen";
 import { ResultsScreen } from "../screens/ResultsScreen";
 import { SpectatorProblemScreen } from "../screens/SpectatorProblemScreen";
 import { ReferralSchoolGate } from "./ReferralSchoolGate";
 
 export type AppScreen = "home" | "lobby" | "arena" | "rankings" | "results" | "spectator";
+export type SitePage = "home" | "contest" | "profile" | "signup";
 
 export function AppLoading({
     inviteCode,
@@ -44,6 +48,8 @@ export function AppLoading({
 
 export function AppRoutes(props: {
     screen: AppScreen;
+    page: SitePage;
+    setPage: (page: SitePage) => void;
     needsReferralGate: boolean;
     referralCode: string;
     referralVerification: ReferralLocationVerification | null;
@@ -52,6 +58,7 @@ export function AppRoutes(props: {
     events: GymEventSummary[];
     eventsUnavailable: boolean;
     campaignUser: CampaignUserPublic | null;
+    setCampaignUser: (user: CampaignUserPublic) => void;
     hasReferralVerification: boolean;
     nickname: string;
     setNickname: (nickname: string) => void;
@@ -84,26 +91,7 @@ export function AppRoutes(props: {
                 />
             )}
 
-            {props.screen === "home" && !props.needsReferralGate && (
-                <EventHomeScreen
-                    events={props.events}
-                    eventsUnavailable={props.eventsUnavailable}
-                    campaignUser={props.campaignUser}
-                    referralVerification={props.referralVerification}
-                    hasReferralVerification={props.hasReferralVerification}
-                    nickname={props.nickname}
-                    setNickname={props.setNickname}
-                    joinInviteRoom={props.joinInviteRoom}
-                    inviteMode={props.inviteMode}
-                    inviteRoomCode={props.inviteCode}
-                    joiningInvite={props.joiningInvite}
-                    exitInviteMode={props.exitInviteMode}
-                    registerForEvent={props.registerForEvent}
-                    spectateEvent={props.spectateEvent}
-                    pendingEventAction={props.pendingEventAction}
-                    error={props.error}
-                />
-            )}
+            {props.screen === "home" && !props.needsReferralGate && <HomePageRoutes {...props} />}
 
             {props.screen === "spectator" && props.spectatorExam && (
                 <SpectatorProblemScreen exam={props.spectatorExam} onBack={props.exitSpectator} />
@@ -145,6 +133,80 @@ export function AppRoutes(props: {
                 />
             )}
         </div>
+    );
+}
+
+function HomePageRoutes(props: Parameters<typeof AppRoutes>[0]) {
+    return (
+        <>
+            <SiteNav page={props.page} setPage={props.setPage} />
+            {props.page === "home" && !props.inviteMode && (
+                <HomeLandingScreen
+                    goContest={() => props.setPage("contest")}
+                    goSignup={() => props.setPage("signup")}
+                />
+            )}
+            {(props.page === "contest" || props.inviteMode) && (
+                <EventHomeScreen
+                    events={props.events}
+                    eventsUnavailable={props.eventsUnavailable}
+                    campaignUser={props.campaignUser}
+                    referralVerification={props.referralVerification}
+                    hasReferralVerification={props.hasReferralVerification}
+                    nickname={props.nickname}
+                    setNickname={props.setNickname}
+                    joinInviteRoom={props.joinInviteRoom}
+                    inviteMode={props.inviteMode}
+                    inviteRoomCode={props.inviteCode}
+                    joiningInvite={props.joiningInvite}
+                    exitInviteMode={props.exitInviteMode}
+                    registerForEvent={props.registerForEvent}
+                    spectateEvent={props.spectateEvent}
+                    pendingEventAction={props.pendingEventAction}
+                    error={props.error}
+                />
+            )}
+            {props.page === "profile" && !props.inviteMode && (
+                <ProfileScreen
+                    campaignUser={props.campaignUser}
+                    referralVerification={props.referralVerification}
+                    goSignup={() => props.setPage("signup")}
+                />
+            )}
+            {props.page === "signup" && !props.inviteMode && (
+                <AuthSignupScreen
+                    referralVerification={props.referralVerification}
+                    onRegistered={props.setCampaignUser}
+                    onVerified={(user) => {
+                        props.setCampaignUser(user);
+                        props.setPage("profile");
+                    }}
+                />
+            )}
+        </>
+    );
+}
+
+function SiteNav({ page, setPage }: { page: SitePage; setPage: (page: SitePage) => void }) {
+    return (
+        <nav className="exam-site-nav" aria-label="주요 메뉴">
+            {(
+                [
+                    ["home", "홈"],
+                    ["contest", "대회"],
+                    ["profile", "프로필"],
+                ] as const
+            ).map(([target, label]) => (
+                <button
+                    key={target}
+                    type="button"
+                    className={page === target ? "active" : ""}
+                    onClick={() => setPage(target)}
+                >
+                    {label}
+                </button>
+            ))}
+        </nav>
     );
 }
 

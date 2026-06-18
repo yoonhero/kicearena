@@ -2,16 +2,8 @@ import { DoorOpen, Eye, LogIn, UserRound } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import type { CampaignUserPublic, ReferralLocationVerification } from "../../../shared/campaign";
 import type { GymEventSummary } from "../../../shared/game";
-import { AdmissionSkeletonTicket } from "./AdmissionSkeletonTicket";
-import {
-    getAdmissionSkeletonNote,
-    getEntrantStatus,
-    makeEventDisplays,
-    makeIndexEvents,
-    type EventDisplay,
-} from "./eventHomeModels";
+import { makeEventDisplays, makeIndexEvents, type EventDisplay } from "./eventHomeModels";
 import { ReferralNicknameOmr } from "../components/ReferralNicknameOmr";
-import { SavedAdmissionTicket } from "./SavedAdmissionTicket";
 
 type PendingEventAction = { eventId: string; action: "register" | "spectate" } | null;
 type EventAccess = {
@@ -21,7 +13,7 @@ type EventAccess = {
 };
 type EntrantState = {
     hasReferralVerification: boolean;
-    isLoggedIn: boolean;
+    hasVerifiedAccount: boolean;
 };
 
 export function EventHomeScreen({
@@ -62,16 +54,12 @@ export function EventHomeScreen({
     const displayEvents = useMemo(() => makeEventDisplays(events), [events]);
     const entrantState = {
         hasReferralVerification,
-        isLoggedIn: Boolean(campaignUser),
+        hasVerifiedAccount: campaignUser?.emailVerified === true,
     };
-    const hasOpenEvent = displayEvents.some((event) => event.status === "open");
-    const entrantStatus = getEntrantStatus(hasReferralVerification, hasOpenEvent);
     const nextEvent = displayEvents[0];
-    const hasSavedTicket = Boolean(campaignUser || referralVerification);
     const scheduleCountLabel = eventsUnavailable ? "확인 대기" : `${displayEvents.length}건`;
     const hasDisplayEvents = displayEvents.length > 0;
     const indexEvents = makeIndexEvents(displayEvents, eventsUnavailable);
-    const admissionSkeletonNote = getAdmissionSkeletonNote(displayEvents);
     useEffect(() => {
         if (inviteMode && !nickname.trim() && referralVerification?.nickname?.trim()) {
             setNickname(referralVerification.nickname);
@@ -180,38 +168,24 @@ export function EventHomeScreen({
                     )}
                 </section>
 
-                <div className="exam-reference-support">
-                    <section className="exam-reference-ticket" aria-label="수험표">
-                        {hasSavedTicket ? (
-                            <SavedAdmissionTicket
-                                campaignUser={campaignUser}
-                                entrantStatus={entrantStatus}
-                                referralVerification={referralVerification}
-                            />
-                        ) : (
-                            <AdmissionSkeletonTicket note={admissionSkeletonNote} />
-                        )}
-                    </section>
-
-                    <section className="exam-reference-index" aria-label="시험지 확인">
-                        <p>※ 시험 목록은 현재 공개 상태를 요약한 보조 확인란입니다.</p>
-                        <div className="exam-index-row">
-                            <span>시험 목록</span>
+                <section className="exam-reference-index" aria-label="시험지 확인">
+                    <p>※ 시험 목록은 현재 공개 상태를 요약한 보조 확인란입니다.</p>
+                    <div className="exam-index-row">
+                        <span>시험 목록</span>
+                        <i />
+                        <strong>{scheduleCountLabel}</strong>
+                    </div>
+                    {indexEvents.map((event) => (
+                        <div
+                            className="exam-index-row nested"
+                            key={`${event.title}-${event.detail}`}
+                        >
+                            <span>{event.title}</span>
                             <i />
-                            <strong>{scheduleCountLabel}</strong>
+                            <strong>{event.detail}</strong>
                         </div>
-                        {indexEvents.map((event) => (
-                            <div
-                                className="exam-index-row nested"
-                                key={`${event.title}-${event.detail}`}
-                            >
-                                <span>{event.title}</span>
-                                <i />
-                                <strong>{event.detail}</strong>
-                            </div>
-                        ))}
-                    </section>
-                </div>
+                    ))}
+                </section>
                 {error && <p className="gym-error error-text">{error}</p>}
             </section>
         </main>
@@ -225,6 +199,13 @@ function getEventAccess({
     event: EventDisplay;
     entrantState: EntrantState;
 }): EventAccess {
+    if (event.status === "ended") {
+        return {
+            canRegister: true,
+            canSpectate: true,
+            hint: "종료된 시험은 개인 풀이와 최종 순위표만 볼 수 있습니다.",
+        };
+    }
     if (event.registration === "open") {
         return {
             canRegister: true,
@@ -245,13 +226,17 @@ function getEventAccess({
                     : "미인증 사용자는 관전 대기실까지만 입장합니다.",
         };
     }
+    if (!entrantState.hasVerifiedAccount) {
+        return {
+            canRegister: false,
+            canSpectate: true,
+            hint: "위치 인증 후 회원가입과 이메일 인증을 완료해야 응시할 수 있습니다.",
+        };
+    }
     return {
         canRegister: true,
         canSpectate: true,
-        hint:
-            entrantState.isLoggedIn || event.status === "open"
-                ? "저장된 추천 등록 정보로 참가합니다."
-                : "추천 수험표 확인 후 공개 전 등록할 수 있습니다.",
+        hint: "이메일 인증된 수험표로 참가합니다.",
     };
 }
 
@@ -296,9 +281,11 @@ function EventRow({
                         <UserRound size={18} />
                         {pendingThisEvent && pendingEventAction?.action === "register"
                             ? "응시 중"
-                            : event.registration === "open"
-                              ? "예비소집일 응시"
-                              : "시험 응시"}
+                            : event.status === "ended"
+                              ? "문제 풀어보기"
+                              : event.registration === "open"
+                                ? "예비소집일 응시"
+                                : "시험 응시"}
                     </button>
                 )}
                 {access.canSpectate && (

@@ -4,8 +4,10 @@ import { normalizeStudentStatus, schoolRepresentativeBadge } from "./campaign";
 describe("campaign shared helpers", () => {
     it("normalizes student statuses to known registration values", () => {
         expect(normalizeStudentStatus("g3")).toBe("g3");
+        expect(normalizeStudentStatus("g1")).toBe("g1");
+        expect(normalizeStudentStatus("returning")).toBe("returning");
         expect(normalizeStudentStatus("repeat")).toBe("repeat");
-        expect(normalizeStudentStatus("unknown")).toBe("other");
+        expect(normalizeStudentStatus("unknown")).toBe("g3");
     });
 
     it("formats school representative badge labels consistently", () => {

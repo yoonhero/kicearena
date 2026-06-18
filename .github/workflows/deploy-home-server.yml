@@ -67,6 +67,7 @@ jobs:
                   POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
                   ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
                   CAMPAIGN_AUTH_SECRET: ${{ secrets.CAMPAIGN_AUTH_SECRET }}
+                  CAMPAIGN_EMAIL_VERIFICATION_WEBHOOK_URL: ${{ vars.CAMPAIGN_EMAIL_VERIFICATION_WEBHOOK_URL || secrets.CAMPAIGN_EMAIL_VERIFICATION_WEBHOOK_URL }}
                   ADMIN_BASIC_AUTH_HTPASSWD: ${{ secrets.ADMIN_BASIC_AUTH_HTPASSWD }}
                   METRICS_BEARER_TOKEN: ${{ secrets.METRICS_BEARER_TOKEN }}
                   GRAFANA_ADMIN_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
@@ -133,6 +134,7 @@ jobs:
                   add_env REDIS_URL "${REDIS_URL:-}"
                   add_env ADMIN_TOKEN "${ADMIN_TOKEN:-}"
                   add_env CAMPAIGN_AUTH_SECRET "${CAMPAIGN_AUTH_SECRET:-}"
+                  add_env CAMPAIGN_EMAIL_VERIFICATION_WEBHOOK_URL "${CAMPAIGN_EMAIL_VERIFICATION_WEBHOOK_URL:-}"
                   add_env ADMIN_BASIC_AUTH_FILE ./secrets/kice-admin.htpasswd
                   add_env CORS_ORIGINS "${CORS_ORIGINS:-}"
                   add_env CAMPAIGN_REFERRAL_WHITELIST "${CAMPAIGN_REFERRAL_WHITELIST:-}"

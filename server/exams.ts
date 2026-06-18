@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { ExamManifest, ExamPublic, ExamSummary, GymEventSummary } from "../shared/game.js";
 import { examFreezeBeforeSec, getProblemPointValue } from "../shared/game.js";
+import { isEventExamWindowClosed } from "./eventSpectatorRooms.js";
 
 export const ACTIVE_EXAM_IDS = new Set(["preliminary-day"]);
 export const OPEN_REGISTRATION_EXAM_IDS = new Set(["preliminary-day"]);
@@ -41,10 +42,11 @@ export const toExamSummary = (exam: ExamManifest): ExamSummary => ({
 
 export const toGymEventSummary = (exam: ExamManifest, now = Date.now()): GymEventSummary => {
     const releaseAt = exam.releaseAt ? Date.parse(exam.releaseAt) : NaN;
+    const upcoming = Number.isFinite(releaseAt) && now < releaseAt;
     return {
         ...toExamSummary(exam),
         startsAt: exam.releaseAt ?? null,
-        status: Number.isFinite(releaseAt) && now < releaseAt ? "upcoming" : "open",
+        status: upcoming ? "upcoming" : isEventExamWindowClosed(exam, now) ? "ended" : "open",
         registration: isOpenRegistrationExam(exam) ? "open" : "invite-only",
         spectatorAllowed: true,
     };

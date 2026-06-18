@@ -15,7 +15,8 @@ export const makeEventDisplays = (events: GymEventSummary[]): EventDisplay[] =>
     events.map((event) => ({
         ...event,
         startLabel: formatEventStart(event.startsAt),
-        statusLabel: event.status === "upcoming" ? "예정" : "공개",
+        statusLabel:
+            event.status === "upcoming" ? "예정" : event.status === "ended" ? "종료" : "공개",
         durationLabel: `${Math.round(event.timeLimitSec / 60)}분`,
     }));
 
@@ -44,7 +45,10 @@ export const makeIndexEvents = (
 };
 
 export const getAdmissionSkeletonNote = (displayEvents: EventDisplay[]) =>
-    displayEvents.some((event) => event.status === "open" && event.registration === "open")
+    displayEvents.some(
+        (event) =>
+            (event.status === "open" || event.status === "ended") && event.registration === "open",
+    )
         ? "수험표 없이 바로 풀 수 있습니다."
         : undefined;
 

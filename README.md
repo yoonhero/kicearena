@@ -134,6 +134,7 @@ server/exams/           로컬 시험 manifest와 문제 asset
 - `CORS_ORIGINS`: 허용할 browser origin 목록
 - `CAMPAIGN_REFERRAL_WHITELIST`: `추천코드:학교ID` 목록
 - `CAMPAIGN_LOCATION_RADIUS_KM`: 추천 링크 위치 인증 반경 km
+- `CAMPAIGN_EMAIL_VERIFICATION_WEBHOOK_URL`: 이메일 인증 코드 발송 webhook
 - `DISCORD_WEBHOOK_URL`: Alertmanager Discord relay
 
 `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`는 Postgres volume 최초 초기화 때 적용된다. 운영 volume이 이미 있으면 값을 바꾸기 전에 마이그레이션 또는 volume 재생성 계획이 필요하다.

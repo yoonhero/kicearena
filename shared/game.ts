@@ -56,7 +56,7 @@ export interface ExamSummary {
     problemCount: number;
 }
 
-export type GymEventStatus = "upcoming" | "open";
+export type GymEventStatus = "upcoming" | "open" | "ended";
 
 export interface GymEventSummary extends ExamSummary {
     startsAt: string | null;

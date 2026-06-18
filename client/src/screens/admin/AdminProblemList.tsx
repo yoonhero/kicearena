@@ -7,6 +7,7 @@ import {
     Save,
     Search,
     Settings2,
+    SquareStop,
 } from "lucide-react";
 import { examFreezeBeforeSec } from "../../../../shared/game";
 import type { AdminEditorModel } from "./useAdminEditor";
@@ -138,6 +139,13 @@ export function AdminProblemList({ editor }: { editor: AdminEditorModel }) {
                         disabled={!settingsCheck.ok || !isExamSettingsDirty}
                     >
                         <Save size={16} /> 설정 저장
+                    </button>
+                    <button
+                        type="button"
+                        className="secondary-btn danger-link"
+                        onClick={() => void actions.endSelectedEvent()}
+                    >
+                        <SquareStop size={16} /> 대회 종료
                     </button>
                 </section>
             )}

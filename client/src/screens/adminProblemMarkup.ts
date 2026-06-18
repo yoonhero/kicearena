@@ -6,6 +6,12 @@ export type ProblemFormDraft = {
 };
 
 const DEFAULT_CHOICE_COUNT = 5;
+const isMetaCommand = (command: string) =>
+    command.startsWith("::source ") ||
+    command.startsWith("::source-number ") ||
+    command.startsWith("::source-page ") ||
+    command.startsWith("::bbox ") ||
+    command.startsWith("::section ");
 
 const cloneBody = (body: ProblemBodyBlock[] | undefined): ProblemBodyBlock[] =>
     JSON.parse(JSON.stringify(body ?? [])) as ProblemBodyBlock[];
@@ -70,6 +76,10 @@ export const parseProblemMarkup = (markup: string): ProblemBodyBlock[] => {
         const line = rawLine.trimEnd();
         const command = line.trimStart();
         if (!command) {
+            flushParagraph();
+            return;
+        }
+        if (isMetaCommand(command)) {
             flushParagraph();
             return;
         }

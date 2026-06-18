@@ -111,6 +111,15 @@ describe("exam serialization", () => {
             startsAt: null,
             status: "open",
         });
+        expect(
+            toGymEventSummary(
+                { ...exam, releaseAt: "2026-06-05T00:00:00.000Z", timeLimitSec: 60 },
+                Date.parse("2026-06-05T00:01:00.000Z"),
+            ),
+        ).toMatchObject({
+            startsAt: "2026-06-05T00:00:00.000Z",
+            status: "ended",
+        });
     });
 
     it("marks the preliminary exam as always open for registration", () => {

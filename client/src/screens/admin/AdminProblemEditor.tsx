@@ -4,7 +4,15 @@ import type { AdminEditorModel } from "./useAdminEditor";
 
 export function AdminProblemEditor({ editor }: { editor: AdminEditorModel }) {
     const { state, setters, actions } = editor;
-    const { selectedExam, selectedProblem, form, bodyCheck, pointCheck, uploadingAsset } = state;
+    const {
+        selectedExam,
+        selectedProblem,
+        form,
+        bodyCheck,
+        pointCheck,
+        sourceMetaCheck,
+        uploadingAsset,
+    } = state;
 
     return (
         <section className="admin-editor">
@@ -45,10 +53,13 @@ export function AdminProblemEditor({ editor }: { editor: AdminEditorModel }) {
                             }
                         />
                     </div>
-                    {(!bodyCheck.ok || !pointCheck.ok || uploadingAsset) && (
+                    {(!bodyCheck.ok || !pointCheck.ok || !sourceMetaCheck.ok || uploadingAsset) && (
                         <div className="admin-validation-strip">
                             {!bodyCheck.ok && <span className="invalid">{bodyCheck.error}</span>}
                             {!pointCheck.ok && <span className="invalid">{pointCheck.error}</span>}
+                            {!sourceMetaCheck.ok && (
+                                <span className="invalid">{sourceMetaCheck.error}</span>
+                            )}
                             {uploadingAsset && <span className="valid">업로드 중</span>}
                         </div>
                     )}
@@ -225,6 +236,20 @@ function BodyToolrow({ editor }: { editor: AdminEditorModel }) {
                     onClick={() => actions.insertBodyMarkup("::svg diagrams/graph.svg | 도표")}
                 >
                     도표
+                </button>
+                <button
+                    type="button"
+                    className="secondary-btn"
+                    onClick={() => actions.insertBodyMarkup("::source 12 | 3 | 공통")}
+                >
+                    원본
+                </button>
+                <button
+                    type="button"
+                    className="secondary-btn"
+                    onClick={() => actions.insertBodyMarkup("::bbox 10, 20, 110, 180")}
+                >
+                    bbox
                 </button>
                 <button
                     type="button"

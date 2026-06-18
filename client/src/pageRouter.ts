@@ -8,6 +8,9 @@ const normalizePathname = (pathname: string) => {
 export const getPageRoute = (pathname: string): PageRoute => {
     switch (normalizePathname(pathname)) {
         case "/":
+        case "/contest":
+        case "/profile":
+        case "/signup":
             return "app";
         case "/admin":
             return "admin";

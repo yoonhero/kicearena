@@ -21,6 +21,7 @@ import {
     newExamCheck,
     normalizedBody,
     pointValueCheck,
+    problemSourceMetaCheck,
     uploadHeaderFileName,
 } from "./adminFormUtils";
 import type {
@@ -115,6 +116,7 @@ export function useAdminEditor() {
     }, [form?.answer, form?.answerKind, parsedBody]);
 
     const pointCheck = useMemo(() => pointValueCheck(form), [form?.pointValue]);
+    const sourceMetaCheck = useMemo(() => problemSourceMetaCheck(form), [form?.bodyMarkup]);
     const settingsCheck = useMemo(
         () => examSettingsCheck(selectedExam, examSettings),
         [examSettings, selectedExam],
@@ -135,6 +137,7 @@ export function useAdminEditor() {
         selectedProblem &&
         bodyCheck.ok &&
         pointCheck.ok &&
+        sourceMetaCheck.ok &&
         form.title.trim() &&
         form.answer.trim() &&
         Number.isInteger(form.difficulty) &&
@@ -142,7 +145,8 @@ export function useAdminEditor() {
         form.difficulty <= 5,
     );
     const previewProblem = useMemo<ProblemPublic | null>(() => {
-        if (!selectedExam || !selectedProblem || !form || !bodyCheck.ok) return null;
+        if (!selectedExam || !selectedProblem || !form || !bodyCheck.ok || !sourceMetaCheck.ok)
+            return null;
         return {
             id: selectedProblem.id,
             number: selectedProblem.number,
@@ -155,13 +159,13 @@ export function useAdminEditor() {
                 : undefined,
             body: bodyCheck.body ? bodyForAdminPreview(selectedExam.id, bodyCheck.body) : undefined,
             text: selectedProblem.text,
-            sourceNumber: selectedProblem.sourceNumber,
-            sourcePage: selectedProblem.sourcePage,
-            bbox: selectedProblem.bbox,
-            section: selectedProblem.section,
+            sourceNumber: sourceMetaCheck.sourceNumber ?? undefined,
+            sourcePage: sourceMetaCheck.sourcePage ?? undefined,
+            bbox: sourceMetaCheck.bbox ?? undefined,
+            section: sourceMetaCheck.section || undefined,
             captureQuality: selectedProblem.captureQuality,
         };
-    }, [bodyCheck, form, pointCheck.value, selectedExam, selectedProblem]);
+    }, [bodyCheck, form, pointCheck.value, selectedExam, selectedProblem, sourceMetaCheck]);
     const choicesForAnswer =
         form?.answerKind === "choice"
             ? (parsedBody.find((block) => block.kind === "choices")?.choices ??
@@ -438,6 +442,30 @@ export function useAdminEditor() {
         setStatus(`${updated.title} 설정 저장됨`);
     };
 
+    const endSelectedEvent = async () => {
+        if (!selectedExam) return;
+        if (!window.confirm(`${selectedExam.title} 대회를 종료할까요?`)) return;
+        setError("");
+        setStatus("");
+        const response = await fetch(
+            `/api/admin/events/${encodeURIComponent(selectedExam.id)}/end`,
+            {
+                method: "POST",
+                headers: authHeaders(),
+            },
+        );
+        if (!response.ok) {
+            setError(
+                response.status === 401 || response.status === 403
+                    ? "관리자 권한을 확인하세요."
+                    : "대회 종료 실패",
+            );
+            return;
+        }
+        const result = (await response.json()) as { endedRooms: number };
+        setStatus(`${selectedExam.title} 종료 처리됨 · ${result.endedRooms}개 방`);
+    };
+
     const createProblem = async () => {
         if (!selectedExam) return;
         setError("");
@@ -498,6 +526,7 @@ export function useAdminEditor() {
         setStatus("");
         if (!bodyCheck.ok) return setError(bodyCheck.error);
         if (!pointCheck.ok) return setError(pointCheck.error);
+        if (!sourceMetaCheck.ok) return setError(sourceMetaCheck.error);
         if (
             !form.title.trim() ||
             !form.answer.trim() ||
@@ -517,6 +546,10 @@ export function useAdminEditor() {
                     answer: form.answer,
                     difficulty: form.difficulty,
                     pointValue: pointCheck.value,
+                    sourceNumber: sourceMetaCheck.sourceNumber,
+                    sourcePage: sourceMetaCheck.sourcePage,
+                    bbox: sourceMetaCheck.bbox,
+                    section: sourceMetaCheck.section || null,
                     body: bodyCheck.body,
                 }),
             },
@@ -574,6 +607,7 @@ export function useAdminEditor() {
             uploadingAsset,
             bodyCheck,
             pointCheck,
+            sourceMetaCheck,
             settingsCheck,
             createExamCheck,
             isExamSettingsDirty,
@@ -606,6 +640,7 @@ export function useAdminEditor() {
             resetForm,
             createExam,
             saveExamSettings,
+            endSelectedEvent,
             toggleSelectedExamActive,
             createProblem,
             selectProblemOffset,

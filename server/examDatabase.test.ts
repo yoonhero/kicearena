@@ -324,6 +324,10 @@ describePostgres("postgres exam catalog storage", () => {
                 difficulty: 4,
                 pointValue: 5,
                 body: [{ kind: "note", text: "관리자 수정" }],
+                sourceNumber: 42,
+                sourcePage: 7,
+                bbox: [10, 20, 110, 180],
+                section: "admin",
             }),
         ).resolves.toMatchObject({
             id: "db-p2",
@@ -332,6 +336,10 @@ describePostgres("postgres exam catalog storage", () => {
             difficulty: 4,
             pointValue: 5,
             body: [{ kind: "note", text: "관리자 수정" }],
+            sourceNumber: 42,
+            sourcePage: 7,
+            bbox: [10, 20, 110, 180],
+            section: "admin",
         });
 
         expect(isProblemBody([{ kind: "paragraph" }])).toBe(false);

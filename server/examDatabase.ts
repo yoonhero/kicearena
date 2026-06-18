@@ -71,6 +71,10 @@ export type ProblemUpdateInput = {
     difficulty: ProblemManifest["difficulty"];
     pointValue: number | null;
     body: ProblemBodyBlock[] | null;
+    sourceNumber: number | null;
+    sourcePage: number | null;
+    bbox: [number, number, number, number] | null;
+    section: string | null;
 };
 
 export type ProblemCreateInput = {
@@ -80,6 +84,10 @@ export type ProblemCreateInput = {
     difficulty: ProblemManifest["difficulty"];
     pointValue: number | null;
     body: ProblemBodyBlock[] | null;
+    sourceNumber?: number | null;
+    sourcePage?: number | null;
+    bbox?: [number, number, number, number] | null;
+    section?: string | null;
 };
 
 export type ExamCreateInput = {
@@ -438,9 +446,11 @@ export const createProblemInDatabase = async (
        WHERE exam_id = $1
      )
      INSERT INTO problems (
-       exam_id, id, number, title, answer_kind, answer, difficulty, point_value, body, updated_at
+       exam_id, id, number, title, answer_kind, answer, difficulty, point_value, body,
+       source_number, source_page, bbox, section, updated_at
      )
-     SELECT $1, 'p' || number::text, number, $2, $3, $4, $5, $6, $7::jsonb, now()
+     SELECT $1, 'p' || number::text, number, $2, $3, $4, $5, $6, $7::jsonb,
+            $8, $9, $10::jsonb, $11, now()
      FROM next_problem
      WHERE EXISTS (SELECT 1 FROM exams WHERE id = $1)
      RETURNING exam_id, id, number, title, answer_kind, answer, difficulty, point_value,
@@ -453,6 +463,10 @@ export const createProblemInDatabase = async (
             input.difficulty,
             input.pointValue,
             jsonParam(input.body),
+            input.sourceNumber ?? null,
+            input.sourcePage ?? null,
+            jsonParam(input.bbox ?? null),
+            input.section ?? null,
         ],
     );
     const [manifest] = composeExamManifests(
@@ -519,6 +533,10 @@ export const updateProblemInDatabase = async (
          difficulty = $6,
          point_value = $7,
          body = $8::jsonb,
+         source_number = $9,
+         source_page = $10,
+         bbox = $11::jsonb,
+         section = $12,
          updated_at = now()
      WHERE exam_id = $1 AND id = $2
      RETURNING exam_id, id, number, title, answer_kind, answer, difficulty, point_value,
@@ -532,6 +550,10 @@ export const updateProblemInDatabase = async (
             update.difficulty,
             update.pointValue,
             jsonParam(update.body),
+            update.sourceNumber,
+            update.sourcePage,
+            jsonParam(update.bbox),
+            update.section,
         ],
     );
     const [manifest] = composeExamManifests(

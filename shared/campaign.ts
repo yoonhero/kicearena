@@ -1,4 +1,4 @@
-export type StudentStatus = "g3" | "repeat" | "other";
+export type StudentStatus = "g1" | "g2" | "g3" | "returning" | "repeat" | "university";
 export const DEFAULT_SNU_REFERRAL_CODE = "snu226";
 export const DEFAULT_SNU_REFERRAL_SCHOOL_ID = "SNU-GWANAK";
 
@@ -14,11 +14,14 @@ export type HighSchool = {
 export type CampaignUserPublic = {
     id: string;
     username: string;
+    email: string;
+    emailVerified: boolean;
     studentStatus: StudentStatus;
     school: HighSchool;
     referralCode: string;
     referralAllowed: boolean;
     badgeLabel: string;
+    marketingEmailConsent: boolean;
 };
 
 export type ReferralLocationVerification = {
@@ -65,10 +68,26 @@ export type CampaignStats = {
     }>;
 };
 
-export const STUDENT_STATUSES: StudentStatus[] = ["g3", "repeat", "other"];
+export const STUDENT_STATUSES: StudentStatus[] = [
+    "g1",
+    "g2",
+    "g3",
+    "returning",
+    "repeat",
+    "university",
+];
 
 export const normalizeStudentStatus = (value: unknown): StudentStatus =>
-    value === "g3" || value === "repeat" || value === "other" ? value : "other";
+    STUDENT_STATUSES.includes(value as StudentStatus) ? (value as StudentStatus) : "g3";
+
+export const STUDENT_STATUS_LABELS: Record<StudentStatus, string> = {
+    g1: "고1",
+    g2: "고2",
+    g3: "고3",
+    returning: "반수",
+    repeat: "재수",
+    university: "대학생",
+};
 
 export const schoolRepresentativeBadge = (schoolName: string) =>
     `${schoolName.replace(/\s+/g, " ").trim()} 대표`;
