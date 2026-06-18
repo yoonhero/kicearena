@@ -42,17 +42,11 @@ import {
     validateRoomJoin,
 } from "../shared/roomLifecycle.js";
 import { runtimeMetricSamples, summarizeRoomMetrics } from "../shared/runtimeMetrics.js";
-import {
-    DEFAULT_SNU_REFERRAL_CODE,
-    DEFAULT_SNU_REFERRAL_SCHOOL_ID,
-    normalizeStudentStatus,
-    type ReferralLocationVerification,
-} from "../shared/campaign.js";
+import { normalizeStudentStatus, type ReferralLocationVerification } from "../shared/campaign.js";
 import {
     createCampaignAuthToken,
     createReferralVerificationToken,
     verifyCampaignAuthToken,
-    verifyReferralVerificationToken,
 } from "./campaignAuth.js";
 import {
     attachReferralConversion,
@@ -64,7 +58,9 @@ import {
     searchHighSchools,
     seedDefaultHighSchools,
     syncReferralWhitelist,
+    verifyCampaignUserEmail,
 } from "./campaignDatabase.js";
+import { sendCampaignEmailVerification } from "./campaignEmail.js";
 import { readCampaignStats } from "./campaignStatsDatabase.js";
 import {
     deleteReferralWhitelistEntry,
@@ -655,35 +651,6 @@ const setCampaignAuthCookie = (
         campaignAuthCookie(createCampaignAuthToken(user, campaignAuthSecret)),
     );
 };
-const hasVerifiedReferralTicket = async (
-    verification: ReferralLocationVerification | undefined,
-) => {
-    const referralCode = readString(verification?.referralCode, 32).toLowerCase();
-    const schoolId = readString(verification?.school?.id, 80);
-    const claims = verifyReferralVerificationToken(
-        verification?.verificationToken,
-        campaignAuthSecret,
-    );
-    const isDevDefaultSnuTicket =
-        process.env.NODE_ENV !== "production" &&
-        referralCode === DEFAULT_SNU_REFERRAL_CODE &&
-        schoolId === DEFAULT_SNU_REFERRAL_SCHOOL_ID;
-    if (isDevDefaultSnuTicket) return true;
-
-    if (
-        !examCatalogPool ||
-        !claims ||
-        !referralCode ||
-        !schoolId ||
-        claims.referralCode !== referralCode ||
-        claims.schoolId !== schoolId
-    ) {
-        return false;
-    }
-
-    const allowedSchool = await readReferralWhitelistSchool(examCatalogPool, referralCode);
-    return allowedSchool?.id === schoolId;
-};
 const hashPassword = (password: string) => {
     const salt = crypto.randomBytes(16).toString("base64url");
     const key = crypto.scryptSync(password, salt, 64).toString("base64url");
@@ -696,6 +663,11 @@ const verifyPassword = (password: string, storedHash: string) => {
     const supplied = crypto.scryptSync(password, salt, 64);
     return expected.length === supplied.length && crypto.timingSafeEqual(expected, supplied);
 };
+const normalizeEmail = (value: unknown) => readString(value, 254).trim().toLowerCase();
+const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+const createEmailVerificationCode = () => String(crypto.randomInt(0, 1_000_000)).padStart(6, "0");
+const hashEmailVerificationCode = (username: string, code: string) =>
+    crypto.createHash("sha256").update(`${username}:${code}`).digest("base64url");
 const visitorFingerprint = (req: express.Request) =>
     crypto
         .createHash("sha256")
@@ -1642,16 +1614,26 @@ app.post("/api/campaign/register", async (req, res) => {
         return;
     }
     const username = readString(req.body?.username, 32).toLowerCase();
+    const email = normalizeEmail(req.body?.email);
     const password = readString(req.body?.password, 120);
-    const phone = readString(req.body?.phone, 32);
     const schoolId = readString(req.body?.schoolId, 80);
     const referredByCode = readString(req.body?.referredByCode, 32).toLowerCase() || null;
+    const termsAccepted = req.body?.termsAccepted === true;
+    const privacyAccepted = req.body?.privacyAccepted === true;
+    const marketingEmailConsent = req.body?.marketingEmailConsent === true;
     const paymentMeta =
         req.body?.paymentMeta && typeof req.body.paymentMeta === "object"
             ? (req.body.paymentMeta as Record<string, unknown>)
             : {};
 
-    if (!/^[a-z0-9._-]{3,32}$/.test(username) || password.length < 8 || !phone || !schoolId) {
+    if (
+        !/^[a-z0-9._-]{3,32}$/.test(username) ||
+        !isValidEmail(email) ||
+        password.length < 8 ||
+        !schoolId ||
+        !termsAccepted ||
+        !privacyAccepted
+    ) {
         res.status(400).json({ error: "Invalid campaign registration payload." });
         return;
     }
@@ -1668,11 +1650,21 @@ app.post("/api/campaign/register", async (req, res) => {
     }
 
     try {
+        const emailVerificationCode = createEmailVerificationCode();
+        const emailVerificationExpiresInSec = 30 * 60;
+        const acceptedAt = new Date().toISOString();
         const user = await createCampaignUser(examCatalogPool, {
             username,
+            email,
             passwordHash: hashPassword(password),
             studentStatus: normalizeStudentStatus(req.body?.studentStatus),
-            phone,
+            marketingEmailConsent,
+            termsAcceptedAt: acceptedAt,
+            privacyAcceptedAt: acceptedAt,
+            emailVerificationCodeHash: hashEmailVerificationCode(username, emailVerificationCode),
+            emailVerificationExpiresAt: new Date(
+                Date.now() + emailVerificationExpiresInSec * 1000,
+            ).toISOString(),
             schoolId,
             paymentMeta,
             referredByCode,
@@ -1685,15 +1677,30 @@ app.post("/api/campaign/register", async (req, res) => {
                 visitorFingerprint(req),
             );
         }
+        const emailDelivery = await sendCampaignEmailVerification({
+            email: user.email,
+            username: user.username,
+            code: emailVerificationCode,
+            expiresInSec: emailVerificationExpiresInSec,
+        });
         setCampaignAuthCookie(res, user);
-        res.status(201).json(user);
+        res.status(201).json({
+            user,
+            emailVerification: {
+                required: true,
+                email: user.email,
+                expiresInSec: emailVerificationExpiresInSec,
+                delivery: emailDelivery,
+                devCode: process.env.NODE_ENV === "production" ? undefined : emailVerificationCode,
+            },
+        });
     } catch (error) {
         const code =
             typeof error === "object" && error && "code" in error
                 ? String((error as { code?: unknown }).code)
                 : "";
         if (code === "23505") {
-            res.status(409).json({ error: "Username already exists." });
+            res.status(409).json({ error: "Username or email already exists." });
             return;
         }
         if (code === "23503") {
@@ -1702,6 +1709,39 @@ app.post("/api/campaign/register", async (req, res) => {
         }
         throw error;
     }
+});
+
+app.post("/api/campaign/verify-email", async (req, res) => {
+    if (!examCatalogPool) {
+        res.sendStatus(503);
+        return;
+    }
+    if (!campaignAuthSecret) {
+        res.status(503).json({ error: "Campaign auth is not configured." });
+        return;
+    }
+    const username = readString(req.body?.username, 32).toLowerCase();
+    const code = readString(req.body?.code, 12).replace(/\D/g, "");
+    if (!/^[a-z0-9._-]{3,32}$/.test(username) || !/^\d{6}$/.test(code)) {
+        res.status(400).json({ error: "Invalid email verification payload." });
+        return;
+    }
+    if (shouldRateLimitHttpRequest(req, "campaign-email-verify", username, 8, 10 * 60 * 1000)) {
+        res.status(429).json({ error: "Too many verification attempts. Try again later." });
+        return;
+    }
+    const user = await verifyCampaignUserEmail(
+        examCatalogPool,
+        username,
+        hashEmailVerificationCode(username, code),
+        new Date().toISOString(),
+    );
+    if (!user) {
+        res.status(400).json({ error: "Invalid or expired email verification code." });
+        return;
+    }
+    setCampaignAuthCookie(res, user);
+    res.json(user);
 });
 
 app.post("/api/campaign/login", async (req, res) => {
@@ -2388,14 +2428,13 @@ io.on("connection", (socket) => {
                         claims && examCatalogPool
                             ? await readCampaignUserByUsername(examCatalogPool, claims.username)
                             : null;
-                    const hasCampaignAccount = Boolean(record && record.user.id === claims?.sub);
-                    const hasReferralTicket = await hasVerifiedReferralTicket(
-                        payload?.referralVerification,
+                    const hasVerifiedCampaignAccount = Boolean(
+                        record && record.user.id === claims?.sub && record.user.emailVerified,
                     );
-                    if (!hasCampaignAccount && !hasReferralTicket) {
+                    if (!hasVerifiedCampaignAccount) {
                         replyAfterRoomCommit(reply, {
                             ok: false,
-                            error: "로그인 또는 수험표 인증이 필요합니다.",
+                            error: "이메일 인증을 완료한 계정만 응시할 수 있습니다.",
                         });
                         return;
                     }

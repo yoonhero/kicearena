@@ -67,9 +67,11 @@ describe("campaign database persistence", () => {
                     {
                         id: "generated-user",
                         username: "student2",
+                        email: "student2@example.com",
+                        email_verified_at: null,
                         password_hash: "scrypt:hash",
                         student_status: "g3",
-                        phone: "01012345678",
+                        marketing_email_consent: true,
                         school_id: "school-1",
                         referral_code: "mine2",
                         referral_allowed: true,
@@ -85,9 +87,14 @@ describe("campaign database persistence", () => {
 
         const user = await createCampaignUser(db, {
             username: "student2",
+            email: "student2@example.com",
             passwordHash: "scrypt:hash",
             studentStatus: "g3",
-            phone: "01012345678",
+            marketingEmailConsent: true,
+            termsAcceptedAt: "2026-06-18T00:00:00.000Z",
+            privacyAcceptedAt: "2026-06-18T00:00:00.000Z",
+            emailVerificationCodeHash: "code-hash",
+            emailVerificationExpiresAt: "2026-06-18T00:30:00.000Z",
             schoolId: "school-1",
             paymentMeta: { noticeOptIn: true },
             referredByCode: "ref1",
@@ -95,18 +102,21 @@ describe("campaign database persistence", () => {
 
         expect(user).toMatchObject({
             username: "student2",
+            email: "student2@example.com",
+            emailVerified: false,
             studentStatus: "g3",
             school: { id: "school-1", name: "KICE High" },
             referralAllowed: true,
             badgeLabel: "KICE High 대표",
+            marketingEmailConsent: true,
         });
         expect(user).not.toHaveProperty("phone");
         expect(queries[0]?.text).toContain(
-            "SELECT id FROM campaign_users WHERE referral_code = $7",
+            "SELECT id FROM campaign_users WHERE referral_code = $12",
         );
         expect(queries[0]?.text).toContain("password_hash");
-        expect(queries[0]?.values?.[2]).toBe("scrypt:hash");
-        expect(queries[0]?.values?.[6]).toBe("ref1");
+        expect(queries[0]?.values?.[3]).toBe("scrypt:hash");
+        expect(queries[0]?.values?.[11]).toBe("ref1");
     });
 
     it("keeps school imports and referral writes scoped", async () => {

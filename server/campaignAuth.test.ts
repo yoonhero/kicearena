@@ -9,6 +9,8 @@ import {
 const user = {
     id: "user-1",
     username: "student1",
+    email: "student1@example.com",
+    emailVerified: false,
     studentStatus: "g3" as const,
     school: {
         id: "school-1",
@@ -21,6 +23,7 @@ const user = {
     referralCode: "abc234",
     referralAllowed: true,
     badgeLabel: "KICE High 대표",
+    marketingEmailConsent: false,
 };
 
 describe("campaign auth tokens", () => {

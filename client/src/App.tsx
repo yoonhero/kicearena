@@ -6,15 +6,20 @@ import {
     type PlayerPublic,
     type RoomPublic,
 } from "../../shared/game";
-import { AppLoading, AppRoutes, type AppScreen } from "./components/AppRoutes";
+import { AppLoading, AppRoutes, type SitePage } from "./components/AppRoutes";
 import { useReferralGateState } from "./hooks/useReferralGateState";
+import {
+    getScreen,
+    readInviteCode,
+    readSavedRoomSession,
+    readSitePage,
+    type SavedRoomSession,
+    waitForSocketConnection,
+    writeClipboard,
+} from "./lib/appFlow";
 import { entrantNickname, readStoredCampaignUser } from "./lib/campaignSession";
 import { emitWithAck, ROOM_SESSION_KEY, socket } from "./lib/socket";
 
-type SavedRoomSession = {
-    code: string;
-    playerId: string;
-};
 type RoomLookup = {
     exists: boolean;
     status?: RoomPublic["status"];
@@ -22,72 +27,16 @@ type RoomLookup = {
 };
 type PendingEventAction = { eventId: string; action: "register" | "spectate" } | null;
 
-const readInviteCode = () =>
-    new URLSearchParams(window.location.search).get("room")?.trim().toUpperCase() ?? "";
-const REJOIN_CONNECT_TIMEOUT_MS = 2500;
-
-const writeClipboard = async (text: string) => {
-    try {
-        await navigator.clipboard.writeText(text);
-        return;
-    } catch {
-        const input = document.createElement("input");
-        input.value = text;
-        input.style.position = "fixed";
-        input.style.left = "-9999px";
-        document.body.append(input);
-        input.select();
-        document.execCommand("copy");
-        input.remove();
-    }
-};
-
-const readSavedRoomSession = (): SavedRoomSession | null => {
-    const raw = window.localStorage.getItem(ROOM_SESSION_KEY);
-    if (!raw) return null;
-    try {
-        const saved = JSON.parse(raw) as SavedRoomSession;
-        return saved?.code && saved.playerId ? saved : null;
-    } catch {
-        return null;
-    }
-};
-
-const waitForSocketConnection = () =>
-    new Promise<boolean>((resolve) => {
-        if (socket.connected) {
-            resolve(true);
-            return;
-        }
-        const timeout = window.setTimeout(() => {
-            socket.off("connect", onConnect);
-            resolve(false);
-        }, REJOIN_CONNECT_TIMEOUT_MS);
-        const onConnect = () => {
-            window.clearTimeout(timeout);
-            resolve(true);
-        };
-        socket.once("connect", onConnect);
-    });
-
-const getScreen = (
-    room: RoomPublic | null,
-    spectatorExam: ExamPublic | null,
-    ownPlayerId: string,
-): AppScreen => {
-    if (!room && spectatorExam) return "spectator";
-    if (!room) return "home";
-    if (room.status === "lobby") return "lobby";
-    if (room.status === "finished") return "results";
-    if (!room.players.some((player) => player.id === ownPlayerId)) return "rankings";
-    return "arena";
-};
-
 export function App() {
     const [inviteCode, setInviteCode] = useState(readInviteCode);
+    const [page, setPageState] = useState<SitePage>(() =>
+        readInviteCode() ? "contest" : readSitePage(),
+    );
     const [events, setEvents] = useState<GymEventSummary[]>([]);
     const [spectatorExam, setSpectatorExam] = useState<ExamPublic | null>(null);
-    const [campaignUser] = useState<CampaignUserPublic | null>(readStoredCampaignUser);
+    const [campaignUser, setCampaignUser] = useState<CampaignUserPublic | null>(
+        readStoredCampaignUser,
+    );
     const [nickname, setNickname] = useState("");
     const [roomCode, setRoomCode] = useState(inviteCode);
     const [room, setRoom] = useState<RoomPublic | null>(null);
@@ -108,6 +57,18 @@ export function App() {
         setOwnPlayerId("");
         setRoomCode(nextRoomCode);
         rejoinAttempted.current = false;
+    }, []);
+
+    const setPage = useCallback((nextPage: SitePage) => {
+        setPageState(nextPage);
+        const path = nextPage === "home" ? "/" : `/${nextPage}`;
+        window.history.pushState({}, "", `${path}${window.location.search}${window.location.hash}`);
+    }, []);
+
+    useEffect(() => {
+        const onPopState = () => setPageState(readInviteCode() ? "contest" : readSitePage());
+        window.addEventListener("popstate", onPopState);
+        return () => window.removeEventListener("popstate", onPopState);
     }, []);
 
     const clearRoomView = useCallback((nextRoomCode = "") => {
@@ -234,6 +195,12 @@ export function App() {
         completeReferralGate,
         exitReferralGate,
     } = useReferralGateState(screen);
+    const completeReferralAndSignup = (
+        verification: Parameters<typeof completeReferralGate>[0],
+    ) => {
+        completeReferralGate(verification);
+        setPage("signup");
+    };
     const rejoinSavedRoom = async (expectedCode?: string) => {
         const saved = readSavedRoomSession();
         if (!saved || (expectedCode && saved.code !== expectedCode)) return null;
@@ -276,7 +243,8 @@ export function App() {
         if (pendingEventAction) return;
         setError("");
         const event = events.find((event) => event.id === eventId);
-        if (event?.registration !== "open" && !hasReferralVerification && !campaignUser) {
+        const verifiedCampaignUser = campaignUser?.emailVerified ? campaignUser : null;
+        if (event?.registration !== "open" && !verifiedCampaignUser) {
             await spectateEvent(eventId);
             return;
         }
@@ -285,10 +253,10 @@ export function App() {
             if (await restoreSavedEventRoom(eventId)) return;
             const response = await emitWithAck<RoomPublic>("event:register", {
                 eventId,
-                nickname: campaignUser
-                    ? entrantNickname(campaignUser)
+                nickname: verifiedCampaignUser
+                    ? entrantNickname(verifiedCampaignUser)
                     : referralVerification?.nickname || "예비응시자",
-                referralVerification: campaignUser
+                referralVerification: verifiedCampaignUser
                     ? undefined
                     : (referralVerification ?? undefined),
             });
@@ -355,6 +323,7 @@ export function App() {
         setError("");
         setJoiningInvite(false);
         setInviteCode("");
+        setPageState(readSitePage());
         setRoomCode("");
         const url = new URL(window.location.href);
         url.searchParams.delete("room");
@@ -385,7 +354,7 @@ export function App() {
                 inviteCode={inviteCode}
                 needsReferralGate={needsReferralGate}
                 referralCode={referralCode}
-                completeReferralGate={completeReferralGate}
+                completeReferralGate={completeReferralAndSignup}
                 exitReferralGate={exitReferralGate}
             />
         );
@@ -394,13 +363,16 @@ export function App() {
     return (
         <AppRoutes
             screen={screen}
+            page={inviteCode ? "contest" : page}
+            setPage={setPage}
             needsReferralGate={needsReferralGate}
             referralCode={referralCode}
-            completeReferralGate={completeReferralGate}
+            completeReferralGate={completeReferralAndSignup}
             exitReferralGate={exitReferralGate}
             events={events}
             eventsUnavailable={eventsUnavailable}
             campaignUser={campaignUser}
+            setCampaignUser={setCampaignUser}
             referralVerification={referralVerification}
             hasReferralVerification={hasReferralVerification}
             nickname={nickname}

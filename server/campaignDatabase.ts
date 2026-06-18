@@ -9,6 +9,8 @@ import {
 } from "../shared/campaign.js";
 import { readDefaultHighSchools } from "./defaultHighSchools.js";
 
+export { migrateCampaign } from "./campaignMigrations.js";
+
 export interface CampaignDatabase {
     query<T extends object = Record<string, unknown>>(
         text: string,
@@ -27,9 +29,14 @@ export type HighSchoolInput = {
 
 export type CampaignUserInput = {
     username: string;
+    email: string;
     passwordHash: string;
     studentStatus: StudentStatus;
-    phone: string;
+    marketingEmailConsent: boolean;
+    termsAcceptedAt: string;
+    privacyAcceptedAt: string;
+    emailVerificationCodeHash: string;
+    emailVerificationExpiresAt: string;
     schoolId: string;
     paymentMeta: Record<string, unknown>;
     referredByCode: string | null;
@@ -59,9 +66,11 @@ type HighSchoolRow = {
 type CampaignUserRow = {
     id: string;
     username: string;
+    email: string;
+    email_verified_at: string | null;
     password_hash: string;
     student_status: StudentStatus;
-    phone: string;
+    marketing_email_consent: boolean | null;
     school_id: string;
     referral_code: string;
     referral_allowed: boolean | null;
@@ -93,93 +102,15 @@ const toPublicUser = (row: CampaignUserRow): CampaignUserPublic => {
     return {
         id: row.id,
         username: row.username,
+        email: row.email,
+        emailVerified: Boolean(row.email_verified_at),
         studentStatus: row.student_status,
         school,
         referralCode: row.referral_code,
         referralAllowed: row.referral_allowed === true,
         badgeLabel: schoolRepresentativeBadge(school.name),
+        marketingEmailConsent: row.marketing_email_consent === true,
     };
-};
-
-export const migrateCampaign = async (db: CampaignDatabase) => {
-    await db.query(
-        `CREATE TABLE IF NOT EXISTS high_schools (
-      id text PRIMARY KEY,
-      name text NOT NULL,
-      region text NOT NULL,
-      address text NOT NULL,
-      latitude numeric,
-      longitude numeric,
-      source text NOT NULL DEFAULT 'seed',
-      updated_at timestamptz NOT NULL DEFAULT now()
-    )`,
-    );
-    await db.query(
-        "CREATE INDEX IF NOT EXISTS high_schools_name_region_idx ON high_schools(name, region)",
-    );
-    await db.query(
-        "CREATE INDEX IF NOT EXISTS high_schools_geo_idx ON high_schools(latitude, longitude) WHERE latitude IS NOT NULL AND longitude IS NOT NULL",
-    );
-    await db.query(
-        `CREATE TABLE IF NOT EXISTS campaign_users (
-      id text PRIMARY KEY,
-      username text NOT NULL UNIQUE,
-      password_hash text NOT NULL,
-      student_status text NOT NULL CHECK (student_status IN ('g3', 'repeat', 'other')),
-      phone text NOT NULL,
-      school_id text NOT NULL REFERENCES high_schools(id) ON DELETE RESTRICT,
-      referral_code text NOT NULL UNIQUE,
-      referred_by_user_id text REFERENCES campaign_users(id) ON DELETE SET NULL,
-      payment_meta jsonb NOT NULL DEFAULT '{}'::jsonb,
-      created_at timestamptz NOT NULL DEFAULT now()
-    )`,
-    );
-    await db.query(
-        "CREATE INDEX IF NOT EXISTS campaign_users_school_created_idx ON campaign_users(school_id, created_at DESC)",
-    );
-    await db.query(
-        "CREATE INDEX IF NOT EXISTS campaign_users_referred_by_idx ON campaign_users(referred_by_user_id)",
-    );
-    await db.query(
-        `CREATE TABLE IF NOT EXISTS campaign_referral_events (
-      id bigserial PRIMARY KEY,
-      referral_code text NOT NULL,
-      visitor_fingerprint text NOT NULL,
-      converted_user_id text REFERENCES campaign_users(id) ON DELETE SET NULL,
-      created_at timestamptz NOT NULL DEFAULT now()
-    )`,
-    );
-    await db.query(
-        "CREATE INDEX IF NOT EXISTS campaign_referral_events_code_created_idx ON campaign_referral_events(referral_code, created_at DESC)",
-    );
-    await db.query(
-        "CREATE INDEX IF NOT EXISTS campaign_referral_events_converted_user_idx ON campaign_referral_events(converted_user_id) WHERE converted_user_id IS NOT NULL",
-    );
-    await db.query(
-        `CREATE TABLE IF NOT EXISTS school_representative_badges (
-      user_id text PRIMARY KEY REFERENCES campaign_users(id) ON DELETE CASCADE,
-      school_id text NOT NULL REFERENCES high_schools(id) ON DELETE CASCADE,
-      awarded_by text NOT NULL,
-      awarded_at timestamptz NOT NULL DEFAULT now()
-    )`,
-    );
-    await db.query(
-        "CREATE INDEX IF NOT EXISTS school_representative_badges_school_idx ON school_representative_badges(school_id)",
-    );
-    await db.query(
-        `CREATE TABLE IF NOT EXISTS campaign_referral_whitelist (
-      referral_code text PRIMARY KEY,
-      school_id text REFERENCES high_schools(id) ON DELETE CASCADE,
-      note text NOT NULL DEFAULT '',
-      created_at timestamptz NOT NULL DEFAULT now()
-    )`,
-    );
-    await db.query(
-        "ALTER TABLE campaign_referral_whitelist ADD COLUMN IF NOT EXISTS school_id text REFERENCES high_schools(id) ON DELETE CASCADE",
-    );
-    await db.query(
-        "CREATE INDEX IF NOT EXISTS campaign_referral_whitelist_school_idx ON campaign_referral_whitelist(school_id)",
-    );
 };
 
 export const seedDefaultHighSchools = async (db: CampaignDatabase) => {
@@ -244,8 +175,9 @@ export const searchHighSchools = async (
 
 export const readCampaignUserByUsername = async (db: CampaignDatabase, username: string) => {
     const result = await db.query<CampaignUserRow>(
-        `SELECT user_account.id, user_account.username, user_account.password_hash, user_account.student_status,
-            user_account.phone, user_account.school_id, user_account.referral_code,
+        `SELECT user_account.id, user_account.username, user_account.email, user_account.email_verified_at,
+            user_account.password_hash, user_account.student_status,
+            user_account.marketing_email_consent, user_account.school_id, user_account.referral_code,
             whitelist.referral_code IS NOT NULL AS referral_allowed,
             school.name AS school_name, school.region, school.address, school.latitude, school.longitude
      FROM campaign_users user_account
@@ -264,19 +196,22 @@ export const createCampaignUser = async (
 ): Promise<CampaignUserPublic> => {
     const result = await db.query<CampaignUserRow>(
         `WITH referrer AS (
-       SELECT id FROM campaign_users WHERE referral_code = $7
+       SELECT id FROM campaign_users WHERE referral_code = $12
      ), created AS (
        INSERT INTO campaign_users (
-         id, username, password_hash, student_status, phone, school_id, referral_code,
-         referred_by_user_id, payment_meta
+         id, username, email, password_hash, student_status, marketing_email_consent,
+         terms_accepted_at, privacy_accepted_at, email_verification_code_hash,
+         email_verification_expires_at, phone, school_id, referral_code, referred_by_user_id, payment_meta
        )
-       SELECT $1, $2, $3, $4, $5, $6, $8, referrer.id, $9::jsonb
+       SELECT $1, $2, $3, $4, $5, $6, $7::timestamptz, $8::timestamptz, $9,
+              $10::timestamptz, '', $11, $13, referrer.id, $14::jsonb
        FROM (SELECT 1) singleton
        LEFT JOIN referrer ON true
        RETURNING *
      )
-     SELECT created.id, created.username, created.password_hash, created.student_status,
-            created.phone, created.school_id, created.referral_code,
+     SELECT created.id, created.username, created.email, created.email_verified_at,
+            created.password_hash, created.student_status,
+            created.marketing_email_consent, created.school_id, created.referral_code,
             whitelist.referral_code IS NOT NULL AS referral_allowed,
             school.name AS school_name, school.region, school.address, school.latitude, school.longitude
      FROM created
@@ -285,9 +220,14 @@ export const createCampaignUser = async (
         [
             cryptoRandomId(),
             input.username,
+            input.email,
             input.passwordHash,
             input.studentStatus,
-            input.phone,
+            input.marketingEmailConsent,
+            input.termsAcceptedAt,
+            input.privacyAcceptedAt,
+            input.emailVerificationCodeHash,
+            input.emailVerificationExpiresAt,
             input.schoolId,
             input.referredByCode,
             cryptoRandomId(9),
@@ -295,6 +235,38 @@ export const createCampaignUser = async (
         ],
     );
     return toPublicUser(result.rows[0]);
+};
+
+export const verifyCampaignUserEmail = async (
+    db: CampaignDatabase,
+    username: string,
+    codeHash: string,
+    nowIso: string,
+): Promise<CampaignUserPublic | null> => {
+    const result = await db.query<CampaignUserRow>(
+        `WITH verified AS (
+       UPDATE campaign_users
+       SET email_verified_at = $3::timestamptz,
+           email_verification_code_hash = NULL,
+           email_verification_expires_at = NULL
+       WHERE username = $1
+         AND email_verified_at IS NULL
+         AND email_verification_code_hash = $2
+         AND email_verification_expires_at >= $3::timestamptz
+       RETURNING *
+     )
+     SELECT verified.id, verified.username, verified.email, verified.email_verified_at,
+            verified.password_hash, verified.student_status, verified.marketing_email_consent,
+            verified.school_id, verified.referral_code,
+            whitelist.referral_code IS NOT NULL AS referral_allowed,
+            school.name AS school_name, school.region, school.address, school.latitude, school.longitude
+     FROM verified
+     JOIN high_schools school ON school.id = verified.school_id
+     LEFT JOIN campaign_referral_whitelist whitelist ON whitelist.referral_code = verified.referral_code`,
+        [username, codeHash, nowIso],
+    );
+    const row = result.rows[0];
+    return row ? toPublicUser(row) : null;
 };
 
 export const recordReferralVisit = async (
