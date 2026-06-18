@@ -38,12 +38,12 @@ and rule file:
 
 ```yaml
 alerting:
-  alertmanagers:
-    - static_configs:
-        - targets:
-            - alertmanager:9093
+    alertmanagers:
+        - static_configs:
+              - targets:
+                    - alertmanager:9093
 rule_files:
-  - /etc/prometheus/rules/kice-arena-prometheus-rules.yml
+    - /etc/prometheus/rules/kice-arena-prometheus-rules.yml
 ```
 
 For an existing external Prometheus instead of the bundled compose service,

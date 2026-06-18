@@ -293,6 +293,7 @@ jobs:
 
                     printf '%s\n' \
                       "upstream kice_arena_app {" \
+                      '    hash $kice_sticky_client consistent;' \
                       "    server kice-arena-blue:3001 max_fails=2 fail_timeout=5s${blue_down};" \
                       "    server kice-arena-green:3001 max_fails=2 fail_timeout=5s${green_down};" \
                       "}"

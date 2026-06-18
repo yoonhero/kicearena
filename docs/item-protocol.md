@@ -8,12 +8,12 @@
 2. 같은 파일의 `ITEM_DEFINITIONS` keyed object에 같은 key로 정의를 추가한다.
 3. `defineItems`가 `ITEM_IDS`와 `ITEM_DEFINITIONS`의 누락을 컴파일 단계에서 잡아야 한다. `as Record<ItemId, ...>` 같은 강제 캐스팅으로 우회하지 않는다.
 4. 정의에는 반드시 다음 정보를 채운다.
-   - `id`: `ITEM_IDS`에 추가한 값과 동일해야 한다.
-   - `name`, `shortName`, `description`: 인벤토리와 타겟 선택 UI에서 쓰인다.
-   - `category`: 문제 방해, 입력 방해, 집중 방해, 소셜 등 분류.
-   - `effectKind`: 실제 효과 렌더링/서버 payload 분기에 쓰는 semantic key.
-   - `lifecycle`: `acquire`, `activate`, `durationMs`, `cooldownMs`, `target`, `duplicate`, `cancellation`.
-   - `payload`: 쪽지처럼 추가 입력이 필요한 아이템에만 둔다.
+    - `id`: `ITEM_IDS`에 추가한 값과 동일해야 한다.
+    - `name`, `shortName`, `description`: 인벤토리와 타겟 선택 UI에서 쓰인다.
+    - `category`: 문제 방해, 입력 방해, 집중 방해, 소셜 등 분류.
+    - `effectKind`: 실제 효과 렌더링/서버 payload 분기에 쓰는 semantic key.
+    - `lifecycle`: `acquire`, `activate`, `durationMs`, `cooldownMs`, `target`, `duplicate`, `cancellation`.
+    - `payload`: 쪽지처럼 추가 입력이 필요한 아이템에만 둔다.
 
 ## 2. Lifecycle 정책을 명시한다
 

@@ -1,60 +1,60 @@
 - main [ref=e4]:
-  - region "수학 영역" [ref=e5]:
-    - generic [ref=e6]:
-      - strong [ref=e7]: 제 2 교시
-      - generic [ref=e8]: 2026학년도 KICE ARENA 모의고사 문제지
-      - emphasis [ref=e9]: 공개
-    - heading "수학 영역" [level=1] [ref=e10]
-    - region "응시 가능한 시험" [ref=e11]:
-      - generic [ref=e12]:
-        - generic [ref=e13]: 시험 시간표
-        - strong [ref=e14]: 1건
-      - article [ref=e15]:
-        - generic [ref=e16]:
-          - generic [ref=e17]: 공개
-          - heading "예비소집일" [level=2] [ref=e18]
-          - paragraph [ref=e19]: 상시 공개 수학 점검
-        - generic [ref=e20]:
-          - button "예비소집일 응시" [ref=e21] [cursor=pointer]:
-            - img [ref=e22]
-            - text: 예비소집일 응시
-          - button "관전하기" [ref=e25] [cursor=pointer]:
-            - img [ref=e26]
-            - text: 관전하기
-          - paragraph [ref=e29]: 계정 없이 바로 응시할 수 있습니다.
-        - generic [ref=e30]:
-          - generic [ref=e31]:
-            - term [ref=e32]: 시작
-            - definition [ref=e33]: 상시 공개
-          - generic [ref=e34]:
-            - term [ref=e35]: 시간
-            - definition [ref=e36]: 40분
-          - generic [ref=e37]:
-            - term [ref=e38]: 문항
-            - definition [ref=e39]: 6문항
-    - generic [ref=e40]:
-      - region "수험표" [ref=e41]:
-        - region "응시표 발급 안내" [ref=e42]:
-          - generic [ref=e43]:
-            - generic [ref=e44]: 2026학년도 KICE ARENA
-            - strong [ref=e45]: 수 험 표
-          - generic [ref=e46]:
-            - generic [ref=e47]: 사진
-            - generic [ref=e48]:
-              - generic [ref=e50]: 수험번호
-              - generic [ref=e53]: 성명
-              - generic [ref=e56]: 학교
-              - generic [ref=e58]:
-                - generic [ref=e59]: 상태
-                - strong [ref=e60]: 미발급
-          - generic [ref=e61]:
-            - generic [ref=e62]: 발급 안내
-            - strong [ref=e63]: 응시표 없이 바로 풀 수 있습니다.
-      - region "시험지 확인" [ref=e64]:
-        - paragraph [ref=e65]: ※ 시험 목록은 현재 공개 상태를 요약한 보조 확인란입니다.
-        - generic [ref=e66]:
-          - generic [ref=e67]: 시험 목록
-          - strong [ref=e69]: 1건
-        - generic [ref=e70]:
-          - generic [ref=e71]: 예비소집일
-          - strong [ref=e73]: 공개 · 상시 공개
+      - region "수학 영역" [ref=e5]:
+            - generic [ref=e6]:
+                  - strong [ref=e7]: 제 2 교시
+                  - generic [ref=e8]: 2026학년도 KICE ARENA 모의고사 문제지
+                  - emphasis [ref=e9]: 공개
+            - heading "수학 영역" [level=1] [ref=e10]
+            - region "응시 가능한 시험" [ref=e11]:
+                  - generic [ref=e12]:
+                        - generic [ref=e13]: 시험 시간표
+                        - strong [ref=e14]: 1건
+                  - article [ref=e15]:
+                        - generic [ref=e16]:
+                              - generic [ref=e17]: 공개
+                              - heading "예비소집일" [level=2] [ref=e18]
+                              - paragraph [ref=e19]: 상시 공개 수학 점검
+                        - generic [ref=e20]:
+                              - button "예비소집일 응시" [ref=e21] [cursor=pointer]:
+                                    - img [ref=e22]
+                                    - text: 예비소집일 응시
+                              - button "관전하기" [ref=e25] [cursor=pointer]:
+                                    - img [ref=e26]
+                                    - text: 관전하기
+                              - paragraph [ref=e29]: 계정 없이 바로 응시할 수 있습니다.
+                        - generic [ref=e30]:
+                              - generic [ref=e31]:
+                                    - term [ref=e32]: 시작
+                                    - definition [ref=e33]: 상시 공개
+                              - generic [ref=e34]:
+                                    - term [ref=e35]: 시간
+                                    - definition [ref=e36]: 40분
+                              - generic [ref=e37]:
+                                    - term [ref=e38]: 문항
+                                    - definition [ref=e39]: 6문항
+            - generic [ref=e40]:
+                  - region "수험표" [ref=e41]:
+                        - region "응시표 발급 안내" [ref=e42]:
+                              - generic [ref=e43]:
+                                    - generic [ref=e44]: 2026학년도 KICE ARENA
+                                    - strong [ref=e45]: 수 험 표
+                              - generic [ref=e46]:
+                                    - generic [ref=e47]: 사진
+                                    - generic [ref=e48]:
+                                          - generic [ref=e50]: 수험번호
+                                          - generic [ref=e53]: 성명
+                                          - generic [ref=e56]: 학교
+                                          - generic [ref=e58]:
+                                                - generic [ref=e59]: 상태
+                                                - strong [ref=e60]: 미발급
+                              - generic [ref=e61]:
+                                    - generic [ref=e62]: 발급 안내
+                                    - strong [ref=e63]: 응시표 없이 바로 풀 수 있습니다.
+                  - region "시험지 확인" [ref=e64]:
+                        - paragraph [ref=e65]: ※ 시험 목록은 현재 공개 상태를 요약한 보조 확인란입니다.
+                        - generic [ref=e66]:
+                              - generic [ref=e67]: 시험 목록
+                              - strong [ref=e69]: 1건
+                        - generic [ref=e70]:
+                              - generic [ref=e71]: 예비소집일
+                              - strong [ref=e73]: 공개 · 상시 공개

@@ -4,79 +4,107 @@ import type { PlayerPublic, ProblemPublic, RoomPublic } from "../../../../shared
 import { socket } from "../../lib/socket";
 
 export function ProblemNav({
-  problems,
-  currentProblem,
-  hardLocked,
-  ownPlayer,
-  room
+    problems,
+    currentProblem,
+    hardLocked,
+    ownPlayer,
+    room,
 }: {
-  problems: ProblemPublic[];
-  currentProblem: ProblemPublic;
-  hardLocked: boolean;
-  ownPlayer: PlayerPublic;
-  room: RoomPublic;
+    problems: ProblemPublic[];
+    currentProblem: ProblemPublic;
+    hardLocked: boolean;
+    ownPlayer: PlayerPublic;
+    room: RoomPublic;
 }) {
-  const solvedProblemIds = useMemo(
-    () => new Set(ownPlayer.submissions.filter((submission) => submission.correct).map((submission) => submission.problemId)),
-    [ownPlayer.submissions]
-  );
-  const wrongProblemIds = useMemo(
-    () => new Set(ownPlayer.submissions.filter((submission) => !submission.correct).map((submission) => submission.problemId)),
-    [ownPlayer.submissions]
-  );
-  const roomSolvedCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const player of room.players) {
-      const playerSolved = new Set(player.submissions.filter((submission) => submission.correct).map((submission) => submission.problemId));
-      for (const problemId of playerSolved) counts.set(problemId, (counts.get(problemId) ?? 0) + 1);
-    }
-    return counts;
-  }, [room.players]);
-  const roomAttemptCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const player of room.players) {
-      const playerAttempted = new Set(player.submissions.map((submission) => submission.problemId));
-      for (const problemId of playerAttempted) counts.set(problemId, (counts.get(problemId) ?? 0) + 1);
-    }
-    return counts;
-  }, [room.players]);
+    const solvedProblemIds = useMemo(
+        () =>
+            new Set(
+                ownPlayer.submissions
+                    .filter((submission) => submission.correct)
+                    .map((submission) => submission.problemId),
+            ),
+        [ownPlayer.submissions],
+    );
+    const wrongProblemIds = useMemo(
+        () =>
+            new Set(
+                ownPlayer.submissions
+                    .filter((submission) => !submission.correct)
+                    .map((submission) => submission.problemId),
+            ),
+        [ownPlayer.submissions],
+    );
+    const roomSolvedCounts = useMemo(() => {
+        const counts = new Map<string, number>();
+        for (const player of room.players) {
+            const playerSolved = new Set(
+                player.submissions
+                    .filter((submission) => submission.correct)
+                    .map((submission) => submission.problemId),
+            );
+            for (const problemId of playerSolved)
+                counts.set(problemId, (counts.get(problemId) ?? 0) + 1);
+        }
+        return counts;
+    }, [room.players]);
+    const roomAttemptCounts = useMemo(() => {
+        const counts = new Map<string, number>();
+        for (const player of room.players) {
+            const playerAttempted = new Set(
+                player.submissions.map((submission) => submission.problemId),
+            );
+            for (const problemId of playerAttempted)
+                counts.set(problemId, (counts.get(problemId) ?? 0) + 1);
+        }
+        return counts;
+    }, [room.players]);
 
-  return (
-    <section className="problem-picker" aria-label="문제 선택">
-      <div className="problem-picker-head">
-        <strong>문제</strong>
-        <span>정답 · 오답 · 전체 풀이율</span>
-      </div>
-      <nav className="problem-nav">
-      {problems.map((problem) => {
-        const solved = solvedProblemIds.has(problem.id);
-        const solvedByRoom = roomSolvedCounts.get(problem.id) ?? 0;
-        const attemptedByRoom = roomAttemptCounts.get(problem.id) ?? 0;
-        const solveRate = room.players.length === 0 ? 0 : Math.round((solvedByRoom / room.players.length) * 100);
-        const frozenSolved = room.scoreboardFrozen && attemptedByRoom > 0;
-        const disabled = hardLocked && problem.difficulty < 4;
-        return (
-          <button
-            key={problem.id}
-            className={[
-              problem.id === currentProblem.id ? "active" : "",
-              solved ? "solved" : "",
-              !solved && wrongProblemIds.has(problem.id) ? "wrong" : "",
-              frozenSolved ? "frozen-solved" : ""
-            ]
-              .filter(Boolean)
-              .join(" ")}
-            disabled={disabled}
-            onClick={() => socket.emit("problem:set", { problemId: problem.id })}
-            title={disabled ? "고난도 문제부터 풀어라 발동 중" : `${problem.number}번 · ${solveRate}% 풀이`}
-            style={{ "--solve-rate": `${solveRate}%` } as React.CSSProperties & Record<string, string>}
-          >
-            <span>{problem.number}</span>
-            <em>{solveRate}%</em>
-          </button>
-        );
-      })}
-      </nav>
-    </section>
-  );
+    return (
+        <section className="problem-picker" aria-label="문제 선택">
+            <div className="problem-picker-head">
+                <strong>문제</strong>
+                <span>정답 · 오답 · 전체 풀이율</span>
+            </div>
+            <nav className="problem-nav">
+                {problems.map((problem) => {
+                    const solved = solvedProblemIds.has(problem.id);
+                    const solvedByRoom = roomSolvedCounts.get(problem.id) ?? 0;
+                    const attemptedByRoom = roomAttemptCounts.get(problem.id) ?? 0;
+                    const solveRate =
+                        room.players.length === 0
+                            ? 0
+                            : Math.round((solvedByRoom / room.players.length) * 100);
+                    const frozenSolved = room.scoreboardFrozen && attemptedByRoom > 0;
+                    const disabled = hardLocked && problem.difficulty < 4;
+                    return (
+                        <button
+                            key={problem.id}
+                            className={[
+                                problem.id === currentProblem.id ? "active" : "",
+                                solved ? "solved" : "",
+                                !solved && wrongProblemIds.has(problem.id) ? "wrong" : "",
+                                frozenSolved ? "frozen-solved" : "",
+                            ]
+                                .filter(Boolean)
+                                .join(" ")}
+                            disabled={disabled}
+                            onClick={() => socket.emit("problem:set", { problemId: problem.id })}
+                            title={
+                                disabled
+                                    ? "고난도 문제부터 풀어라 발동 중"
+                                    : `${problem.number}번 · ${solveRate}% 풀이`
+                            }
+                            style={
+                                { "--solve-rate": `${solveRate}%` } as React.CSSProperties &
+                                    Record<string, string>
+                            }
+                        >
+                            <span>{problem.number}</span>
+                            <em>{solveRate}%</em>
+                        </button>
+                    );
+                })}
+            </nav>
+        </section>
+    );
 }

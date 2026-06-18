@@ -159,14 +159,14 @@ sysctl kern.maxfilesperproc
 
 초기 기준은 다음 단계로 잡는다. 한 단계라도 실패하면 다음 단계로 가지 않고 병목을 기록한다.
 
-| Stage | Rooms | Participants | Duration | Purpose |
-| --- | ---: | ---: | ---: | --- |
-| Smoke | 2 | 120 | 5m | 시나리오와 메트릭 검증 |
-| Small | 10 | 600 | 10m | 단일 프로세스 안정성 |
-| Medium | 50 | 3,000 | 15m | 브로드캐스트/ACK 병목 탐색 |
-| Guardrail | 200 | 12,000 | 15m | 앱 정책 상한 검증 |
-| Overflow | 210+ | 12,600+ | 5m | 초과 요청 정상 거절 검증 |
-| Soak | 100 | 6,000 | 2-6h | 누수/cleanup 확인 |
+| Stage     | Rooms | Participants | Duration | Purpose                    |
+| --------- | ----: | -----------: | -------: | -------------------------- |
+| Smoke     |     2 |          120 |       5m | 시나리오와 메트릭 검증     |
+| Small     |    10 |          600 |      10m | 단일 프로세스 안정성       |
+| Medium    |    50 |        3,000 |      15m | 브로드캐스트/ACK 병목 탐색 |
+| Guardrail |   200 |       12,000 |      15m | 앱 정책 상한 검증          |
+| Overflow  |  210+ |      12,600+ |       5m | 초과 요청 정상 거절 검증   |
+| Soak      |   100 |        6,000 |     2-6h | 누수/cleanup 확인          |
 
 ## Metrics
 
@@ -203,49 +203,49 @@ sysctl kern.maxfilesperproc
 
 ```yaml
 config:
-  target: "http://127.0.0.1:3001"
-  phases:
-    - name: ramp
-      duration: 300
-      arrivalRate: 10
-      rampTo: 200
-    - name: steady
-      duration: 600
-      arrivalRate: 200
-  socketio:
-    transports: ["websocket"]
-  processor: "./socketio-processor.cjs"
+    target: "http://127.0.0.1:3001"
+    phases:
+        - name: ramp
+          duration: 300
+          arrivalRate: 10
+          rampTo: 200
+        - name: steady
+          duration: 600
+          arrivalRate: 200
+    socketio:
+        transports: ["websocket"]
+    processor: "./socketio-processor.cjs"
 
 scenarios:
-  - name: kice playing flow
-    engine: socketio
-    flow:
-      - function: "assignRoom"
-      - emit:
-          - "room:join"
-          - code: "{{ roomCode }}"
-            nickname: "{{ nickname }}"
-        acknowledge:
-          match:
-            json: "$.ok"
-            value: true
-      - think: 1
-      - loop:
-          - function: "pickProblemAndAnswer"
+    - name: kice playing flow
+      engine: socketio
+      flow:
+          - function: "assignRoom"
           - emit:
-              - "problem:set"
-              - problemId: "{{ problemId }}"
-          - think: 2
-          - emit:
-              - "answer:submit"
-              - problemId: "{{ problemId }}"
-                answer: "{{ answer }}"
+                - "room:join"
+                - code: "{{ roomCode }}"
+                  nickname: "{{ nickname }}"
             acknowledge:
-              match:
-                json: "$.ok"
-                value: true
-          - think: 10
-        count: 20
+                match:
+                    json: "$.ok"
+                    value: true
+          - think: 1
+          - loop:
+                - function: "pickProblemAndAnswer"
+                - emit:
+                      - "problem:set"
+                      - problemId: "{{ problemId }}"
+                - think: 2
+                - emit:
+                      - "answer:submit"
+                      - problemId: "{{ problemId }}"
+                        answer: "{{ answer }}"
+                  acknowledge:
+                      match:
+                          json: "$.ok"
+                          value: true
+                - think: 10
+            count: 20
 ```
 
 별도 setup 단계에서 host rooms를 만든 뒤 room code pool을 Redis, 파일, 또는 Artillery processor 메모리에 공급한다. 큰 테스트에서는 방 생성과 참가자 입장을 같은 scenario에 섞지 말고, `setup-rooms`와 `load-participants` 두 job으로 나눈다.

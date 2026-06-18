@@ -29,7 +29,13 @@
     border-right: 2px solid var(--line);
     border-left: 2px solid var(--line);
     background:
-        linear-gradient(90deg, rgba(18, 18, 18, 0.028), transparent 9%, transparent 91%, rgba(18, 18, 18, 0.026)),
+        linear-gradient(
+            90deg,
+            rgba(18, 18, 18, 0.028),
+            transparent 9%,
+            transparent 91%,
+            rgba(18, 18, 18, 0.026)
+        ),
         var(--paper);
     box-shadow: none;
     padding: 42px 48px 46px;
@@ -42,7 +48,13 @@
 
 .gym-exam-cover::after {
     background:
-        linear-gradient(90deg, rgba(18, 18, 18, 0.035), transparent 10%, transparent 90%, rgba(18, 18, 18, 0.035)),
+        linear-gradient(
+            90deg,
+            rgba(18, 18, 18, 0.035),
+            transparent 10%,
+            transparent 90%,
+            rgba(18, 18, 18, 0.035)
+        ),
         linear-gradient(180deg, transparent 0 92%, rgba(18, 18, 18, 0.035));
 }
 

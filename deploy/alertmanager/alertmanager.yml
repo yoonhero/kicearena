@@ -1,13 +1,13 @@
 route:
-  receiver: kice-arena-discord
-  group_by: [alertname, severity, service]
-  group_wait: 10s
-  group_interval: 1m
-  repeat_interval: 30m
+    receiver: kice-arena-discord
+    group_by: [alertname, severity, service]
+    group_wait: 10s
+    group_interval: 1m
+    repeat_interval: 30m
 
 receivers:
-  - name: kice-arena-discord
-    webhook_configs:
-      - url: http://alertmanager-discord:9094/alertmanager
-        send_resolved: true
-        max_alerts: 0
+    - name: kice-arena-discord
+      webhook_configs:
+          - url: http://alertmanager-discord:9094/alertmanager
+            send_resolved: true
+            max_alerts: 0

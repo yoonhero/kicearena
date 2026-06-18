@@ -73,6 +73,7 @@ import {
     updateExamSettingsInDatabase,
     updateProblemInDatabase,
 } from "./examDatabase.js";
+import { checkDatabaseHealth, formatDatabaseErrorSummary } from "./databaseHealth.js";
 import {
     isExamReleased,
     isOpenRegistrationExam,
@@ -480,6 +481,7 @@ const ROOM_TTL = {
     finishedMs: 30 * 60 * 1000,
 } as const;
 const REMOTE_PRESENCE_FETCH_INTERVAL_MS = 1000;
+const ROOM_MAINTENANCE_DATABASE_WARNING_INTERVAL_MS = 30_000;
 
 const RATE_LIMIT_MS = {
     ready: 200,
@@ -499,6 +501,17 @@ type RoomMutationContext = {
     afterCommit: Array<() => void>;
 };
 const roomMutationStorage = new AsyncLocalStorage<RoomMutationContext>();
+let lastRoomMaintenanceDatabaseWarningAt = 0;
+
+const warnRoomMaintenanceDatabaseUnavailable = (phase: string, error: unknown) => {
+    const now = Date.now();
+    if (now - lastRoomMaintenanceDatabaseWarningAt < ROOM_MAINTENANCE_DATABASE_WARNING_INTERVAL_MS)
+        return;
+    lastRoomMaintenanceDatabaseWarningAt = now;
+    console.warn(
+        `Room maintenance skipped while Postgres is unavailable during ${phase}: ${formatDatabaseErrorSummary(error)}`,
+    );
+};
 
 const refreshExamCatalog = async () => {
     const databaseUrl = process.env.DATABASE_URL?.trim();
@@ -1165,30 +1178,41 @@ const runRoomMaintenance = async () => {
     const now = Date.now();
     const codes = new Set(rooms.keys());
     if (examCatalogPool) {
-        for (const code of await readRoomStateCodes(examCatalogPool)) codes.add(code);
+        try {
+            for (const code of await readRoomStateCodes(examCatalogPool)) codes.add(code);
+        } catch (error) {
+            warnRoomMaintenanceDatabaseUnavailable("room-code fetch", error);
+            return;
+        }
     }
     for (const code of codes) {
-        await withRoomMutation(code, async () => {
-            const room = await getPersistedRoom(code);
-            if (!room) return;
-            const effectsChanged = cleanupEffects(room, now, EXPIRED_EFFECT_NOTICE_MS);
-            if (isFinished(room)) finishRoom(room);
-            else if (maybeFreezeScoreboard(room)) emitRoom(room);
-            else if (effectsChanged) emitRoom(room);
+        try {
+            await withRoomMutation(code, async () => {
+                const room = await getPersistedRoom(code);
+                if (!room) return;
+                const effectsChanged = cleanupEffects(room, now, EXPIRED_EFFECT_NOTICE_MS);
+                if (isFinished(room)) finishRoom(room);
+                else if (maybeFreezeScoreboard(room)) emitRoom(room);
+                else if (effectsChanged) emitRoom(room);
 
-            const hasConnectedPlayers = [...room.players.values()].some(
-                (player) => player.connected,
-            );
-            const shouldDelete =
-                (room.status === "finished" && now - room.lastActivityAt > ROOM_TTL.finishedMs) ||
-                (room.status === "lobby" &&
-                    room.players.size === 0 &&
-                    now - room.createdAt > ROOM_TTL.emptyLobbyMs) ||
-                (room.status === "lobby" &&
-                    !hasConnectedPlayers &&
-                    now - room.lastActivityAt > ROOM_TTL.disconnectedLobbyMs);
-            if (shouldDelete) deleteRoom(room);
-        });
+                const hasConnectedPlayers = [...room.players.values()].some(
+                    (player) => player.connected,
+                );
+                const shouldDelete =
+                    (room.status === "finished" &&
+                        now - room.lastActivityAt > ROOM_TTL.finishedMs) ||
+                    (room.status === "lobby" &&
+                        room.players.size === 0 &&
+                        now - room.createdAt > ROOM_TTL.emptyLobbyMs) ||
+                    (room.status === "lobby" &&
+                        !hasConnectedPlayers &&
+                        now - room.lastActivityAt > ROOM_TTL.disconnectedLobbyMs);
+                if (shouldDelete) deleteRoom(room);
+            });
+        } catch (error) {
+            warnRoomMaintenanceDatabaseUnavailable(`room ${code}`, error);
+            return;
+        }
     }
 };
 
@@ -1238,8 +1262,14 @@ app.get("/api/exams/:examId/assets/*assetPath", async (req, res) => {
     res.send(asset.body);
 });
 
-app.get("/api/health", (_req, res) => {
-    res.json({ ok: true, exams: exams.length, problemStorage: "postgres" });
+app.get("/api/health", async (_req, res) => {
+    const database = await checkDatabaseHealth(examCatalogPool);
+    const body = { ok: database.ok, exams: exams.length, problemStorage: "postgres", database };
+    if (!database.ok) {
+        res.status(503).json(body);
+        return;
+    }
+    res.json(body);
 });
 
 app.get("/metrics", async (req, res) => {

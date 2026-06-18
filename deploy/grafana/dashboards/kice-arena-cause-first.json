@@ -1,1913 +1,1839 @@
 {
-  "annotations": {
-    "list": [
-      {
-        "builtIn": 1,
-        "datasource": {
-          "type": "grafana",
-          "uid": "-- Grafana --"
-        },
-        "enable": true,
-        "hide": true,
-        "iconColor": "rgba(0, 211, 255, 1)",
-        "name": "Annotations & Alerts",
-        "type": "dashboard"
-      },
-      {
-        "datasource": {
-          "type": "prometheus",
-          "uid": "$datasource"
-        },
-        "enable": true,
-        "expr": "ALERTS{alertstate=\"firing\", alertname=~\"KiceArena.*\"}",
-        "iconColor": "red",
-        "name": "KICE Arena firing alerts",
-        "step": "60s",
-        "tagKeys": "alertname,severity",
-        "textFormat": "{{description}}",
-        "titleFormat": "{{alertname}}"
-      }
-    ]
-  },
-  "editable": true,
-  "fiscalYearStartMonth": 0,
-  "graphTooltip": 1,
-  "links": [],
-  "panels": [
-    {
-      "id": 1,
-      "type": "stat",
-      "title": "Incident score",
-      "description": "장애 원인별 점수를 가중 합산한 0-100 점수입니다. 5xx, 지연, event loop, 메모리 증가, FD, socket orphan, room stale 신호를 함께 봅니다.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "$datasource"
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 3,
-        "x": 0,
-        "y": 0
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percent",
-          "decimals": 1,
-          "min": 0,
-          "max": 100,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 40
-              },
-              {
-                "color": "red",
-                "value": 70
-              }
+    "annotations": {
+        "list": [
+            {
+                "builtIn": 1,
+                "datasource": {
+                    "type": "grafana",
+                    "uid": "-- Grafana --"
+                },
+                "enable": true,
+                "hide": true,
+                "iconColor": "rgba(0, 211, 255, 1)",
+                "name": "Annotations & Alerts",
+                "type": "dashboard"
+            },
+            {
+                "datasource": {
+                    "type": "prometheus",
+                    "uid": "$datasource"
+                },
+                "enable": true,
+                "expr": "ALERTS{alertstate=\"firing\", alertname=~\"KiceArena.*\"}",
+                "iconColor": "red",
+                "name": "KICE Arena firing alerts",
+                "step": "60s",
+                "tagKeys": "alertname,severity",
+                "textFormat": "{{description}}",
+                "titleFormat": "{{alertname}}"
+            }
+        ]
+    },
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 1,
+    "links": [],
+    "panels": [
+        {
+            "id": 1,
+            "type": "stat",
+            "title": "Incident score",
+            "description": "장애 원인별 점수를 가중 합산한 0-100 점수입니다. 5xx, 지연, event loop, 메모리 증가, FD, socket orphan, room stale 신호를 함께 봅니다.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "$datasource"
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 3,
+                "x": 0,
+                "y": 0
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "percent",
+                    "decimals": 1,
+                    "min": 0,
+                    "max": 100,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "yellow",
+                                "value": 40
+                            },
+                            {
+                                "color": "red",
+                                "value": 70
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "textMode": "auto",
+                "wideLayout": true,
+                "showPercentChange": true
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "(0.22 * (100 * clamp_max(((sum(rate(kice_arena_http_request_duration_seconds_count{status=~\"5..\"}[5m])) or vector(0)) / clamp_min((sum(rate(kice_arena_http_request_duration_seconds_count[5m])) or vector(0)), 1)) / 0.05, 1)) + 0.18 * (100 * clamp_max((histogram_quantile(0.95, sum by (le) (rate(kice_arena_http_request_duration_seconds_bucket[5m]))) or vector(0)) / 1.0, 1)) + 0.18 * (100 * clamp_max((max(kice_arena_nodejs_eventloop_lag_p99_seconds) or vector(0)) / 0.25, 1)) + 0.14 * (100 * clamp_max((sum(clamp_min(deriv(kice_arena_process_resident_memory_bytes[15m]) * 900, 0)) or vector(0)) / 209715200, 1)) + 0.10 * (100 * clamp_max(((sum(kice_arena_process_open_fds) or vector(0)) / clamp_min((sum(kice_arena_process_max_fds) or vector(0)), 1)) / 0.80, 1)) + 0.08 * (100 * clamp_max(((clamp_min((sum(kice_arena_socket_connections) or vector(0)) - (sum(kice_arena_players{state=\"connected\"}) or vector(0)), 0)) / clamp_min((sum(kice_arena_socket_connections) or vector(0)), 1)) / 0.10, 1)) + 0.05 * (clamp_max((100 * (max(kice_arena_room_disconnect_risk_score) or vector(0))), 100)) + 0.05 * (clamp_max((100 * (max(kice_arena_room_cleanup_pressure_score) or vector(0))), 100)))",
+                    "refId": "A"
+                }
             ]
-          }
         },
-        "overrides": []
-      },
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto",
-        "wideLayout": true,
-        "showPercentChange": true
-      },
-      "targets": [
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "(0.22 * (100 * clamp_max(((sum(rate(kice_arena_http_request_duration_seconds_count{status=~\"5..\"}[5m])) or vector(0)) / clamp_min((sum(rate(kice_arena_http_request_duration_seconds_count[5m])) or vector(0)), 1)) / 0.05, 1)) + 0.18 * (100 * clamp_max((histogram_quantile(0.95, sum by (le) (rate(kice_arena_http_request_duration_seconds_bucket[5m]))) or vector(0)) / 1.0, 1)) + 0.18 * (100 * clamp_max((max(kice_arena_nodejs_eventloop_lag_p99_seconds) or vector(0)) / 0.25, 1)) + 0.14 * (100 * clamp_max((sum(clamp_min(deriv(kice_arena_process_resident_memory_bytes[15m]) * 900, 0)) or vector(0)) / 209715200, 1)) + 0.10 * (100 * clamp_max(((sum(kice_arena_process_open_fds) or vector(0)) / clamp_min((sum(kice_arena_process_max_fds) or vector(0)), 1)) / 0.80, 1)) + 0.08 * (100 * clamp_max(((clamp_min((sum(kice_arena_socket_connections) or vector(0)) - (sum(kice_arena_players{state=\"connected\"}) or vector(0)), 0)) / clamp_min((sum(kice_arena_socket_connections) or vector(0)), 1)) / 0.10, 1)) + 0.05 * (clamp_max((100 * (max(kice_arena_room_disconnect_risk_score) or vector(0))), 100)) + 0.05 * (clamp_max((100 * (max(kice_arena_room_cleanup_pressure_score) or vector(0))), 100)))",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "id": 2,
-      "type": "stat",
-      "title": "Firing alerts",
-      "description": "Prometheus alert rule이 firing 상태인 KICE Arena 알림 개수입니다.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "$datasource"
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 3,
-        "x": 3,
-        "y": 0
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "decimals": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 1
-              },
-              {
-                "color": "red",
-                "value": 3
-              }
+            "id": 2,
+            "type": "stat",
+            "title": "Firing alerts",
+            "description": "Prometheus alert rule이 firing 상태인 KICE Arena 알림 개수입니다.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "$datasource"
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 3,
+                "x": 3,
+                "y": 0
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "decimals": 0,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "yellow",
+                                "value": 1
+                            },
+                            {
+                                "color": "red",
+                                "value": 3
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "textMode": "auto",
+                "wideLayout": true,
+                "showPercentChange": true
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "(sum(ALERTS{alertstate=\"firing\", alertname=~\"KiceArena.*\"}) or vector(0))",
+                    "refId": "A"
+                }
             ]
-          }
         },
-        "overrides": []
-      },
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto",
-        "wideLayout": true,
-        "showPercentChange": true
-      },
-      "targets": [
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "(sum(ALERTS{alertstate=\"firing\", alertname=~\"KiceArena.*\"}) or vector(0))",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "id": 3,
-      "type": "stat",
-      "title": "HTTP 5xx %",
-      "description": "전체 HTTP 요청 중 5xx 비율입니다. 서버 내부 실패를 가장 먼저 의심합니다.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "$datasource"
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 3,
-        "x": 6,
-        "y": 0
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percent",
-          "decimals": 2,
-          "min": 0,
-          "max": 100,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 2
-              },
-              {
-                "color": "red",
-                "value": 5
-              }
+            "id": 3,
+            "type": "stat",
+            "title": "HTTP 5xx %",
+            "description": "전체 HTTP 요청 중 5xx 비율입니다. 서버 내부 실패를 가장 먼저 의심합니다.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "$datasource"
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 3,
+                "x": 6,
+                "y": 0
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "percent",
+                    "decimals": 2,
+                    "min": 0,
+                    "max": 100,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "yellow",
+                                "value": 2
+                            },
+                            {
+                                "color": "red",
+                                "value": 5
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "textMode": "auto",
+                "wideLayout": true,
+                "showPercentChange": true
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "(100 * ((sum(rate(kice_arena_http_request_duration_seconds_count{status=~\"5..\"}[5m])) or vector(0)) / clamp_min((sum(rate(kice_arena_http_request_duration_seconds_count[5m])) or vector(0)), 1)))",
+                    "refId": "A"
+                }
             ]
-          }
         },
-        "overrides": []
-      },
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto",
-        "wideLayout": true,
-        "showPercentChange": true
-      },
-      "targets": [
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "(100 * ((sum(rate(kice_arena_http_request_duration_seconds_count{status=~\"5..\"}[5m])) or vector(0)) / clamp_min((sum(rate(kice_arena_http_request_duration_seconds_count[5m])) or vector(0)), 1)))",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "id": 4,
-      "type": "stat",
-      "title": "HTTP p95",
-      "description": "HTTP p95 latency입니다. 실패가 없는데 p95만 상승하면 CPU, event loop, 외부 의존성 지연을 우선 봅니다.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "$datasource"
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 3,
-        "x": 9,
-        "y": 0
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "decimals": 3,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 0.5
-              },
-              {
-                "color": "red",
-                "value": 1
-              }
+            "id": 4,
+            "type": "stat",
+            "title": "HTTP p95",
+            "description": "HTTP p95 latency입니다. 실패가 없는데 p95만 상승하면 CPU, event loop, 외부 의존성 지연을 우선 봅니다.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "$datasource"
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 3,
+                "x": 9,
+                "y": 0
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "s",
+                    "decimals": 3,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "yellow",
+                                "value": 0.5
+                            },
+                            {
+                                "color": "red",
+                                "value": 1
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "textMode": "auto",
+                "wideLayout": true,
+                "showPercentChange": true
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "(histogram_quantile(0.95, sum by (le) (rate(kice_arena_http_request_duration_seconds_bucket[5m]))) or vector(0))",
+                    "refId": "A"
+                }
             ]
-          }
         },
-        "overrides": []
-      },
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto",
-        "wideLayout": true,
-        "showPercentChange": true
-      },
-      "targets": [
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "(histogram_quantile(0.95, sum by (le) (rate(kice_arena_http_request_duration_seconds_bucket[5m]))) or vector(0))",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "id": 5,
-      "type": "stat",
-      "title": "Event loop p99",
-      "description": "Node.js event loop p99 lag입니다. 높으면 동기 CPU 작업, 큰 GC, 과도한 callback backlog를 의심합니다.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "$datasource"
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 3,
-        "x": 12,
-        "y": 0
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "decimals": 4,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 0.1
-              },
-              {
-                "color": "red",
-                "value": 0.25
-              }
+            "id": 5,
+            "type": "stat",
+            "title": "Event loop p99",
+            "description": "Node.js event loop p99 lag입니다. 높으면 동기 CPU 작업, 큰 GC, 과도한 callback backlog를 의심합니다.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "$datasource"
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 3,
+                "x": 12,
+                "y": 0
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "s",
+                    "decimals": 4,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "yellow",
+                                "value": 0.1
+                            },
+                            {
+                                "color": "red",
+                                "value": 0.25
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "textMode": "auto",
+                "wideLayout": true,
+                "showPercentChange": true
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "(max(kice_arena_nodejs_eventloop_lag_p99_seconds) or vector(0))",
+                    "refId": "A"
+                }
             ]
-          }
         },
-        "overrides": []
-      },
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto",
-        "wideLayout": true,
-        "showPercentChange": true
-      },
-      "targets": [
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "(max(kice_arena_nodejs_eventloop_lag_p99_seconds) or vector(0))",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "id": 6,
-      "type": "stat",
-      "title": "RSS growth / 15m",
-      "description": "최근 15분 동안 증가한 RSS 추정치입니다. 지속 상승하면 leak, buffer, native memory를 확인합니다.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "$datasource"
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 3,
-        "x": 15,
-        "y": 0
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "bytes",
-          "decimals": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 104857600
-              },
-              {
-                "color": "red",
-                "value": 209715200
-              }
+            "id": 6,
+            "type": "stat",
+            "title": "RSS growth / 15m",
+            "description": "최근 15분 동안 증가한 RSS 추정치입니다. 지속 상승하면 leak, buffer, native memory를 확인합니다.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "$datasource"
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 3,
+                "x": 15,
+                "y": 0
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "bytes",
+                    "decimals": 0,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "yellow",
+                                "value": 104857600
+                            },
+                            {
+                                "color": "red",
+                                "value": 209715200
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "textMode": "auto",
+                "wideLayout": true,
+                "showPercentChange": true
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "(sum(clamp_min(deriv(kice_arena_process_resident_memory_bytes[15m]) * 900, 0)) or vector(0))",
+                    "refId": "A"
+                }
             ]
-          }
         },
-        "overrides": []
-      },
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto",
-        "wideLayout": true,
-        "showPercentChange": true
-      },
-      "targets": [
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "(sum(clamp_min(deriv(kice_arena_process_resident_memory_bytes[15m]) * 900, 0)) or vector(0))",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "id": 7,
-      "type": "stat",
-      "title": "FD usage %",
-      "description": "열린 파일 디스크립터 / 최대 파일 디스크립터입니다. 80% 이상이면 연결 누수나 파일 핸들 누수를 의심합니다.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "$datasource"
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 3,
-        "x": 18,
-        "y": 0
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percent",
-          "decimals": 1,
-          "min": 0,
-          "max": 100,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 70
-              },
-              {
-                "color": "red",
-                "value": 85
-              }
+            "id": 7,
+            "type": "stat",
+            "title": "FD usage %",
+            "description": "열린 파일 디스크립터 / 최대 파일 디스크립터입니다. 80% 이상이면 연결 누수나 파일 핸들 누수를 의심합니다.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "$datasource"
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 3,
+                "x": 18,
+                "y": 0
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "percent",
+                    "decimals": 1,
+                    "min": 0,
+                    "max": 100,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "yellow",
+                                "value": 70
+                            },
+                            {
+                                "color": "red",
+                                "value": 85
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "textMode": "auto",
+                "wideLayout": true,
+                "showPercentChange": true
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "(100 * ((sum(kice_arena_process_open_fds) or vector(0)) / clamp_min((sum(kice_arena_process_max_fds) or vector(0)), 1)))",
+                    "refId": "A"
+                }
             ]
-          }
         },
-        "overrides": []
-      },
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto",
-        "wideLayout": true,
-        "showPercentChange": true
-      },
-      "targets": [
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "(100 * ((sum(kice_arena_process_open_fds) or vector(0)) / clamp_min((sum(kice_arena_process_max_fds) or vector(0)), 1)))",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "id": 8,
-      "type": "stat",
-      "title": "Socket orphan %",
-      "description": "socket connections가 connected player보다 많은 비율입니다. 연결 정리 실패나 인증 전 socket backlog를 빠르게 드러냅니다.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "$datasource"
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 3,
-        "x": 21,
-        "y": 0
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percent",
-          "decimals": 1,
-          "min": 0,
-          "max": 100,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 5
-              },
-              {
-                "color": "red",
-                "value": 10
-              }
+            "id": 8,
+            "type": "stat",
+            "title": "Socket orphan %",
+            "description": "socket connections가 connected player보다 많은 비율입니다. 연결 정리 실패나 인증 전 socket backlog를 빠르게 드러냅니다.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "$datasource"
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 3,
+                "x": 21,
+                "y": 0
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "percent",
+                    "decimals": 1,
+                    "min": 0,
+                    "max": 100,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "yellow",
+                                "value": 5
+                            },
+                            {
+                                "color": "red",
+                                "value": 10
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "textMode": "auto",
+                "wideLayout": true,
+                "showPercentChange": true
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "(100 * ((clamp_min((sum(kice_arena_socket_connections) or vector(0)) - (sum(kice_arena_players{state=\"connected\"}) or vector(0)), 0)) / clamp_min((sum(kice_arena_socket_connections) or vector(0)), 1)))",
+                    "refId": "A"
+                }
             ]
-          }
         },
-        "overrides": []
-      },
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto",
-        "wideLayout": true,
-        "showPercentChange": true
-      },
-      "targets": [
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "(100 * ((clamp_min((sum(kice_arena_socket_connections) or vector(0)) - (sum(kice_arena_players{state=\"connected\"}) or vector(0)), 0)) / clamp_min((sum(kice_arena_socket_connections) or vector(0)), 1)))",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "id": 9,
-      "type": "bargauge",
-      "title": "Incident cause scores",
-      "description": "각 원인 후보를 0-100으로 정규화했습니다. 가장 높은 막대가 첫 조사 대상입니다.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "$datasource"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 4
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percent",
-          "decimals": 1,
-          "min": 0,
-          "max": 100,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 40
-              },
-              {
-                "color": "red",
-                "value": 70
-              }
+            "id": 9,
+            "type": "bargauge",
+            "title": "Incident cause scores",
+            "description": "각 원인 후보를 0-100으로 정규화했습니다. 가장 높은 막대가 첫 조사 대상입니다.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "$datasource"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 4
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "percent",
+                    "decimals": 1,
+                    "min": 0,
+                    "max": 100,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "yellow",
+                                "value": 40
+                            },
+                            {
+                                "color": "red",
+                                "value": 70
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "displayMode": "gradient",
+                "maxVizHeight": 300,
+                "minVizHeight": 16,
+                "minVizWidth": 8,
+                "namePlacement": "auto",
+                "orientation": "horizontal",
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "showUnfilled": true,
+                "sizing": "auto",
+                "valueMode": "color"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "(100 * clamp_max(((sum(rate(kice_arena_http_request_duration_seconds_count{status=~\"5..\"}[5m])) or vector(0)) / clamp_min((sum(rate(kice_arena_http_request_duration_seconds_count[5m])) or vector(0)), 1)) / 0.05, 1))",
+                    "refId": "A",
+                    "legendFormat": "HTTP 5xx"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "(100 * clamp_max((histogram_quantile(0.95, sum by (le) (rate(kice_arena_http_request_duration_seconds_bucket[5m]))) or vector(0)) / 1.0, 1))",
+                    "refId": "B",
+                    "legendFormat": "HTTP latency"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "(100 * clamp_max((max(kice_arena_nodejs_eventloop_lag_p99_seconds) or vector(0)) / 0.25, 1))",
+                    "refId": "C",
+                    "legendFormat": "Event loop"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "(100 * clamp_max((sum(clamp_min(deriv(kice_arena_process_resident_memory_bytes[15m]) * 900, 0)) or vector(0)) / 209715200, 1))",
+                    "refId": "D",
+                    "legendFormat": "RSS growth"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "(100 * clamp_max(((sum(kice_arena_process_open_fds) or vector(0)) / clamp_min((sum(kice_arena_process_max_fds) or vector(0)), 1)) / 0.80, 1))",
+                    "refId": "E",
+                    "legendFormat": "FD saturation"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "(100 * clamp_max(((clamp_min((sum(kice_arena_socket_connections) or vector(0)) - (sum(kice_arena_players{state=\"connected\"}) or vector(0)), 0)) / clamp_min((sum(kice_arena_socket_connections) or vector(0)), 1)) / 0.10, 1))",
+                    "refId": "F",
+                    "legendFormat": "Socket orphan"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "(clamp_max((100 * (max(kice_arena_room_disconnect_risk_score) or vector(0))), 100))",
+                    "refId": "G",
+                    "legendFormat": "Room disconnect"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "(clamp_max((100 * (max(kice_arena_room_cleanup_pressure_score) or vector(0))), 100))",
+                    "refId": "H",
+                    "legendFormat": "Room cleanup"
+                }
             ]
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "displayMode": "gradient",
-        "maxVizHeight": 300,
-        "minVizHeight": 16,
-        "minVizWidth": 8,
-        "namePlacement": "auto",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showUnfilled": true,
-        "sizing": "auto",
-        "valueMode": "color"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "(100 * clamp_max(((sum(rate(kice_arena_http_request_duration_seconds_count{status=~\"5..\"}[5m])) or vector(0)) / clamp_min((sum(rate(kice_arena_http_request_duration_seconds_count[5m])) or vector(0)), 1)) / 0.05, 1))",
-          "refId": "A",
-          "legendFormat": "HTTP 5xx"
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "(100 * clamp_max((histogram_quantile(0.95, sum by (le) (rate(kice_arena_http_request_duration_seconds_bucket[5m]))) or vector(0)) / 1.0, 1))",
-          "refId": "B",
-          "legendFormat": "HTTP latency"
+            "id": 10,
+            "type": "timeseries",
+            "title": "HTTP failure throughput",
+            "description": "5xx가 total RPS와 같이 오르면 트래픽 유발 장애, total RPS 없이 5xx만 오르면 내부 상태/의존성 장애를 의심합니다.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "$datasource"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 4
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "reqps",
+                    "decimals": 3
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "calcs": ["lastNotNull", "max"],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "hideZeros": false,
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "sum by (method, status) (rate(kice_arena_http_request_duration_seconds_count{status=~\"5..\"}[5m]))",
+                    "refId": "A",
+                    "legendFormat": "{{method}} {{status}}"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "sum(rate(kice_arena_http_request_duration_seconds_count[5m]))",
+                    "refId": "B",
+                    "legendFormat": "total rps"
+                }
+            ]
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "(100 * clamp_max((max(kice_arena_nodejs_eventloop_lag_p99_seconds) or vector(0)) / 0.25, 1))",
-          "refId": "C",
-          "legendFormat": "Event loop"
+            "id": 11,
+            "type": "timeseries",
+            "title": "Node.js event loop and GC latency",
+            "description": "지연이 HTTP보다 먼저 오르면 event loop/GC 쪽이 원인일 가능성이 큽니다.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "$datasource"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 12
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "s",
+                    "decimals": 4
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "calcs": ["lastNotNull", "max"],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "hideZeros": false,
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "max(kice_arena_nodejs_eventloop_lag_p50_seconds)",
+                    "refId": "A",
+                    "legendFormat": "event loop p50"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "max(kice_arena_nodejs_eventloop_lag_p90_seconds)",
+                    "refId": "B",
+                    "legendFormat": "event loop p90"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "max(kice_arena_nodejs_eventloop_lag_p99_seconds)",
+                    "refId": "C",
+                    "legendFormat": "event loop p99"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "max(kice_arena_nodejs_eventloop_lag_seconds)",
+                    "refId": "D",
+                    "legendFormat": "event loop current"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "histogram_quantile(0.95, sum by (le, kind) (rate(kice_arena_nodejs_gc_duration_seconds_bucket[5m])))",
+                    "refId": "E",
+                    "legendFormat": "gc p95 {{kind}}"
+                }
+            ]
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "(100 * clamp_max((sum(clamp_min(deriv(kice_arena_process_resident_memory_bytes[15m]) * 900, 0)) or vector(0)) / 209715200, 1))",
-          "refId": "D",
-          "legendFormat": "RSS growth"
+            "id": 12,
+            "type": "timeseries",
+            "title": "Memory pressure",
+            "description": "RSS만 오르면 native/external memory나 buffer를, heap used가 같이 오르면 JS 객체 보존을 우선 확인합니다.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "$datasource"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 12
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "bytes",
+                    "decimals": 0
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "calcs": ["lastNotNull", "max"],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "hideZeros": false,
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "sum(kice_arena_process_resident_memory_bytes)",
+                    "refId": "A",
+                    "legendFormat": "rss"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "sum(kice_arena_process_heap_bytes)",
+                    "refId": "B",
+                    "legendFormat": "process heap"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "sum(kice_arena_nodejs_heap_size_used_bytes)",
+                    "refId": "C",
+                    "legendFormat": "node heap used"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "sum(kice_arena_nodejs_external_memory_bytes)",
+                    "refId": "D",
+                    "legendFormat": "node external"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "(sum(clamp_min(deriv(kice_arena_process_resident_memory_bytes[15m]) * 900, 0)) or vector(0))",
+                    "refId": "E",
+                    "legendFormat": "rss growth / 15m"
+                }
+            ]
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "(100 * clamp_max(((sum(kice_arena_process_open_fds) or vector(0)) / clamp_min((sum(kice_arena_process_max_fds) or vector(0)), 1)) / 0.80, 1))",
-          "refId": "E",
-          "legendFormat": "FD saturation"
+            "id": 13,
+            "type": "timeseries",
+            "title": "Connection consistency",
+            "description": "socket 수와 player 수의 괴리를 한 화면에서 봅니다. socket orphan이 먼저 뛰면 연결 생명주기 누수를 의심합니다.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "$datasource"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 20
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "decimals": 2
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "calcs": ["lastNotNull", "max"],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "hideZeros": false,
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "(sum(kice_arena_socket_connections) or vector(0))",
+                    "refId": "A",
+                    "legendFormat": "socket connections"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "(sum(kice_arena_players{state=\"connected\"}) or vector(0))",
+                    "refId": "B",
+                    "legendFormat": "connected players"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "(sum(kice_arena_players{state=\"disconnected\"}) or vector(0))",
+                    "refId": "C",
+                    "legendFormat": "disconnected players"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "(clamp_min((sum(kice_arena_socket_connections) or vector(0)) - (sum(kice_arena_players{state=\"connected\"}) or vector(0)), 0))",
+                    "refId": "D",
+                    "legendFormat": "socket orphans"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "(100 * (max(kice_arena_players_disconnected_ratio) or vector(0)))",
+                    "refId": "E",
+                    "legendFormat": "player disconnected %"
+                }
+            ]
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "(100 * clamp_max(((clamp_min((sum(kice_arena_socket_connections) or vector(0)) - (sum(kice_arena_players{state=\"connected\"}) or vector(0)), 0)) / clamp_min((sum(kice_arena_socket_connections) or vector(0)), 1)) / 0.10, 1))",
-          "refId": "F",
-          "legendFormat": "Socket orphan"
+            "id": 14,
+            "type": "timeseries",
+            "title": "Room stale-state counts",
+            "description": "애플리케이션 상태 머신에서 직접 나온 stale room 계수입니다. 장애의 뿌리표지판 역할을 합니다.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "$datasource"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 20
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "decimals": 0
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "calcs": ["lastNotNull", "max"],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "hideZeros": false,
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "(sum(kice_arena_rooms_expired) or vector(0))",
+                    "refId": "A",
+                    "legendFormat": "expired rooms"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "(sum(kice_arena_rooms_expiring_soon) or vector(0))",
+                    "refId": "B",
+                    "legendFormat": "expiring soon"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "(sum(kice_arena_rooms_zombie_playing) or vector(0))",
+                    "refId": "C",
+                    "legendFormat": "zombie playing"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "(sum(kice_arena_rooms_disconnected_lobby) or vector(0))",
+                    "refId": "D",
+                    "legendFormat": "disconnected lobby"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "(sum(kice_arena_rooms_partially_disconnected) or vector(0))",
+                    "refId": "E",
+                    "legendFormat": "partially disconnected"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "(sum(kice_arena_rooms_player_count_mismatch) or vector(0))",
+                    "refId": "F",
+                    "legendFormat": "player count mismatch"
+                }
+            ]
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "(clamp_max((100 * (max(kice_arena_room_disconnect_risk_score) or vector(0))), 100))",
-          "refId": "G",
-          "legendFormat": "Room disconnect"
+            "id": 15,
+            "type": "timeseries",
+            "title": "Room risk scores",
+            "description": "room-level 파생 metric을 점수화했습니다. disconnect risk는 stale game-session, cleanup pressure는 room cleanup backlog 또는 임박한 cleanup wave를 뜻합니다.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "$datasource"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 28
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "decimals": 2
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "calcs": ["lastNotNull", "max"],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "hideZeros": false,
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "(100 * (max(kice_arena_room_disconnect_risk_score) or vector(0)))",
+                    "refId": "A",
+                    "legendFormat": "disconnect risk"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "(100 * (max(kice_arena_room_cleanup_pressure_score) or vector(0)))",
+                    "refId": "B",
+                    "legendFormat": "cleanup pressure"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "(max(kice_arena_room_expiry_overdue_seconds{stat=\"max\"}) or vector(0))",
+                    "refId": "C",
+                    "legendFormat": "max overdue seconds"
+                }
+            ]
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "(clamp_max((100 * (max(kice_arena_room_cleanup_pressure_score) or vector(0))), 100))",
-          "refId": "H",
-          "legendFormat": "Room cleanup"
+            "id": 16,
+            "type": "timeseries",
+            "title": "Contest overview",
+            "description": "Codeforces-style contest 운영 규모를 event 기준으로 봅니다. 친구 문제집 흐름은 이 패널에 섞지 않습니다.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "$datasource"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 28
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "decimals": 2
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "calcs": ["lastNotNull", "max"],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "hideZeros": false,
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "(sum(kice_arena_contests_active) or vector(0))",
+                    "refId": "A",
+                    "legendFormat": "active contests"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "(sum by (event_id, status) (kice_arena_contest_sessions) or vector(0))",
+                    "refId": "B",
+                    "legendFormat": "{{event_id}} sessions {{status}}"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "(sum by (event_id, state) (kice_arena_contest_participants) or vector(0))",
+                    "refId": "C",
+                    "legendFormat": "{{event_id}} participants {{state}}"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "(sum(kice_arena_contest_participants{state=\"connected\"}) or vector(0))",
+                    "refId": "D",
+                    "legendFormat": "connected contest participants"
+                }
+            ]
+        },
+        {
+            "id": 17,
+            "type": "timeseries",
+            "title": "HTTP requests per second by status",
+            "description": "",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "$datasource"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 36
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "reqps",
+                    "decimals": 3
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "calcs": ["lastNotNull", "max"],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "hideZeros": false,
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "sum by (method, status) (rate(kice_arena_http_request_duration_seconds_count[5m]))",
+                    "refId": "A",
+                    "legendFormat": "{{method}} {{status}}"
+                }
+            ]
+        },
+        {
+            "id": 18,
+            "type": "timeseries",
+            "title": "HTTP latency quantiles",
+            "description": "",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "$datasource"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 36
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "s",
+                    "decimals": 4
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "calcs": ["lastNotNull", "max"],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "hideZeros": false,
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "histogram_quantile(0.50, sum by (le) (rate(kice_arena_http_request_duration_seconds_bucket[5m])))",
+                    "refId": "A",
+                    "legendFormat": "p50"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "histogram_quantile(0.90, sum by (le) (rate(kice_arena_http_request_duration_seconds_bucket[5m])))",
+                    "refId": "B",
+                    "legendFormat": "p90"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "histogram_quantile(0.95, sum by (le) (rate(kice_arena_http_request_duration_seconds_bucket[5m])))",
+                    "refId": "C",
+                    "legendFormat": "p95"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "histogram_quantile(0.99, sum by (le) (rate(kice_arena_http_request_duration_seconds_bucket[5m])))",
+                    "refId": "D",
+                    "legendFormat": "p99"
+                }
+            ]
+        },
+        {
+            "id": 19,
+            "type": "timeseries",
+            "title": "Contest submissions per second",
+            "description": "진행 중인 contest에서 제출량이 0에 가까워지면 socket/game-loop 측 장애를 의심합니다.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "$datasource"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 44
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "ops",
+                    "decimals": 3
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "calcs": ["lastNotNull", "max"],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "hideZeros": false,
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "(sum by (event_id, correct) (rate(kice_arena_contest_submissions_total[5m])) or vector(0))",
+                    "refId": "A",
+                    "legendFormat": "{{event_id}} correct={{correct}}"
+                }
+            ]
+        },
+        {
+            "id": 20,
+            "type": "timeseries",
+            "title": "Contest submissions in last 15m",
+            "description": "",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "$datasource"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 44
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "decimals": 0
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "calcs": ["lastNotNull", "max"],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "hideZeros": false,
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "(sum by (event_id, correct) (increase(kice_arena_contest_submissions_total[15m])) or vector(0))",
+                    "refId": "A",
+                    "legendFormat": "{{event_id}} correct={{correct}}"
+                }
+            ]
+        },
+        {
+            "id": 21,
+            "type": "timeseries",
+            "title": "Room expiry / remaining time",
+            "description": "",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "$datasource"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 52
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "s",
+                    "decimals": 1
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "calcs": ["lastNotNull", "max"],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "hideZeros": false,
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "max(kice_arena_room_expiry_seconds{stat=\"avg\"})",
+                    "refId": "A",
+                    "legendFormat": "expiry avg"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "max(kice_arena_room_expiry_seconds{stat=\"max\"})",
+                    "refId": "B",
+                    "legendFormat": "expiry max"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "max(kice_arena_room_expiry_overdue_seconds{stat=\"avg\"})",
+                    "refId": "C",
+                    "legendFormat": "overdue avg"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "max(kice_arena_room_expiry_overdue_seconds{stat=\"max\"})",
+                    "refId": "D",
+                    "legendFormat": "overdue max"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "max(kice_arena_playing_room_time_remaining_seconds{stat=\"avg\"})",
+                    "refId": "E",
+                    "legendFormat": "playing avg"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "max(kice_arena_playing_room_time_remaining_seconds{stat=\"max\"})",
+                    "refId": "F",
+                    "legendFormat": "playing max"
+                }
+            ]
+        },
+        {
+            "id": 22,
+            "type": "timeseries",
+            "title": "Rooms by status",
+            "description": "",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "$datasource"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 52
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "decimals": 0
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "calcs": ["lastNotNull", "max"],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "hideZeros": false,
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "sum by (status) (kice_arena_rooms_by_status)",
+                    "refId": "A",
+                    "legendFormat": "{{status}}"
+                }
+            ]
+        },
+        {
+            "id": 23,
+            "type": "timeseries",
+            "title": "Process CPU usage",
+            "description": "",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "$datasource"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 60
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "decimals": 3
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "calcs": ["lastNotNull", "max"],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "hideZeros": false,
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "sum(rate(kice_arena_process_cpu_user_seconds_total[5m]))",
+                    "refId": "A",
+                    "legendFormat": "user"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "sum(rate(kice_arena_process_cpu_system_seconds_total[5m]))",
+                    "refId": "B",
+                    "legendFormat": "system"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "sum(rate(kice_arena_process_cpu_seconds_total[5m]))",
+                    "refId": "C",
+                    "legendFormat": "total"
+                }
+            ]
+        },
+        {
+            "id": 24,
+            "type": "timeseries",
+            "title": "Open file descriptors",
+            "description": "FD usage %가 먼저 상승하면 socket/file handle leak을 우선 봅니다.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "$datasource"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 60
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "decimals": 2
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "calcs": ["lastNotNull", "max"],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "hideZeros": false,
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "sum(kice_arena_process_open_fds)",
+                    "refId": "A",
+                    "legendFormat": "open"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "sum(kice_arena_process_max_fds)",
+                    "refId": "B",
+                    "legendFormat": "max"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "(100 * ((sum(kice_arena_process_open_fds) or vector(0)) / clamp_min((sum(kice_arena_process_max_fds) or vector(0)), 1)))",
+                    "refId": "C",
+                    "legendFormat": "usage %"
+                }
+            ]
+        },
+        {
+            "id": 25,
+            "type": "timeseries",
+            "title": "Active libuv handles by type",
+            "description": "",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "$datasource"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 68
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "decimals": 0
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "calcs": ["lastNotNull", "max"],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "hideZeros": false,
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "sum by (type) (kice_arena_nodejs_active_handles)",
+                    "refId": "A",
+                    "legendFormat": "{{type}}"
+                }
+            ]
+        },
+        {
+            "id": 26,
+            "type": "timeseries",
+            "title": "Active async resources by type",
+            "description": "",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "$datasource"
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 68
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "decimals": 0
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "calcs": ["lastNotNull", "max"],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "hideZeros": false,
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "$datasource"
+                    },
+                    "expr": "sum by (type) (kice_arena_nodejs_active_resources)",
+                    "refId": "A",
+                    "legendFormat": "{{type}}"
+                }
+            ]
         }
-      ]
+    ],
+    "preload": false,
+    "refresh": "5s",
+    "schemaVersion": 42,
+    "tags": ["alerts", "cause-first", "kice-arena", "prometheus"],
+    "templating": {
+        "list": [
+            {
+                "name": "datasource",
+                "label": "Prometheus",
+                "type": "datasource",
+                "query": "prometheus",
+                "current": {
+                    "selected": true,
+                    "text": "Prometheus",
+                    "value": "prometheus"
+                },
+                "hide": 0,
+                "includeAll": false,
+                "multi": false,
+                "options": [],
+                "refresh": 1,
+                "regex": ""
+            }
+        ]
     },
-    {
-      "id": 10,
-      "type": "timeseries",
-      "title": "HTTP failure throughput",
-      "description": "5xx가 total RPS와 같이 오르면 트래픽 유발 장애, total RPS 없이 5xx만 오르면 내부 상태/의존성 장애를 의심합니다.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "$datasource"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 4
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "reqps",
-          "decimals": 3
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "sum by (method, status) (rate(kice_arena_http_request_duration_seconds_count{status=~\"5..\"}[5m]))",
-          "refId": "A",
-          "legendFormat": "{{method}} {{status}}"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "sum(rate(kice_arena_http_request_duration_seconds_count[5m]))",
-          "refId": "B",
-          "legendFormat": "total rps"
-        }
-      ]
+    "time": {
+        "from": "now-1h",
+        "to": "now"
     },
-    {
-      "id": 11,
-      "type": "timeseries",
-      "title": "Node.js event loop and GC latency",
-      "description": "지연이 HTTP보다 먼저 오르면 event loop/GC 쪽이 원인일 가능성이 큽니다.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "$datasource"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 12
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "decimals": 4
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "max(kice_arena_nodejs_eventloop_lag_p50_seconds)",
-          "refId": "A",
-          "legendFormat": "event loop p50"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "max(kice_arena_nodejs_eventloop_lag_p90_seconds)",
-          "refId": "B",
-          "legendFormat": "event loop p90"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "max(kice_arena_nodejs_eventloop_lag_p99_seconds)",
-          "refId": "C",
-          "legendFormat": "event loop p99"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "max(kice_arena_nodejs_eventloop_lag_seconds)",
-          "refId": "D",
-          "legendFormat": "event loop current"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "histogram_quantile(0.95, sum by (le, kind) (rate(kice_arena_nodejs_gc_duration_seconds_bucket[5m])))",
-          "refId": "E",
-          "legendFormat": "gc p95 {{kind}}"
-        }
-      ]
-    },
-    {
-      "id": 12,
-      "type": "timeseries",
-      "title": "Memory pressure",
-      "description": "RSS만 오르면 native/external memory나 buffer를, heap used가 같이 오르면 JS 객체 보존을 우선 확인합니다.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "$datasource"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 12
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "bytes",
-          "decimals": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "sum(kice_arena_process_resident_memory_bytes)",
-          "refId": "A",
-          "legendFormat": "rss"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "sum(kice_arena_process_heap_bytes)",
-          "refId": "B",
-          "legendFormat": "process heap"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "sum(kice_arena_nodejs_heap_size_used_bytes)",
-          "refId": "C",
-          "legendFormat": "node heap used"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "sum(kice_arena_nodejs_external_memory_bytes)",
-          "refId": "D",
-          "legendFormat": "node external"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "(sum(clamp_min(deriv(kice_arena_process_resident_memory_bytes[15m]) * 900, 0)) or vector(0))",
-          "refId": "E",
-          "legendFormat": "rss growth / 15m"
-        }
-      ]
-    },
-    {
-      "id": 13,
-      "type": "timeseries",
-      "title": "Connection consistency",
-      "description": "socket 수와 player 수의 괴리를 한 화면에서 봅니다. socket orphan이 먼저 뛰면 연결 생명주기 누수를 의심합니다.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "$datasource"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 20
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "decimals": 2
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "(sum(kice_arena_socket_connections) or vector(0))",
-          "refId": "A",
-          "legendFormat": "socket connections"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "(sum(kice_arena_players{state=\"connected\"}) or vector(0))",
-          "refId": "B",
-          "legendFormat": "connected players"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "(sum(kice_arena_players{state=\"disconnected\"}) or vector(0))",
-          "refId": "C",
-          "legendFormat": "disconnected players"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "(clamp_min((sum(kice_arena_socket_connections) or vector(0)) - (sum(kice_arena_players{state=\"connected\"}) or vector(0)), 0))",
-          "refId": "D",
-          "legendFormat": "socket orphans"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "(100 * (max(kice_arena_players_disconnected_ratio) or vector(0)))",
-          "refId": "E",
-          "legendFormat": "player disconnected %"
-        }
-      ]
-    },
-    {
-      "id": 14,
-      "type": "timeseries",
-      "title": "Room stale-state counts",
-      "description": "애플리케이션 상태 머신에서 직접 나온 stale room 계수입니다. 장애의 뿌리표지판 역할을 합니다.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "$datasource"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 20
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "decimals": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "(sum(kice_arena_rooms_expired) or vector(0))",
-          "refId": "A",
-          "legendFormat": "expired rooms"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "(sum(kice_arena_rooms_expiring_soon) or vector(0))",
-          "refId": "B",
-          "legendFormat": "expiring soon"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "(sum(kice_arena_rooms_zombie_playing) or vector(0))",
-          "refId": "C",
-          "legendFormat": "zombie playing"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "(sum(kice_arena_rooms_disconnected_lobby) or vector(0))",
-          "refId": "D",
-          "legendFormat": "disconnected lobby"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "(sum(kice_arena_rooms_partially_disconnected) or vector(0))",
-          "refId": "E",
-          "legendFormat": "partially disconnected"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "(sum(kice_arena_rooms_player_count_mismatch) or vector(0))",
-          "refId": "F",
-          "legendFormat": "player count mismatch"
-        }
-      ]
-    },
-    {
-      "id": 15,
-      "type": "timeseries",
-      "title": "Room risk scores",
-      "description": "room-level 파생 metric을 점수화했습니다. disconnect risk는 stale game-session, cleanup pressure는 room cleanup backlog 또는 임박한 cleanup wave를 뜻합니다.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "$datasource"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 28
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "decimals": 2
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "(100 * (max(kice_arena_room_disconnect_risk_score) or vector(0)))",
-          "refId": "A",
-          "legendFormat": "disconnect risk"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "(100 * (max(kice_arena_room_cleanup_pressure_score) or vector(0)))",
-          "refId": "B",
-          "legendFormat": "cleanup pressure"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "(max(kice_arena_room_expiry_overdue_seconds{stat=\"max\"}) or vector(0))",
-          "refId": "C",
-          "legendFormat": "max overdue seconds"
-        }
-      ]
-    },
-    {
-      "id": 16,
-      "type": "timeseries",
-      "title": "Contest overview",
-      "description": "Codeforces-style contest 운영 규모를 event 기준으로 봅니다. 친구 문제집 흐름은 이 패널에 섞지 않습니다.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "$datasource"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 28
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "decimals": 2
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "(sum(kice_arena_contests_active) or vector(0))",
-          "refId": "A",
-          "legendFormat": "active contests"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "(sum by (event_id, status) (kice_arena_contest_sessions) or vector(0))",
-          "refId": "B",
-          "legendFormat": "{{event_id}} sessions {{status}}"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "(sum by (event_id, state) (kice_arena_contest_participants) or vector(0))",
-          "refId": "C",
-          "legendFormat": "{{event_id}} participants {{state}}"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "(sum(kice_arena_contest_participants{state=\"connected\"}) or vector(0))",
-          "refId": "D",
-          "legendFormat": "connected contest participants"
-        }
-      ]
-    },
-    {
-      "id": 17,
-      "type": "timeseries",
-      "title": "HTTP requests per second by status",
-      "description": "",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "$datasource"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 36
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "reqps",
-          "decimals": 3
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "sum by (method, status) (rate(kice_arena_http_request_duration_seconds_count[5m]))",
-          "refId": "A",
-          "legendFormat": "{{method}} {{status}}"
-        }
-      ]
-    },
-    {
-      "id": 18,
-      "type": "timeseries",
-      "title": "HTTP latency quantiles",
-      "description": "",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "$datasource"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 36
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "decimals": 4
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "histogram_quantile(0.50, sum by (le) (rate(kice_arena_http_request_duration_seconds_bucket[5m])))",
-          "refId": "A",
-          "legendFormat": "p50"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "histogram_quantile(0.90, sum by (le) (rate(kice_arena_http_request_duration_seconds_bucket[5m])))",
-          "refId": "B",
-          "legendFormat": "p90"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(kice_arena_http_request_duration_seconds_bucket[5m])))",
-          "refId": "C",
-          "legendFormat": "p95"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(kice_arena_http_request_duration_seconds_bucket[5m])))",
-          "refId": "D",
-          "legendFormat": "p99"
-        }
-      ]
-    },
-    {
-      "id": 19,
-      "type": "timeseries",
-      "title": "Contest submissions per second",
-      "description": "진행 중인 contest에서 제출량이 0에 가까워지면 socket/game-loop 측 장애를 의심합니다.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "$datasource"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 44
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "ops",
-          "decimals": 3
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "(sum by (event_id, correct) (rate(kice_arena_contest_submissions_total[5m])) or vector(0))",
-          "refId": "A",
-          "legendFormat": "{{event_id}} correct={{correct}}"
-        }
-      ]
-    },
-    {
-      "id": 20,
-      "type": "timeseries",
-      "title": "Contest submissions in last 15m",
-      "description": "",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "$datasource"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 44
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "decimals": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "(sum by (event_id, correct) (increase(kice_arena_contest_submissions_total[15m])) or vector(0))",
-          "refId": "A",
-          "legendFormat": "{{event_id}} correct={{correct}}"
-        }
-      ]
-    },
-    {
-      "id": 21,
-      "type": "timeseries",
-      "title": "Room expiry / remaining time",
-      "description": "",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "$datasource"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 52
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "decimals": 1
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "max(kice_arena_room_expiry_seconds{stat=\"avg\"})",
-          "refId": "A",
-          "legendFormat": "expiry avg"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "max(kice_arena_room_expiry_seconds{stat=\"max\"})",
-          "refId": "B",
-          "legendFormat": "expiry max"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "max(kice_arena_room_expiry_overdue_seconds{stat=\"avg\"})",
-          "refId": "C",
-          "legendFormat": "overdue avg"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "max(kice_arena_room_expiry_overdue_seconds{stat=\"max\"})",
-          "refId": "D",
-          "legendFormat": "overdue max"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "max(kice_arena_playing_room_time_remaining_seconds{stat=\"avg\"})",
-          "refId": "E",
-          "legendFormat": "playing avg"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "max(kice_arena_playing_room_time_remaining_seconds{stat=\"max\"})",
-          "refId": "F",
-          "legendFormat": "playing max"
-        }
-      ]
-    },
-    {
-      "id": 22,
-      "type": "timeseries",
-      "title": "Rooms by status",
-      "description": "",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "$datasource"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 52
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "decimals": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "sum by (status) (kice_arena_rooms_by_status)",
-          "refId": "A",
-          "legendFormat": "{{status}}"
-        }
-      ]
-    },
-    {
-      "id": 23,
-      "type": "timeseries",
-      "title": "Process CPU usage",
-      "description": "",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "$datasource"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 60
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "decimals": 3
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "sum(rate(kice_arena_process_cpu_user_seconds_total[5m]))",
-          "refId": "A",
-          "legendFormat": "user"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "sum(rate(kice_arena_process_cpu_system_seconds_total[5m]))",
-          "refId": "B",
-          "legendFormat": "system"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "sum(rate(kice_arena_process_cpu_seconds_total[5m]))",
-          "refId": "C",
-          "legendFormat": "total"
-        }
-      ]
-    },
-    {
-      "id": 24,
-      "type": "timeseries",
-      "title": "Open file descriptors",
-      "description": "FD usage %가 먼저 상승하면 socket/file handle leak을 우선 봅니다.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "$datasource"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 60
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "decimals": 2
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "sum(kice_arena_process_open_fds)",
-          "refId": "A",
-          "legendFormat": "open"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "sum(kice_arena_process_max_fds)",
-          "refId": "B",
-          "legendFormat": "max"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "(100 * ((sum(kice_arena_process_open_fds) or vector(0)) / clamp_min((sum(kice_arena_process_max_fds) or vector(0)), 1)))",
-          "refId": "C",
-          "legendFormat": "usage %"
-        }
-      ]
-    },
-    {
-      "id": 25,
-      "type": "timeseries",
-      "title": "Active libuv handles by type",
-      "description": "",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "$datasource"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 68
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "decimals": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "sum by (type) (kice_arena_nodejs_active_handles)",
-          "refId": "A",
-          "legendFormat": "{{type}}"
-        }
-      ]
-    },
-    {
-      "id": 26,
-      "type": "timeseries",
-      "title": "Active async resources by type",
-      "description": "",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "$datasource"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 68
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "decimals": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "expr": "sum by (type) (kice_arena_nodejs_active_resources)",
-          "refId": "A",
-          "legendFormat": "{{type}}"
-        }
-      ]
-    }
-  ],
-  "preload": false,
-  "refresh": "5s",
-  "schemaVersion": 42,
-  "tags": [
-    "alerts",
-    "cause-first",
-    "kice-arena",
-    "prometheus"
-  ],
-  "templating": {
-    "list": [
-      {
-        "name": "datasource",
-        "label": "Prometheus",
-        "type": "datasource",
-        "query": "prometheus",
-        "current": {
-          "selected": true,
-          "text": "Prometheus",
-          "value": "prometheus"
-        },
-        "hide": 0,
-        "includeAll": false,
-        "multi": false,
-        "options": [],
-        "refresh": 1,
-        "regex": ""
-      }
-    ]
-  },
-  "time": {
-    "from": "now-1h",
-    "to": "now"
-  },
-  "timepicker": {},
-  "timezone": "browser",
-  "title": "KICE Arena Server - Cause First",
-  "uid": "kice-arena-server",
-  "version": 3,
-  "weekStart": ""
+    "timepicker": {},
+    "timezone": "browser",
+    "title": "KICE Arena Server - Cause First",
+    "uid": "kice-arena-server",
+    "version": 3,
+    "weekStart": ""
 }
