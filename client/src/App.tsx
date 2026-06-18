@@ -288,7 +288,9 @@ export function App() {
                 nickname: campaignUser
                     ? entrantNickname(campaignUser)
                     : referralVerification?.nickname || "예비응시자",
-                referralVerification: campaignUser ? undefined : referralVerification ?? undefined,
+                referralVerification: campaignUser
+                    ? undefined
+                    : (referralVerification ?? undefined),
             });
             if (!response.ok || !response.data) {
                 setError(response.error ?? "등록 실패");

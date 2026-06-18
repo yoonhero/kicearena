@@ -97,6 +97,7 @@ import {
     toExamSummary,
     toGymEventSummary,
 } from "./exams.js";
+import { isEventExamWindowClosed, latestEventRoom } from "./eventSpectatorRooms.js";
 import {
     activeEffectForItem,
     cleanupEffects,
@@ -988,6 +989,13 @@ const findReusableEventRoom = async (examId: string) => {
             candidate.status !== "finished" &&
             candidate.players.size < candidate.maxPlayers,
     );
+    return room ? getPersistedRoom(room.code) : null;
+};
+
+const findLatestEventRoom = async (examId: string, statuses: RoomPublic["status"][]) => {
+    const db = roomDatabase();
+    const candidates = db ? await readRoomStates(db, examById) : [...rooms.values()];
+    const room = latestEventRoom(candidates, examId, statuses);
     return room ? getPersistedRoom(room.code) : null;
 };
 
@@ -2589,14 +2597,6 @@ io.on("connection", (socket) => {
             reply: (response: ServerResponse<RoomPublic>) => void,
         ) => {
             await withRoomMutation("__event_register__", async () => {
-                if ((await activeRoomCount()) >= ROOM_GUARDRAILS.maxActiveRooms) {
-                    replyAfterRoomCommit(reply, {
-                        ok: false,
-                        error: "현재 입장 가능한 이벤트 방 수를 초과했습니다. 잠시 후 다시 시도하세요.",
-                    });
-                    return;
-                }
-
                 const eventId = readString(payload?.eventId, 80);
                 const exam = examById.get(eventId);
                 if (!exam) {
@@ -2604,8 +2604,35 @@ io.on("connection", (socket) => {
                     return;
                 }
 
+                const eventWindowClosed = isEventExamWindowClosed(exam);
+                if (eventWindowClosed) {
+                    const finalRoom =
+                        (await findLatestEventRoom(exam.id, ["finished"])) ??
+                        (await findLatestEventRoom(exam.id, ["playing"]));
+                    if (!finalRoom) {
+                        replyAfterRoomCommit(reply, {
+                            ok: false,
+                            error: "종료된 대회 결과 방을 찾을 수 없습니다.",
+                        });
+                        return;
+                    }
+                    socket.join(finalRoom.code);
+                    setSocketSpectator(socket, { roomCode: finalRoom.code });
+                    const snapshot = finishRoom(finalRoom) ?? emitRoom(finalRoom);
+                    replyAfterRoomCommit(reply, { ok: true, data: snapshot });
+                    return;
+                }
+
                 let room = await findReusableEventRoom(exam.id);
                 if (!room) {
+                    if ((await activeRoomCount()) >= ROOM_GUARDRAILS.maxActiveRooms) {
+                        replyAfterRoomCommit(reply, {
+                            ok: false,
+                            error: "현재 입장 가능한 이벤트 방 수를 초과했습니다. 잠시 후 다시 시도하세요.",
+                        });
+                        return;
+                    }
+
                     const code = await makeAvailableCode();
                     room = {
                         code,

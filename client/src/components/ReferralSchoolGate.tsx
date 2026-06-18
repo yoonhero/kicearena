@@ -41,17 +41,14 @@ export function ReferralSchoolGate({
         revealTimersRef.current.forEach((timer) => window.clearTimeout(timer));
         revealTimersRef.current = [];
     };
-    useEffect(
-        () => {
-            mountedRef.current = true;
-            return () => {
-                mountedRef.current = false;
-                verifyAbortRef.current?.abort();
-                clearRevealTimers();
-            };
-        },
-        [],
-    );
+    useEffect(() => {
+        mountedRef.current = true;
+        return () => {
+            mountedRef.current = false;
+            verifyAbortRef.current?.abort();
+            clearRevealTimers();
+        };
+    }, []);
 
     const verifyLocation = async () => {
         if (checkingRef.current) return;

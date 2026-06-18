@@ -7,7 +7,8 @@
 }
 
 :root {
-    --font-sans: "Pretendard Variable", Pretendard, Inter, ui-sans-serif, system-ui, -apple-system,
+    --font-sans:
+        "Pretendard Variable", Pretendard, Inter, ui-sans-serif, system-ui, -apple-system,
         BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif;
     --ink: #111111;
     --muted: #5d5d5d;
