@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
     checkDatabaseHealth,
     formatDatabaseErrorSummary,
+    isDatabaseConnectionUnavailableError,
     summarizeDatabaseError,
 } from "./databaseHealth.js";
 import type { ExamCatalogDatabase } from "./examDatabase.js";
@@ -48,5 +49,12 @@ describe("database health", () => {
         });
         expect(formatDatabaseErrorSummary(error)).toContain("ECONNREFUSED");
         expect(formatDatabaseErrorSummary(error)).toContain("172.20.0.2:5432");
+        expect(isDatabaseConnectionUnavailableError(error)).toBe(true);
+    });
+
+    it("does not classify generic application errors as database outages", () => {
+        expect(isDatabaseConnectionUnavailableError(new Error("unexpected room state"))).toBe(
+            false,
+        );
     });
 });

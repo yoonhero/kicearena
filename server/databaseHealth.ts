@@ -29,6 +29,16 @@ const asErrorLike = (error: unknown): DatabaseErrorLike => {
 
 const readStringField = (value: unknown) => (typeof value === "string" ? value : undefined);
 const readNumberField = (value: unknown) => (typeof value === "number" ? value : undefined);
+const transientDatabaseErrorCodes = new Set([
+    "ECONNREFUSED",
+    "ECONNRESET",
+    "ETIMEDOUT",
+    "ENOTFOUND",
+    "EAI_AGAIN",
+    "57P01",
+    "57P02",
+    "57P03",
+]);
 
 export const summarizeDatabaseError = (error: unknown): DatabaseErrorSummary => {
     const source = asErrorLike(error);
@@ -54,6 +64,17 @@ export const formatDatabaseErrorSummary = (error: unknown) => {
     ]
         .filter(Boolean)
         .join(" ");
+};
+
+export const isDatabaseConnectionUnavailableError = (error: unknown) => {
+    const summary = summarizeDatabaseError(error);
+    if (summary.code) {
+        if (transientDatabaseErrorCodes.has(summary.code)) return true;
+        if (summary.code.startsWith("08")) return true;
+    }
+    return /connection terminated|terminating connection|connect econnrefused|could not connect/i.test(
+        summary.message,
+    );
 };
 
 export const checkDatabaseHealth = async (

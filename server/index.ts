@@ -73,7 +73,11 @@ import {
     updateExamSettingsInDatabase,
     updateProblemInDatabase,
 } from "./examDatabase.js";
-import { checkDatabaseHealth, formatDatabaseErrorSummary } from "./databaseHealth.js";
+import {
+    checkDatabaseHealth,
+    formatDatabaseErrorSummary,
+    isDatabaseConnectionUnavailableError,
+} from "./databaseHealth.js";
 import {
     isExamReleased,
     isOpenRegistrationExam,
@@ -481,7 +485,6 @@ const ROOM_TTL = {
     finishedMs: 30 * 60 * 1000,
 } as const;
 const REMOTE_PRESENCE_FETCH_INTERVAL_MS = 1000;
-const ROOM_MAINTENANCE_DATABASE_WARNING_INTERVAL_MS = 30_000;
 
 const RATE_LIMIT_MS = {
     ready: 200,
@@ -501,16 +504,16 @@ type RoomMutationContext = {
     afterCommit: Array<() => void>;
 };
 const roomMutationStorage = new AsyncLocalStorage<RoomMutationContext>();
-let lastRoomMaintenanceDatabaseWarningAt = 0;
 
 const warnRoomMaintenanceDatabaseUnavailable = (phase: string, error: unknown) => {
-    const now = Date.now();
-    if (now - lastRoomMaintenanceDatabaseWarningAt < ROOM_MAINTENANCE_DATABASE_WARNING_INTERVAL_MS)
-        return;
-    lastRoomMaintenanceDatabaseWarningAt = now;
     console.warn(
         `Room maintenance skipped while Postgres is unavailable during ${phase}: ${formatDatabaseErrorSummary(error)}`,
     );
+};
+const skipRoomMaintenanceForDatabaseError = (phase: string, error: unknown) => {
+    if (!isDatabaseConnectionUnavailableError(error)) return false;
+    warnRoomMaintenanceDatabaseUnavailable(phase, error);
+    return true;
 };
 
 const refreshExamCatalog = async () => {
@@ -1181,8 +1184,8 @@ const runRoomMaintenance = async () => {
         try {
             for (const code of await readRoomStateCodes(examCatalogPool)) codes.add(code);
         } catch (error) {
-            warnRoomMaintenanceDatabaseUnavailable("room-code fetch", error);
-            return;
+            if (skipRoomMaintenanceForDatabaseError("room-code fetch", error)) return;
+            throw error;
         }
     }
     for (const code of codes) {
@@ -1210,8 +1213,8 @@ const runRoomMaintenance = async () => {
                 if (shouldDelete) deleteRoom(room);
             });
         } catch (error) {
-            warnRoomMaintenanceDatabaseUnavailable(`room ${code}`, error);
-            return;
+            if (skipRoomMaintenanceForDatabaseError(`room ${code}`, error)) return;
+            throw error;
         }
     }
 };
@@ -1264,7 +1267,13 @@ app.get("/api/exams/:examId/assets/*assetPath", async (req, res) => {
 
 app.get("/api/health", async (_req, res) => {
     const database = await checkDatabaseHealth(examCatalogPool);
-    const body = { ok: database.ok, exams: exams.length, problemStorage: "postgres", database };
+    const publicDatabase = database.ok ? database : { ok: false, reason: database.reason };
+    const body = {
+        ok: database.ok,
+        exams: exams.length,
+        problemStorage: "postgres",
+        database: publicDatabase,
+    };
     if (!database.ok) {
         res.status(503).json(body);
         return;
