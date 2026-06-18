@@ -50,10 +50,10 @@ export function SavedAdmissionTicket({
     const ticket = readAdmissionTicketData(campaignUser, referralVerification);
 
     return (
-        <section className="gym-omr-block gym-ticket-block" aria-label="저장된 응시표">
+        <section className="gym-omr-block gym-ticket-block" aria-label="저장된 수험표">
             <div className="gym-omr-heading">
                 <Ticket size={17} />
-                <span>저장된 응시표</span>
+                <span>저장된 수험표</span>
                 <strong>{entrantStatus}</strong>
             </div>
             <div className="gym-ticket-card">
@@ -85,7 +85,7 @@ export function SavedAdmissionTicket({
                     {ticket.username && <em>{ticket.username}</em>}
                 </div>
             </div>
-            <p className="gym-ticket-note">이 기기에 저장된 응시표로 참가합니다.</p>
+            <p className="gym-ticket-note">이 기기에 저장된 수험표로 참가합니다.</p>
         </section>
     );
 }

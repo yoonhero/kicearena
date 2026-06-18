@@ -1,5 +1,5 @@
 import { DoorOpen, Eye, LogIn, UserRound } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import type { CampaignUserPublic, ReferralLocationVerification } from "../../../shared/campaign";
 import type { GymEventSummary } from "../../../shared/game";
 import { AdmissionSkeletonTicket } from "./AdmissionSkeletonTicket";
@@ -72,6 +72,11 @@ export function EventHomeScreen({
     const hasDisplayEvents = displayEvents.length > 0;
     const indexEvents = makeIndexEvents(displayEvents, eventsUnavailable);
     const admissionSkeletonNote = getAdmissionSkeletonNote(displayEvents);
+    useEffect(() => {
+        if (inviteMode && !nickname.trim() && referralVerification?.nickname?.trim()) {
+            setNickname(referralVerification.nickname);
+        }
+    }, [inviteMode, nickname, referralVerification?.nickname, setNickname]);
 
     if (inviteMode) {
         return (
@@ -236,27 +241,17 @@ function getEventAccess({
             canSpectate: true,
             hint:
                 event.status === "open"
-                    ? "응시표가 없으면 관전만 가능합니다."
+                    ? "수험표가 없으면 관전만 가능합니다."
                     : "미인증 사용자는 관전 대기실까지만 입장합니다.",
-        };
-    }
-    if (!entrantState.isLoggedIn) {
-        return {
-            canRegister: false,
-            canSpectate: true,
-            hint:
-                event.status === "open"
-                    ? "추천 링크에서 발급된 응시표로 참가합니다."
-                    : "추천 응시표 확인 후 공개 전 등록할 수 있습니다.",
         };
     }
     return {
         canRegister: true,
         canSpectate: true,
         hint:
-            event.status === "open"
+            entrantState.isLoggedIn || event.status === "open"
                 ? "저장된 추천 등록 정보로 참가합니다."
-                : "공개 전 등록 후 대기실에서 카운트다운을 봅니다.",
+                : "추천 수험표 확인 후 공개 전 등록할 수 있습니다.",
     };
 }
 

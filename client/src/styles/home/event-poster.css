@@ -88,14 +88,7 @@
 .gym-cover-head em {
     justify-self: end;
     color: rgba(18, 18, 18, 0.62);
-    font-family:
-        Inter,
-        ui-sans-serif,
-        system-ui,
-        -apple-system,
-        BlinkMacSystemFont,
-        "Apple SD Gothic Neo",
-        sans-serif;
+    font-family: var(--font-sans);
     font-size: 13px;
     font-style: normal;
     font-weight: 1000;

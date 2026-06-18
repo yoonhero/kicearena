@@ -229,6 +229,7 @@ export function useAdminEditor() {
         selectedExam?.title,
         selectedExam?.subtitle,
         selectedExam?.timeLimitSec,
+        selectedExam?.freezeBeforeSec,
         selectedExam?.releaseAt,
     ]);
 
@@ -365,6 +366,7 @@ export function useAdminEditor() {
                 title: newExam.title.trim(),
                 subtitle: newExam.subtitle.trim(),
                 timeLimitSec: createExamCheck.timeLimitSec,
+                freezeBeforeSec: createExamCheck.freezeBeforeSec,
                 active: newExam.active,
                 releaseAt: dateTimeLocalToIso(newExam.releaseAt),
             }),
@@ -395,15 +397,9 @@ export function useAdminEditor() {
         if (!selectedExam || !nextSettings) return;
         setError("");
         setStatus("");
-        const timeLimitMin = Number(nextSettings.timeLimitMin);
-        if (
-            !nextSettings.title.trim() ||
-            !nextSettings.subtitle.trim() ||
-            !Number.isInteger(timeLimitMin) ||
-            timeLimitMin < 1 ||
-            timeLimitMin > 1440
-        ) {
-            setError("문제지 제목, 설명, 시간을 확인하세요.");
+        const nextSettingsCheck = examSettingsCheck(selectedExam, nextSettings);
+        if (!nextSettingsCheck.ok) {
+            setError(nextSettingsCheck.error);
             return;
         }
         if (
@@ -419,7 +415,8 @@ export function useAdminEditor() {
             body: JSON.stringify({
                 title: nextSettings.title.trim(),
                 subtitle: nextSettings.subtitle.trim(),
-                timeLimitSec: timeLimitMin * 60,
+                timeLimitSec: nextSettingsCheck.timeLimitSec,
+                freezeBeforeSec: nextSettingsCheck.freezeBeforeSec,
                 active: nextSettings.active,
                 releaseAt: dateTimeLocalToIso(nextSettings.releaseAt),
             }),

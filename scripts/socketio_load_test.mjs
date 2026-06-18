@@ -1,17 +1,27 @@
 import { io } from "socket.io-client";
+import crypto from "node:crypto";
 import { performance } from "node:perf_hooks";
 
 const TARGET = process.env.TARGET ?? "https://kice.mmeme.org";
 const EXAM_ID = process.env.EXAM_ID ?? "kice-2026-june-math-geometry";
+const EVENT_ID = process.env.EVENT_ID ?? EXAM_ID;
+const FLOW = process.env.FLOW ?? (process.env.EVENT_ID ? "event" : "room");
 const ROOMS = Number(process.env.ROOMS ?? 1);
 const PLAYERS_PER_ROOM = Number(process.env.PLAYERS_PER_ROOM ?? 200);
+const TOTAL_PLAYERS = Number(process.env.TOTAL_PLAYERS ?? ROOMS * PLAYERS_PER_ROOM);
 const MODE = process.env.MODE ?? "contest";
 const ANSWERS = Number(process.env.ANSWERS ?? 1);
+const ANSWER = process.env.ANSWER ?? "1";
 const ACK_TIMEOUT_MS = Number(process.env.ACK_TIMEOUT_MS ?? 20_000);
 const JOIN_BATCH_SIZE = Number(process.env.JOIN_BATCH_SIZE ?? 120);
+const REGISTER_BATCH_SIZE = Number(process.env.REGISTER_BATCH_SIZE ?? JOIN_BATCH_SIZE);
 const SUBMIT_BATCH_SIZE = Number(process.env.SUBMIT_BATCH_SIZE ?? 10);
 const BATCH_PAUSE_MS = Number(process.env.BATCH_PAUSE_MS ?? 250);
 const POST_START_WAIT_MS = Number(process.env.POST_START_WAIT_MS ?? 500);
+const CAMPAIGN_AUTH_SECRET = process.env.CAMPAIGN_AUTH_SECRET ?? process.env.AUTH_SECRET ?? "";
+const CAMPAIGN_AUTH_COOKIE_NAME = process.env.CAMPAIGN_AUTH_COOKIE_NAME ?? "kice_campaign_auth";
+const USERNAME_PREFIX = process.env.USERNAME_PREFIX ?? "load";
+const USER_ID_PREFIX = process.env.USER_ID_PREFIX ?? "load-";
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -51,14 +61,40 @@ const summarizeLatencies = () =>
         ]),
     );
 
-const makeSocket = (label) => {
+const encode = (value) => Buffer.from(value, "utf8").toString("base64url");
+
+const makeCampaignAuthToken = (userIndex) => {
+    if (!CAMPAIGN_AUTH_SECRET) return "";
+    const username = `${USERNAME_PREFIX}${String(userIndex).padStart(5, "0")}`;
+    const payload = encode(
+        JSON.stringify({
+            sub: `${USER_ID_PREFIX}${userIndex}`,
+            username,
+            exp: Date.now() + 60 * 60 * 1000,
+        }),
+    );
+    const signature = crypto
+        .createHmac("sha256", CAMPAIGN_AUTH_SECRET)
+        .update(payload)
+        .digest("base64url");
+    return `v1.${payload}.${signature}`;
+};
+
+const makeSocket = (label, userIndex = 0) => {
+    const authToken = makeCampaignAuthToken(userIndex);
     const socket = io(TARGET, {
         transports: ["websocket"],
         reconnection: false,
         timeout: ACK_TIMEOUT_MS,
+        extraHeaders: authToken
+            ? {
+                  Cookie: `${CAMPAIGN_AUTH_COOKIE_NAME}=${encodeURIComponent(authToken)}`,
+              }
+            : undefined,
     });
     const client = {
         label,
+        userIndex,
         socket,
         roomCode: "",
         problemId: "",
@@ -180,13 +216,25 @@ const joinPlayer = async (room, roomIndex, playerIndex) => {
     client.latestRoom = joinedRoom;
 };
 
+const registerEventPlayer = async (playerIndex) => {
+    const client = makeSocket(`event-p${playerIndex}`, playerIndex);
+    await waitConnect(client);
+    const room = await emitAck(client, "event:register", {
+        eventId: EVENT_ID,
+        nickname: `L${String(playerIndex).slice(-5)}`.slice(0, 6),
+    });
+    client.roomCode = room.code;
+    client.problemId = room.exam.problems[0]?.id ?? "";
+    client.latestRoom = room;
+};
+
 const submitAnswer = async (client) => {
     if (!client.socket.connected || !client.problemId || client.latestRoom?.status !== "playing")
         return;
     for (let answerIndex = 0; answerIndex < ANSWERS; answerIndex += 1) {
         await emitAck(client, "answer:submit", {
             problemId: client.problemId,
-            answer: "1",
+            answer: ANSWER,
             idempotencyKey: `${client.label}-${answerIndex}`,
         });
     }
@@ -199,10 +247,23 @@ const startRoom = async (room) => {
     return startedRoom;
 };
 
-const startedAt = performance.now();
-const rooms = [];
+const summarizeRooms = () =>
+    [
+        ...new Map(
+            clients
+                .filter((client) => client.latestRoom)
+                .map((client) => [client.latestRoom.code, client.latestRoom]),
+        ).values(),
+    ].map((room) => ({
+        code: room.code,
+        mode: room.mode,
+        status: room.status,
+        players: room.players?.length ?? 0,
+        maxPlayers: room.maxPlayers,
+    }));
 
-try {
+const runRoomFlow = async () => {
+    const rooms = [];
     for (let roomIndex = 0; roomIndex < ROOMS; roomIndex += 1) {
         rooms.push(await createRoom(roomIndex));
     }
@@ -228,6 +289,25 @@ try {
                 }),
         ),
     );
+};
+
+const runEventFlow = async () => {
+    const registerTasks = Array.from(
+        { length: TOTAL_PLAYERS },
+        (_, index) => () =>
+            registerEventPlayer(index + 1).catch((error) => {
+                stats.failures.push(error.message);
+            }),
+    );
+    await runInBatches(registerTasks, REGISTER_BATCH_SIZE, BATCH_PAUSE_MS);
+};
+
+const startedAt = performance.now();
+
+try {
+    if (FLOW === "event") await runEventFlow();
+    else await runRoomFlow();
+
     await sleep(POST_START_WAIT_MS);
 
     const submitTasks = clients
@@ -252,12 +332,18 @@ console.log(
         {
             target: TARGET,
             examId: EXAM_ID,
+            eventId: EVENT_ID,
             requested: {
+                flow: FLOW,
                 rooms: ROOMS,
                 playersPerRoom: PLAYERS_PER_ROOM,
+                totalPlayers: FLOW === "event" ? TOTAL_PLAYERS : ROOMS * PLAYERS_PER_ROOM,
                 mode: MODE,
-                totalSockets: ROOMS * PLAYERS_PER_ROOM,
+                totalSockets: FLOW === "event" ? TOTAL_PLAYERS : ROOMS * PLAYERS_PER_ROOM,
                 answersPerPlayer: ANSWERS,
+                joinBatchSize: JOIN_BATCH_SIZE,
+                registerBatchSize: REGISTER_BATCH_SIZE,
+                submitBatchSize: SUBMIT_BATCH_SIZE,
             },
             elapsedMs: Math.round(elapsedMs),
             connected: {
@@ -265,6 +351,7 @@ console.log(
                 failed: stats.connectFail,
                 disconnected: stats.disconnects,
             },
+            rooms: summarizeRooms(),
             roomUpdatesReceived: stats.roomUpdates,
             ackLatencyMs: summarizeLatencies(),
             failureCount: stats.failures.length,

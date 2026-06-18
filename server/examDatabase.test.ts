@@ -65,6 +65,7 @@ describe("exam database row mapping", () => {
                     title: "Row Exam",
                     subtitle: "Rows",
                     time_limit_sec: 600,
+                    freeze_before_sec: 120,
                     release_at: new Date("2026-06-06T00:00:00.000Z"),
                     capture_summary: null,
                 },
@@ -96,6 +97,7 @@ describe("exam database row mapping", () => {
             title: "Row Exam",
             subtitle: "Rows",
             timeLimitSec: 600,
+            freezeBeforeSec: 120,
             releaseAt: "2026-06-06T00:00:00.000Z",
             captureSummary: undefined,
             problems: [
@@ -183,9 +185,10 @@ describe("exam database row mapping", () => {
                             title: values?.[1],
                             subtitle: values?.[2],
                             time_limit_sec: values?.[3],
-                            release_at: values?.[5],
+                            freeze_before_sec: values?.[4],
+                            release_at: values?.[6],
                             capture_summary: null,
-                            active: values?.[4],
+                            active: values?.[5],
                         } as T,
                     ],
                 };
@@ -197,6 +200,7 @@ describe("exam database row mapping", () => {
             title: "Contest Day",
             subtitle: "Admin",
             timeLimitSec: 6000,
+            freezeBeforeSec: 1800,
             active: true,
             releaseAt: "2026-06-20T01:00:00.000Z",
         });
@@ -204,14 +208,17 @@ describe("exam database row mapping", () => {
             title: "Contest Day",
             subtitle: "Admin",
             timeLimitSec: 7200,
+            freezeBeforeSec: 2400,
             active: true,
             releaseAt: "2026-06-21T01:00:00.000Z",
         });
 
         expect(queries[0]?.text).toContain("release_at");
-        expect(queries[0]?.values?.[5]).toBe("2026-06-20T01:00:00.000Z");
-        expect(queries[1]?.values?.[4]).toBe(true);
-        expect(queries[1]?.values?.[5]).toBe("2026-06-21T01:00:00.000Z");
+        expect(queries[0]?.values?.[4]).toBe(1800);
+        expect(queries[0]?.values?.[6]).toBe("2026-06-20T01:00:00.000Z");
+        expect(queries[1]?.values?.[4]).toBe(2400);
+        expect(queries[1]?.values?.[5]).toBe(true);
+        expect(queries[1]?.values?.[6]).toBe("2026-06-21T01:00:00.000Z");
     });
 });
 

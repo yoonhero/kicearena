@@ -8,6 +8,7 @@ import {
     Search,
     Settings2,
 } from "lucide-react";
+import { examFreezeBeforeSec } from "../../../../shared/game";
 import type { AdminEditorModel } from "./useAdminEditor";
 
 export function AdminProblemList({ editor }: { editor: AdminEditorModel }) {
@@ -27,30 +28,56 @@ export function AdminProblemList({ editor }: { editor: AdminEditorModel }) {
     return (
         <section className="admin-problem-list">
             <div className="admin-section-head">
-                <span>{selectedExam?.title ?? "문제지 없음"}</span>
+                <span>선택 문제지</span>
                 <strong>{selectedExam ? (selectedExam.active ? "공개" : "비공개") : ""}</strong>
             </div>
             {selectedExam && examSettings && (
-                <div className="admin-exam-quick-actions">
-                    <button
-                        type="button"
-                        className={`admin-visibility-btn ${examSettings.active ? "published" : ""}`}
-                        onClick={actions.toggleSelectedExamActive}
-                    >
-                        {examSettings.active ? <Eye size={16} /> : <EyeOff size={16} />}
-                        {examSettings.active ? "공개 중" : "비공개"}
-                    </button>
-                    <button
-                        type="button"
-                        className="secondary-btn"
-                        onClick={() => setters.setSettingsOpen((current) => !current)}
-                    >
-                        <Settings2 size={16} /> 설정
-                    </button>
-                </div>
+                <>
+                    <div className="admin-selected-exam">
+                        <strong>{selectedExam.title}</strong>
+                        <span>{selectedExam.subtitle}</span>
+                    </div>
+                    <div className="admin-exam-rule-strip" aria-label="문제지 운영 규칙">
+                        <span>
+                            <b>문항</b>
+                            {selectedExam.problems.length}
+                        </span>
+                        <span>
+                            <b>제한</b>
+                            {formatMinutes(selectedExam.timeLimitSec)}
+                        </span>
+                        <span>
+                            <b>프리즈</b>
+                            {freezeLabel(selectedExam)}
+                        </span>
+                    </div>
+                    <div className="admin-exam-quick-actions">
+                        <button
+                            type="button"
+                            className={`admin-visibility-btn ${
+                                examSettings.active ? "published" : ""
+                            }`}
+                            onClick={actions.toggleSelectedExamActive}
+                        >
+                            {examSettings.active ? <Eye size={16} /> : <EyeOff size={16} />}
+                            {examSettings.active ? "공개 중" : "비공개"}
+                        </button>
+                        <button
+                            type="button"
+                            className="secondary-btn"
+                            onClick={() => setters.setSettingsOpen((current) => !current)}
+                        >
+                            <Settings2 size={16} /> {settingsOpen ? "설정 닫기" : "시험지 설정"}
+                        </button>
+                    </div>
+                </>
             )}
             {selectedExam && examSettings && settingsOpen && (
                 <section className="admin-exam-settings">
+                    <div className="admin-body-builder-head">
+                        <span>운영 규칙</span>
+                        <strong>{settingsCheck.ok ? "저장 가능" : settingsCheck.error}</strong>
+                    </div>
                     <label>
                         <span>제목</span>
                         <input
@@ -69,16 +96,31 @@ export function AdminProblemList({ editor }: { editor: AdminEditorModel }) {
                             }
                         />
                     </label>
-                    <label>
-                        <span>제한 시간(분)</span>
-                        <input
-                            value={examSettings.timeLimitMin}
-                            onChange={(event) =>
-                                actions.updateExamSettings("timeLimitMin", event.target.value)
-                            }
-                            inputMode="numeric"
-                        />
-                    </label>
+                    <div className="admin-time-settings-row">
+                        <label>
+                            <span>제한 시간(분)</span>
+                            <input
+                                value={examSettings.timeLimitMin}
+                                onChange={(event) =>
+                                    actions.updateExamSettings("timeLimitMin", event.target.value)
+                                }
+                                inputMode="numeric"
+                            />
+                        </label>
+                        <label>
+                            <span>순위표 프리즈(분 전)</span>
+                            <input
+                                value={examSettings.freezeBeforeMin}
+                                onChange={(event) =>
+                                    actions.updateExamSettings(
+                                        "freezeBeforeMin",
+                                        event.target.value,
+                                    )
+                                }
+                                inputMode="numeric"
+                            />
+                        </label>
+                    </div>
                     <label>
                         <span>대회 시작</span>
                         <input
@@ -91,7 +133,7 @@ export function AdminProblemList({ editor }: { editor: AdminEditorModel }) {
                     </label>
                     <button
                         type="button"
-                        className="secondary-btn"
+                        className="primary-btn"
                         onClick={() => void actions.saveExamSettings()}
                         disabled={!settingsCheck.ok || !isExamSettingsDirty}
                     >
@@ -111,7 +153,7 @@ export function AdminProblemList({ editor }: { editor: AdminEditorModel }) {
                 onClick={() => void actions.createProblem()}
                 disabled={!selectedExam}
             >
-                <Plus size={16} /> 문항 추가
+                <Plus size={16} /> 새 문항
             </button>
             <label className="admin-search">
                 <span>검색</span>
@@ -174,3 +216,12 @@ export function AdminProblemList({ editor }: { editor: AdminEditorModel }) {
         </section>
     );
 }
+
+const formatMinutes = (seconds: number) => `${Math.round(seconds / 60)}분`;
+
+const freezeLabel = (exam: { timeLimitSec: number; freezeBeforeSec?: number }) => {
+    const freezeBeforeSec = examFreezeBeforeSec(exam);
+    if (freezeBeforeSec === 0) return "없음";
+    const startMin = Math.max(0, Math.round((exam.timeLimitSec - freezeBeforeSec) / 60));
+    return `${startMin}분부터`;
+};

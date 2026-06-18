@@ -1,12 +1,12 @@
 export function AdmissionSkeletonTicket({
-    note = "추천 링크로 입장하면 성명과 위치 확인 후 자동 발급됩니다.",
+    note = "추천 링크로 입장하면 성명과 위치 확인 후 수험표를 발급합니다.",
 }: {
     note?: string;
 }) {
     return (
         <section
             className="gym-admission-slip admission-skeleton-ticket"
-            aria-label="응시표 발급 안내"
+            aria-label="수험표 발급 안내"
         >
             <div className="admission-skeleton-title">
                 <span>2026학년도 KICE ARENA</span>

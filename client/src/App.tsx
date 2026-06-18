@@ -110,6 +110,12 @@ export function App() {
         rejoinAttempted.current = false;
     }, []);
 
+    const clearRoomView = useCallback((nextRoomCode = "") => {
+        setRoom(null);
+        setOwnPlayerId("");
+        setRoomCode(nextRoomCode);
+    }, []);
+
     useEffect(() => {
         fetch("/api/events")
             .then((res) => {
@@ -228,25 +234,61 @@ export function App() {
         completeReferralGate,
         exitReferralGate,
     } = useReferralGateState(screen);
+    const rejoinSavedRoom = async (expectedCode?: string) => {
+        const saved = readSavedRoomSession();
+        if (!saved || (expectedCode && saved.code !== expectedCode)) return null;
+        const connected = await waitForSocketConnection();
+        if (!connected) {
+            setError("이전 방을 확인했지만 서버 연결이 지연되고 있습니다.");
+            return null;
+        }
+        const response = await emitWithAck<RoomPublic>("room:rejoin", saved);
+        if (!response.ok || !response.data) {
+            window.localStorage.removeItem(ROOM_SESSION_KEY);
+            return null;
+        }
+        setRoom(response.data);
+        setRoomCode(response.data.code);
+        return response.data;
+    };
+
+    const restoreSavedEventRoom = async (eventId: string) => {
+        const restoredRoom = await rejoinSavedRoom();
+        if (!restoredRoom) return false;
+        if (restoredRoom.exam.id === eventId) return true;
+        await emitWithAck("room:leave", {});
+        window.localStorage.removeItem(ROOM_SESSION_KEY);
+        clearRoomView("");
+        return false;
+    };
 
     const leaveRoom = async () => {
+        const leavingRoom = room;
         await emitWithAck("room:leave", {});
-        resetRoomSession("");
+        if (leavingRoom?.status === "lobby") {
+            resetRoomSession("");
+            return;
+        }
+        clearRoomView("");
     };
 
     const registerForEvent = async (eventId: string) => {
         if (pendingEventAction) return;
         setError("");
         const event = events.find((event) => event.id === eventId);
-        if (event?.registration !== "open" && (!hasReferralVerification || !campaignUser)) {
+        if (event?.registration !== "open" && !hasReferralVerification && !campaignUser) {
             await spectateEvent(eventId);
             return;
         }
         setPendingEventAction({ eventId, action: "register" });
         try {
+            if (await restoreSavedEventRoom(eventId)) return;
             const response = await emitWithAck<RoomPublic>("event:register", {
                 eventId,
-                nickname: campaignUser ? entrantNickname(campaignUser) : "예비응시자",
+                nickname: campaignUser
+                    ? entrantNickname(campaignUser)
+                    : referralVerification?.nickname || "예비응시자",
+                referralVerification: campaignUser ? undefined : referralVerification ?? undefined,
             });
             if (!response.ok || !response.data) {
                 setError(response.error ?? "등록 실패");
@@ -283,8 +325,11 @@ export function App() {
 
     const joinRoom = async () => {
         setError("");
+        const code = roomCode.trim().toUpperCase();
+        const restoredRoom = await rejoinSavedRoom(code);
+        if (restoredRoom) return;
         const response = await emitWithAck<RoomPublic>("room:join", {
-            code: roomCode,
+            code,
             nickname,
         });
         if (!response.ok || !response.data) {

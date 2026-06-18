@@ -41,6 +41,7 @@ const room = (overrides: Partial<RoomPublic>): RoomPublic => ({
         title: "Exam",
         subtitle: "Mock",
         timeLimitSec: 600,
+        freezeBeforeSec: 60,
         problemCount: 1,
         problems: [
             { id: "p1", number: 1, title: "P1", answerKind: "short", difficulty: 1, pointValue: 2 },

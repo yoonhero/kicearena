@@ -1,4 +1,4 @@
-import type { ProblemManifest } from "../../../../shared/game";
+import { examFreezeBeforeSec, type ProblemManifest } from "../../../../shared/game";
 import { bodyToMarkup, normalizedBodyForSave } from "../adminProblemMarkup";
 import type { AdminExam, ExamSettingsForm, NewExamForm, ProblemForm } from "./adminTypes";
 
@@ -23,6 +23,7 @@ export const makeExamSettingsForm = (exam: AdminExam): ExamSettingsForm => ({
     title: exam.title,
     subtitle: exam.subtitle,
     timeLimitMin: String(Math.max(1, Math.round(exam.timeLimitSec / 60))),
+    freezeBeforeMin: String(Math.round(examFreezeBeforeSec(exam) / 60)),
     active: exam.active,
     releaseAt: toDateTimeLocalValue(exam.releaseAt),
 });
@@ -32,6 +33,7 @@ export const makeEmptyNewExamForm = (): NewExamForm => ({
     title: "",
     subtitle: "직접 추가한 문제지",
     timeLimitMin: "100",
+    freezeBeforeMin: "10",
     active: false,
     releaseAt: "",
 });
@@ -68,40 +70,85 @@ export const makeForm = (problem: ProblemManifest): ProblemForm => ({
 
 export const newExamCheck = (newExam: NewExamForm) => {
     const timeLimitMin = Number(newExam.timeLimitMin);
+    const freezeBeforeMin = Number(newExam.freezeBeforeMin);
     if (!/^[a-z0-9][a-z0-9-]{1,78}[a-z0-9]$/.test(newExam.id.trim()))
         return {
             ok: false,
             timeLimitSec: 0,
+            freezeBeforeSec: 0,
             error: "id는 영문 소문자, 숫자, 하이픈으로 3~80자여야 합니다.",
         };
     if (!newExam.title.trim() || !newExam.subtitle.trim())
-        return { ok: false, timeLimitSec: 0, error: "새 문제지 제목과 설명을 입력하세요." };
+        return {
+            ok: false,
+            timeLimitSec: 0,
+            freezeBeforeSec: 0,
+            error: "새 문제지 제목과 설명을 입력하세요.",
+        };
     if (!Number.isInteger(timeLimitMin) || timeLimitMin < 1 || timeLimitMin > 1440)
         return {
             ok: false,
             timeLimitSec: 0,
+            freezeBeforeSec: 0,
             error: "시간은 1분 이상 1440분 이하의 정수여야 합니다.",
         };
-    return { ok: true, timeLimitSec: timeLimitMin * 60, error: "" };
+    if (!Number.isInteger(freezeBeforeMin) || freezeBeforeMin < 0 || freezeBeforeMin > timeLimitMin)
+        return {
+            ok: false,
+            timeLimitSec: 0,
+            freezeBeforeSec: 0,
+            error: "프리즈 시간은 0분 이상 제한 시간 이하의 정수여야 합니다.",
+        };
+    return {
+        ok: true,
+        timeLimitSec: timeLimitMin * 60,
+        freezeBeforeSec: freezeBeforeMin * 60,
+        error: "",
+    };
 };
 
 export const examSettingsCheck = (
     selectedExam: AdminExam | undefined,
     settings: ExamSettingsForm | null,
 ) => {
-    if (!selectedExam || !settings) return { ok: false, timeLimitSec: 0, error: "" };
+    if (!selectedExam || !settings)
+        return { ok: false, timeLimitSec: 0, freezeBeforeSec: 0, error: "" };
     const timeLimitMin = Number(settings.timeLimitMin);
+    const freezeBeforeMin = Number(settings.freezeBeforeMin);
     if (!settings.title.trim() || !settings.subtitle.trim())
-        return { ok: false, timeLimitSec: 0, error: "문제지 제목과 설명을 입력하세요." };
+        return {
+            ok: false,
+            timeLimitSec: 0,
+            freezeBeforeSec: 0,
+            error: "문제지 제목과 설명을 입력하세요.",
+        };
     if (!Number.isInteger(timeLimitMin) || timeLimitMin < 1 || timeLimitMin > 1440)
         return {
             ok: false,
             timeLimitSec: 0,
+            freezeBeforeSec: 0,
             error: "시간은 1분 이상 1440분 이하의 정수여야 합니다.",
         };
+    if (!Number.isInteger(freezeBeforeMin) || freezeBeforeMin < 0 || freezeBeforeMin > timeLimitMin)
+        return {
+            ok: false,
+            timeLimitSec: 0,
+            freezeBeforeSec: 0,
+            error: "프리즈 시간은 0분 이상 제한 시간 이하의 정수여야 합니다.",
+        };
     if (settings.releaseAt.trim() && Number.isNaN(Date.parse(settings.releaseAt.trim())))
-        return { ok: false, timeLimitSec: 0, error: "공개 시작 시각 형식을 확인하세요." };
-    return { ok: true, timeLimitSec: timeLimitMin * 60, error: "" };
+        return {
+            ok: false,
+            timeLimitSec: 0,
+            freezeBeforeSec: 0,
+            error: "공개 시작 시각 형식을 확인하세요.",
+        };
+    return {
+        ok: true,
+        timeLimitSec: timeLimitMin * 60,
+        freezeBeforeSec: freezeBeforeMin * 60,
+        error: "",
+    };
 };
 
 export const pointValueCheck = (form: ProblemForm | null) => {

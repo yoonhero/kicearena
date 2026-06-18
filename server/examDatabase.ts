@@ -6,6 +6,7 @@ import type {
     ProblemBodyBlock,
     ProblemManifest,
 } from "../shared/game.js";
+import { examFreezeBeforeSec } from "../shared/game.js";
 import { ACTIVE_EXAM_IDS } from "./exams.js";
 
 export interface ExamCatalogDatabase {
@@ -20,6 +21,7 @@ type ExamRow = {
     title: string;
     subtitle: string;
     time_limit_sec: number;
+    freeze_before_sec: number | null;
     release_at: Date | string | null;
     capture_summary: CaptureSummary | null;
 };
@@ -85,6 +87,7 @@ export type ExamCreateInput = {
     title: string;
     subtitle: string;
     timeLimitSec: number;
+    freezeBeforeSec: number;
     active: boolean;
     releaseAt: string | null;
 };
@@ -93,6 +96,7 @@ export type ExamSettingsUpdateInput = {
     title: string;
     subtitle: string;
     timeLimitSec: number;
+    freezeBeforeSec: number;
     active: boolean;
     releaseAt: string | null;
 };
@@ -103,6 +107,7 @@ const schemaStatements = [
     title text NOT NULL,
     subtitle text NOT NULL,
     time_limit_sec integer NOT NULL CHECK (time_limit_sec > 0),
+    freeze_before_sec integer NOT NULL DEFAULT 600 CHECK (freeze_before_sec >= 0),
     release_at timestamptz,
     capture_summary jsonb,
     active boolean NOT NULL DEFAULT false,
@@ -133,6 +138,7 @@ const schemaStatements = [
   )`,
     `CREATE INDEX IF NOT EXISTS problems_exam_number_idx ON problems(exam_id, number)`,
     `CREATE INDEX IF NOT EXISTS exams_active_title_idx ON exams(active, title)`,
+    `ALTER TABLE exams ADD COLUMN IF NOT EXISTS freeze_before_sec integer NOT NULL DEFAULT 600 CHECK (freeze_before_sec >= 0)`,
     `CREATE TABLE IF NOT EXISTS exam_assets (
     exam_id text NOT NULL REFERENCES exams(id) ON DELETE CASCADE,
     path text NOT NULL,
@@ -178,12 +184,13 @@ export const seedExamCatalog = async (
     try {
         for (const exam of exams) {
             await db.query(
-                `INSERT INTO exams (id, title, subtitle, time_limit_sec, release_at, capture_summary, active, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, now())
+                `INSERT INTO exams (id, title, subtitle, time_limit_sec, freeze_before_sec, release_at, capture_summary, active, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, now())
          ON CONFLICT (id) DO UPDATE SET
            title = EXCLUDED.title,
            subtitle = EXCLUDED.subtitle,
            time_limit_sec = EXCLUDED.time_limit_sec,
+           freeze_before_sec = EXCLUDED.freeze_before_sec,
            release_at = EXCLUDED.release_at,
            capture_summary = EXCLUDED.capture_summary,
            active = EXCLUDED.active,
@@ -193,6 +200,7 @@ export const seedExamCatalog = async (
                     exam.title,
                     exam.subtitle,
                     exam.timeLimitSec,
+                    examFreezeBeforeSec(exam),
                     exam.releaseAt ?? null,
                     jsonParam(exam.captureSummary),
                     activeExamIds.has(exam.id),
@@ -309,6 +317,10 @@ export const composeExamManifests = (
         title: row.title,
         subtitle: row.subtitle,
         timeLimitSec: Number(row.time_limit_sec),
+        freezeBeforeSec: examFreezeBeforeSec({
+            timeLimitSec: Number(row.time_limit_sec),
+            freezeBeforeSec: row.freeze_before_sec ?? undefined,
+        }),
         releaseAt: toReleaseAt(row.release_at),
         captureSummary: optionalJson(row.capture_summary),
         problems: problemsByExam.get(row.id) ?? [],
@@ -317,7 +329,7 @@ export const composeExamManifests = (
 
 export const readExamsFromDatabase = async (db: ExamCatalogDatabase): Promise<ExamManifest[]> => {
     const exams = await db.query<ExamRow>(
-        `SELECT id, title, subtitle, time_limit_sec, release_at, capture_summary
+        `SELECT id, title, subtitle, time_limit_sec, freeze_before_sec, release_at, capture_summary
      FROM exams
      WHERE active = true
      ORDER BY title, id`,
@@ -341,7 +353,7 @@ export const readAdminExamsFromDatabase = async (
     db: ExamCatalogDatabase,
 ): Promise<AdminExamManifest[]> => {
     const exams = await db.query<AdminExamRow>(
-        `SELECT id, title, subtitle, time_limit_sec, release_at, capture_summary, active
+        `SELECT id, title, subtitle, time_limit_sec, freeze_before_sec, release_at, capture_summary, active
      FROM exams
      ORDER BY title, id`,
     );
@@ -367,10 +379,18 @@ export const createExamInDatabase = async (
     input: ExamCreateInput,
 ): Promise<AdminExamManifest> => {
     const result = await db.query<AdminExamRow>(
-        `INSERT INTO exams (id, title, subtitle, time_limit_sec, active, release_at, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6, now())
-     RETURNING id, title, subtitle, time_limit_sec, release_at, capture_summary, active`,
-        [input.id, input.title, input.subtitle, input.timeLimitSec, input.active, input.releaseAt],
+        `INSERT INTO exams (id, title, subtitle, time_limit_sec, freeze_before_sec, active, release_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, now())
+     RETURNING id, title, subtitle, time_limit_sec, freeze_before_sec, release_at, capture_summary, active`,
+        [
+            input.id,
+            input.title,
+            input.subtitle,
+            input.timeLimitSec,
+            input.freezeBeforeSec,
+            input.active,
+            input.releaseAt,
+        ],
     );
     const [manifest] = composeExamManifests(result.rows, []);
     return { ...manifest, active: result.rows[0]?.active === true };
@@ -386,16 +406,18 @@ export const updateExamSettingsInDatabase = async (
      SET title = $2,
          subtitle = $3,
          time_limit_sec = $4,
-         active = $5,
-         release_at = $6,
+         freeze_before_sec = $5,
+         active = $6,
+         release_at = $7,
          updated_at = now()
      WHERE id = $1
-     RETURNING id, title, subtitle, time_limit_sec, release_at, capture_summary, active`,
+     RETURNING id, title, subtitle, time_limit_sec, freeze_before_sec, release_at, capture_summary, active`,
         [
             examId,
             update.title,
             update.subtitle,
             update.timeLimitSec,
+            update.freezeBeforeSec,
             update.active,
             update.releaseAt,
         ],
@@ -440,6 +462,7 @@ export const createProblemInDatabase = async (
                 title: "",
                 subtitle: "",
                 time_limit_sec: 1,
+                freeze_before_sec: 0,
                 release_at: null,
                 capture_summary: null,
             },
@@ -518,6 +541,7 @@ export const updateProblemInDatabase = async (
                 title: "",
                 subtitle: "",
                 time_limit_sec: 1,
+                freeze_before_sec: 0,
                 release_at: null,
                 capture_summary: null,
             },

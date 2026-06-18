@@ -231,7 +231,7 @@ export const baseRuntimeMetricSamples = (
     return [
         {
             name: "kice_arena_runtime_metrics_info",
-            help: "Stable heartbeat emitted by the KICE Arena runtime metrics collector.",
+            help: "Stable heartbeat emitted by the KICE 아레나 runtime metrics collector.",
             labels: { service: resolved.service },
             value: 1,
         },

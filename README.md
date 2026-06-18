@@ -1,211 +1,212 @@
-# KICE Arena
+# KICE 아레나
 
-KICE Arena는 수학 모의고사를 실시간 경쟁 방식으로 푸는 웹 앱이다. 한 문제 집중 풀이 화면, 라이브/프리즈 순위표, 아이템 방해 효과, 시험장 톤의 로그와 UI를 중심으로 설계한다.
+KICE 아레나는 수학 모의고사를 실시간 경쟁 방식으로 푸는 웹 앱이다. 사용자는 방을 만들거나 초대 링크로 입장해 한 문제씩 풀고, 서버가 관리하는 제출 기록과 순위표로 경쟁한다. 화면 톤은 시험지, OMR, 성적표, 대회 순위표에 맞춘다.
 
-## Development
+## 주요 기능
 
-### Local app test
+- 실시간 방 생성, 입장, 재접속, 초대 링크
+- Casual / Contest 모드와 공개 이벤트 등록 흐름
+- 한 문제 집중 풀이 화면, 객관식/단답형 제출, KaTeX 수식 렌더링
+- 라이브 순위표, 프리즈 순위표, 최종 성적표
+- 아이템 방해 효과와 서버 검증 기반 인벤토리 처리
+- 관리자 시험/문항 편집, 문제 이미지 업로드, 캠페인 통계
+- Postgres 기반 시험 카탈로그와 room state 저장
+- Redis 기반 Socket.IO adapter, Prometheus/Grafana 모니터링
+- 검색 노출용 한국어 메타데이터, `robots.txt`, `sitemap.xml`
 
-The server requires a seeded Postgres exam catalog. Use the local helper script
-when you want to open the app and test room/lobby/game flows in a browser:
+## 기술 스택
+
+- Runtime: Bun, Node-compatible server runtime
+- Client: React, Vite, TypeScript
+- Server: Express, Socket.IO
+- Data: Postgres, Redis
+- Test: Vitest, Playwright
+- Ops: Docker Compose, Nginx gateway, Prometheus, Alertmanager, Grafana
+
+## 빠른 시작
+
+요구 사항:
+
+- Bun
+- Docker와 Docker Compose
+
+설치:
 
 ```bash
 bun install
+```
+
+로컬 앱 실행:
+
+```bash
 bun run dev:local
 ```
 
-`bun run dev:local` does the following:
-
-1. Starts local Docker Postgres and Redis with `docker compose up -d postgres redis`.
-2. Stops the Compose app container if it is already using port `3001`.
-3. Seeds the exam catalog from `server/exams/*`.
-4. Starts the API server and Vite client.
-
-개발 서버는 기본적으로 다음 주소를 사용한다.
+`dev:local`은 Postgres/Redis를 띄우고, 시험 카탈로그를 seed한 뒤 API 서버와 Vite 클라이언트를 함께 실행한다.
 
 - Client: `http://localhost:5180/`
 - Server: `http://localhost:3001`
 
-If port `3001` is still occupied, check it with:
+포트가 이미 사용 중이면 다음을 확인한다.
 
 ```bash
 docker compose ps
 lsof -i :3001
 ```
 
-검증 명령:
+## 자주 쓰는 명령
 
 ```bash
-bun run build
-bun run test
+bun run local:db          # Postgres, Redis만 실행
+bun run db:seed:local     # 로컬 DB에 시험 카탈로그 seed
+bun run dev:server:local  # 로컬 DB/Redis를 쓰는 API 서버 실행
+bun run dev:client        # Vite 클라이언트 실행
+bun run format:check      # 포맷 검사
+bun run lint              # ESLint
+bun run typecheck         # TypeScript 검사
+bun run test              # Vitest
+bun run test:db:local     # DB 통합 테스트
+bun run test:e2e          # Playwright E2E
+bun run build             # 타입 검사 후 프로덕션 빌드
 ```
 
-문제 카탈로그 DB:
+작은 Python 스크립트는 프로젝트 규칙에 따라 conda `mlenv` 환경에서 실행한다.
 
 ```bash
-bun run local:db
-bun run db:seed:local
-bun run dev:server:local
+conda run -n mlenv python scripts/validate_codex_agents.py
 ```
 
-`bun run db:seed`는 로컬 `server/exams/*/manifest.json`과 SVG/PNG/JPEG/WebP 문제 asset을 Postgres에 저장한다. 서버 런타임은 `DATABASE_URL`을 필수로 요구하며, 시험 문제와 diagram SVG는 DB에서만 읽는다. Docker Compose 배포는 `kice-arena-seed` 일회성 컨테이너로 카탈로그를 동기화한 뒤 앱을 시작한다. DB 통합 테스트는 아래 명령으로 실행한다.
+## 프로젝트 구조
 
-```bash
-bun run test:db:local
+```text
+client/                 React/Vite 앱
+server/                 Express, Socket.IO, DB 접근, 운영 API
+shared/                 클라이언트와 서버가 공유하는 타입/규칙
+tests/e2e/              브라우저 흐름 회귀 테스트
+docs/                   구현 프로토콜과 운영 문서
+deploy/                 Nginx, Prometheus, Grafana, Alertmanager 설정
+scripts/                seed, import, 검증, 문제 준비 스크립트
+server/exams/           로컬 시험 manifest와 문제 asset
 ```
 
-Room/gate runtime state는 Postgres `room_states`에 스냅샷으로 저장된다. 같은 room code의 상태 변경은 Postgres advisory transaction lock으로 직렬화하고, `REDIS_URL`이 설정되면 Socket.IO Redis adapter가 켜져 여러 app container의 room broadcast가 공유된다. Compose 기본 배포는 내부 `redis://redis:6379`를 사용한다.
+단위 테스트는 대상 파일과 같은 디렉토리에 둔다. 브라우저 흐름을 검증하는 테스트만 `tests/e2e/*.spec.ts`에 둔다.
 
-Bundled monitoring includes Prometheus exporters for Postgres and Redis. Prometheus scrapes `postgres-exporter:9187` and `redis-exporter:9121` inside Compose, while the exporter ports are bound to localhost for host-local inspection or an external Prometheus.
+완료된 구현 범위는 `docs/completed-work.md`에 정리한다.
 
-## GitHub Deploy Configuration
+## 런타임 모델
 
-`Deploy Home Server` 워크플로는 GitHub environment/repository Variables와 Secrets를 원격 서버의 `.env` 및 metrics secret 파일로 쓴 뒤 Compose 기반 blue/green rolling 배포를 실행한다. `kice-arena-gateway`가 host port를 계속 잡고, 교체하지 않을 app container가 healthy인지 확인한 다음 교체 대상 색상을 nginx upstream에서 잠시 내리고 새 image로 재생성한다. 새 container healthcheck가 통과하면 두 색상을 다시 upstream에 올린다. 운영 첫 배포 전에 아래 required 값을 GitHub에서 직접 정한다. 값이 없으면 배포는 실패한다.
+서버가 게임 상태의 기준이다. 클라이언트는 UI 상태를 안내하지만, 제출 가능 여부, 방 상태, 참가자 권한, 아이템 대상, 점수, 페널티, 순위표 프리즈는 서버에서 검증하고 emit한다.
 
-기존 단일 `kice-arena` container에서 이 구조로 최초 전환할 때는 host port를 gateway로 넘기는 짧은 전환 구간이 있다. 전환 이후 배포는 seed 성공과 새 app healthcheck를 확인한 뒤 한쪽 app container만 교체하므로 HTTP 기준 무중단으로 진행된다. 진행 중인 Socket.IO 연결은 연결된 app container가 교체될 때 재연결될 수 있다.
+핵심 상태:
 
-Required GitHub Secrets:
+- 시험 카탈로그와 문제 asset: Postgres
+- 방 스냅샷: Postgres `room_states`
+- contest 제출: Postgres `contest_submissions`
+- 다중 app container 브로드캐스트: Redis Socket.IO adapter
+- 메트릭: `/metrics` + Prometheus scrape
 
-- `DEPLOY_HOST`
-- `DEPLOY_USER`
-- `DEPLOY_PATH`
-- `DEPLOY_SSH_KEY`
-- `DEPLOY_KNOWN_HOSTS`
+같은 room code의 상태 변경은 advisory lock과 in-process mutex로 직렬화한다. 운영에서는 blue/green app container가 Nginx gateway 뒤에서 동작한다.
+
+## 시험 카탈로그
+
+로컬 manifest는 `server/exams/*/manifest.json`에 둔다. `bun run db:seed`는 manifest와 SVG/PNG/JPEG/WebP asset을 Postgres에 저장한다. 서버 런타임은 DB에서 시험과 diagram asset을 읽는다.
+
+관리자 API와 UI는 시험 공개 여부, 공개 시각, 제한 시간, 프리즈 시작 시각, 문제 본문, 정답, 난도, 배점, diagram asset을 편집한다.
+
+## 환경 변수
+
+로컬 기본값은 `.env.example`을 기준으로 한다.
+
+필수 운영 값:
+
 - `POSTGRES_PASSWORD`
 - `ADMIN_TOKEN`
-- `CAMPAIGN_AUTH_SECRET`: 캠페인 로그인 쿠키 서명키. 운영에서는 `openssl rand -base64 32`처럼 긴 랜덤 값을 사용한다.
-- `ADMIN_BASIC_AUTH_HTPASSWD`: `/admin`과 `/api/admin/*`를 nginx Basic Auth로 보호할 htpasswd 내용. 예: `htpasswd -nbB admin 'strong-password'` 출력 전체를 secret에 저장한다.
+- `CAMPAIGN_AUTH_SECRET`
+- `ADMIN_BASIC_AUTH_HTPASSWD`
 - `METRICS_BEARER_TOKEN`
 - `GRAFANA_ADMIN_PASSWORD`
 
-`POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`는 Postgres volume 최초 초기화 때 적용된다. 운영 서버에서 이미 `postgres-data` volume이 만들어진 뒤 값을 바꾸려면 DB 마이그레이션 또는 volume 재생성이 필요하다.
+주요 선택 값:
 
-Optional GitHub Variables:
+- `HOST_PORT`: gateway host port, 기본 `3001`
+- `DATABASE_URL`: 외부 Postgres를 쓸 때만 설정
+- `REDIS_URL`: 외부 Redis를 쓸 때만 설정
+- `CORS_ORIGINS`: 허용할 browser origin 목록
+- `CAMPAIGN_REFERRAL_WHITELIST`: `추천코드:학교ID` 목록
+- `CAMPAIGN_LOCATION_RADIUS_KM`: 추천 링크 위치 인증 반경 km
+- `DISCORD_WEBHOOK_URL`: Alertmanager Discord relay
 
-- `HOST_PORT`
-- `POSTGRES_DB`: 비우면 `kice_arena`를 사용한다.
-- `POSTGRES_USER`: 비우면 `kice_arena`를 사용한다.
-- `POSTGRES_HOST_PORT`
-- `REDIS_HOST_PORT`
-- `POSTGRES_EXPORTER_HOST_PORT`
-- `REDIS_EXPORTER_HOST_PORT`
-- `PROMETHEUS_HOST_PORT`
-- `ALERTMANAGER_HOST_PORT`
-- `GRAFANA_HOST_PORT`
-- `GRAFANA_ADMIN_USER`
-- `CORS_ORIGINS`
-- `CAMPAIGN_REFERRAL_WHITELIST`: 쉼표 또는 공백으로 구분한 `추천코드:학교ID` 목록. 예: `abc234:B100000546`. 추천 코드는 지정된 학교 위치에서만 인증된다.
-- `CAMPAIGN_LOCATION_RADIUS_KM`: 추천 링크 위치 인증에서 허용할 학교 반경 km. 기본값은 `3`.
-- `REDIS_URL`: 외부 Redis를 쓸 때만 설정. 비우면 Compose 내부 Redis를 사용한다.
+`POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`는 Postgres volume 최초 초기화 때 적용된다. 운영 volume이 이미 있으면 값을 바꾸기 전에 마이그레이션 또는 volume 재생성 계획이 필요하다.
 
-Optional GitHub Secrets:
+## 배포
 
-- `POSTGRES_DB`, `POSTGRES_USER`: Variables 대신 Secrets에 넣은 경우에도 deploy workflow가 읽는다.
-- `REDIS_URL`: Variables 대신 Secrets에 넣은 경우에도 deploy workflow가 읽는다.
-- `DATABASE_URL`: 외부 DB를 쓸 때만 설정. 비우면 Compose 내부 Postgres URL을 사용.
-- `DISCORD_WEBHOOK_URL`
+Docker Compose 운영 배포는 다음 구성으로 실행된다.
 
-테스트 위치 규칙:
+- `kice-arena-blue`, `kice-arena-green`: app container
+- `kice-arena-gateway`: sticky upstream Nginx gateway
+- `kice-arena-seed`: 배포 시 시험 카탈로그 동기화
+- `postgres`, `redis`
+- `postgres-exporter`, `redis-exporter`
+- `prometheus`, `alertmanager`, `alertmanager-discord`, `grafana`
 
-- 단위 테스트는 대상 파일과 같은 디렉토리에 둔다. 예: `server/scoring.ts` -> `server/scoring.test.ts`.
-- 브라우저 흐름을 검증하는 E2E 테스트만 `tests/e2e/*.spec.ts`에 둔다.
+GitHub Actions의 `Deploy Home Server` 워크플로는 Secrets/Variables를 원격 서버 `.env`와 metrics secret 파일로 쓰고, seed 성공과 새 app healthcheck를 확인한 뒤 blue/green rolling 배포를 수행한다.
 
-## Project Layout
+## 모니터링
 
-- `client/src`: React client UI.
-- `server/index.ts`: Express and Socket.IO game server.
-- `shared`: client/server shared game types and pure helpers.
-- `docs`: implementation protocols and contributor-facing notes.
-- `deploy`: deployment and monitoring configuration.
-- `scripts`: exam/problem preparation scripts.
-- `tests/e2e`: Playwright browser-flow tests.
-- `todo.md`: active roadmap and task checklist.
+운영 메트릭과 알림 문서는 `deploy/monitoring/README.md`에 있다. 기본 대시보드는 다음을 본다.
 
-## Contribution Guide
+- HTTP RPS, 5xx 비율, latency
+- event loop lag, GC, memory, open file descriptors
+- active rooms, room stale state, cleanup pressure
+- contest sessions, participants, submissions
+- Socket.IO connection consistency
 
-### 1. Read the relevant protocol first
+모니터링 복구는 Prometheus target, alert firing 상태, app healthcheck가 함께 정상일 때 완료로 본다.
 
-Before changing a subsystem, read the matching notes.
+## SEO
 
-- UI direction: `design.md`; historical route/review notes: `DESIGN_NOTES.md`
-- Item additions: `docs/item-protocol.md`
-- Runtime metrics and monitoring: `deploy/monitoring/README.md`
-- Current roadmap: `todo.md`
+기본 HTML은 한국어 title/description, Open Graph, Twitter card, JSON-LD WebApplication을 포함한다. 서버는 `/robots.txt`, `/sitemap.xml`, `/site.webmanifest`를 제공한다. 네이버 서치어드바이저나 Google Search Console 검증 태그는 실제 발급 토큰이 있을 때만 추가한다.
 
-If a protocol and code disagree, update the protocol or explain why the code is intentionally changing.
+## 개발 원칙
 
-### 2. Keep shared contracts authoritative
+- 공유 타입과 순수 규칙은 `shared/`를 우선한다.
+- 서버 검증 없이 클라이언트 UI만으로 게임 규칙을 강제하지 않는다.
+- UI 작업은 `DESIGN_NOTES.md`와 `design.md`를 먼저 확인한다.
+- 아이템 작업은 `docs/item-protocol.md` 순서를 따른다.
+- CSS는 기능별 파일로 나누고, 최종 파일이 400줄을 넘지 않게 유지한다.
+- 코드 골프식 축약보다 복잡도 감소와 가독성을 우선한다.
+- “speedup” 변경은 벤치마크 없이 주장하지 않는다.
+- 관련 없는 진행 중 변경을 되돌리지 않는다.
 
-Shared types in `shared/game.ts` are the contract between server and client. Do not duplicate gameplay rules separately in server and client code when a shared helper or shared type can express the rule.
+## 검증 기준
 
-For item work, follow this order:
-
-1. Add the `ItemId` to `ITEM_IDS`.
-2. Add the keyed definition to `ITEM_DEFINITIONS`.
-3. Wire server validation and state updates.
-4. Wire client affordances and rendering.
-5. Run build, tests, and a local usage check.
-
-See `docs/item-protocol.md` for the full item protocol.
-
-### 3. Treat the server as the source of truth
-
-Client UI can guide users, but gameplay authority belongs on the server.
-
-- Validate room status, player identity, inventory, target eligibility, duplicate effects, cooldowns, and payload limits on the server.
-- Only mutate inventory or score after all validation passes.
-- Keep effects, expired effects, cooldowns, submissions, and scoreboard reveal state consistent in emitted room state.
-
-### 4. Preserve existing UX direction
-
-The app should feel like a competitive live mock exam, not a generic dashboard.
-
-- Keep the solving view focused on one large problem page.
-- Keep ranking and contest analysis on dedicated ranking/result screens.
-- Prefer compact exam-administration labels over explanatory marketing copy.
-- Avoid unrelated redesigns while working on gameplay logic.
-- Check mobile and desktop layouts when adding overlays, target banks, buttons, or long Korean labels.
-
-### 5. Keep changes scoped
-
-Make the smallest coherent change that solves the task.
-
-- Do not revert unrelated dirty files.
-- Do not mix unrelated roadmap work into one patch.
-- If a file already has user changes, preserve them and edit only the necessary lines.
-- Update `todo.md` only for work that is actually implemented and verified.
-
-### 6. Verify before marking work done
-
-For most code changes, run:
+일반 코드 변경:
 
 ```bash
-bun run build
+bun run format:check
+bun run lint
+bun run typecheck
 bun run test
 ```
 
-For frontend/gameplay changes, also run the local app and manually check the affected flow in a browser. For example:
+프로덕션 영향 변경:
 
-- Room creation and join.
-- Answer submission.
-- Item award, target selection, use, active state, cooldown, and expiry.
-- Scoreboard freeze/reveal behavior when touched.
-- Mobile-width layout if UI controls or overlays changed.
+```bash
+bun run build
+```
 
-If a check cannot be run, state that explicitly in the handoff.
+DB 스키마 또는 room persistence 변경:
 
-### 7. Review standard
+```bash
+bun run local:db
+bun run test:db:local
+```
 
-When reviewing changes, prioritize:
+브라우저 흐름 변경:
 
-1. Gameplay correctness and server-side trust boundaries.
-2. Shared contract drift between `shared`, `server`, and `client`.
-3. Missing cleanup/recovery behavior for temporary state.
-4. UI states that can overlap, disappear, or become unusable on small screens.
-5. Missing tests or manual verification for touched workflows.
+```bash
+bun run dev:local
+bun run test:e2e
+```
 
-Summaries are secondary; findings should identify the concrete file and line that can break behavior.
-
-## Documentation Rules
-
-Add or update docs when a change creates a repeatable protocol, a subsystem contract, or a new verification checklist. Keep docs operational: contributors should be able to follow the document while making the next change.
+UI 변경은 최소 모바일 viewport와 desktop viewport에서 직접 확인한다. 실행하지 못한 검증은 작업 보고에 명시한다.

@@ -152,6 +152,12 @@ export const migrateRoomState = async (db: RoomDatabase) => {
     await db.query(
         "CREATE INDEX IF NOT EXISTS contest_submissions_room_player_idx ON contest_submissions(room_code, player_id, sequence)",
     );
+    await db.query(
+        `CREATE TABLE IF NOT EXISTS contest_submission_sequences (
+      room_code text PRIMARY KEY,
+      next_sequence integer NOT NULL
+    )`,
+    );
     await migrateProblemAttemptRecords(db);
 };
 
@@ -215,6 +221,44 @@ export const deserializeRoomState = (state: PersistedRoomState, exam: ExamManife
     lastActivityAt: state.lastActivityAt,
 });
 
+const applyContestSubmissionToPlayer = (player: PlayerState, submission: SubmissionPublic) => {
+    if (
+        player.submissionHistory.some(
+            (existing) =>
+                existing.problemId === submission.problemId &&
+                existing.answer === submission.answer &&
+                existing.submittedAt === submission.submittedAt,
+        )
+    )
+        return;
+    player.submissions = player.submissions.filter(
+        (existing) => existing.problemId !== submission.problemId,
+    );
+    player.submissions.push(submission);
+    player.submissionHistory.push(submission);
+    if (submission.correct) {
+        player.score += submission.scoreAwarded;
+        player.penaltyMs += submission.penaltyMs;
+        player.scoreBreakdown.solved += 1;
+        player.scoreBreakdown.difficultyBonus += 0;
+        player.scoreBreakdown.timeBonus += 0;
+        player.consecutiveWrong = 0;
+    } else {
+        player.consecutiveWrong += 1;
+    }
+};
+
+const hydrateContestRoomSubmissions = async (db: RoomDatabase, room: RoomState) => {
+    if (room.mode !== "contest") return room;
+    const submissions = await readContestSubmissionsForRoom(db, room.code);
+    for (const submission of submissions) {
+        const player = room.players.get(submission.playerId);
+        if (!player) continue;
+        applyContestSubmissionToPlayer(player, contestSubmissionToPublic(submission));
+    }
+    return room;
+};
+
 export const saveRoomState = async (db: RoomDatabase, room: RoomState) => {
     const state = serializeRoomState(room);
     await db.query(
@@ -231,6 +275,7 @@ export const saveRoomState = async (db: RoomDatabase, room: RoomState) => {
 
 export const deleteRoomState = async (db: RoomDatabase, code: string) => {
     await db.query("DELETE FROM contest_submissions WHERE room_code = $1", [code]);
+    await db.query("DELETE FROM contest_submission_sequences WHERE room_code = $1", [code]);
     await db.query("DELETE FROM room_states WHERE code = $1", [code]);
 };
 
@@ -244,11 +289,12 @@ export const readRoomStates = async (
      ORDER BY updated_at ASC`,
     );
 
-    return result.rows.flatMap((row) => {
+    const rooms = result.rows.flatMap((row) => {
         const exam = examsById.get(row.exam_id);
         if (!exam) return [];
         return [deserializeRoomState(row.state, exam)];
     });
+    return Promise.all(rooms.map((room) => hydrateContestRoomSubmissions(db, room)));
 };
 
 export const readRoomState = async (
@@ -265,7 +311,7 @@ export const readRoomState = async (
     const row = result.rows[0];
     if (!row) return null;
     const exam = examsById.get(row.exam_id);
-    return exam ? deserializeRoomState(row.state, exam) : null;
+    return exam ? hydrateContestRoomSubmissions(db, deserializeRoomState(row.state, exam)) : null;
 };
 
 export const readRoomStateCodes = async (db: RoomDatabase): Promise<string[]> => {
@@ -288,18 +334,43 @@ export const saveContestSubmission = async (
     db: RoomDatabase,
     input: ContestSubmissionInput,
 ): Promise<{ submission: ContestSubmissionRecord; reused: boolean }> => {
+    const existingSubmission = await readContestSubmissionByIdempotency(
+        db,
+        input.roomCode,
+        input.playerId,
+        input.idempotencyKey,
+    );
+    if (existingSubmission) return { submission: existingSubmission, reused: true };
+    return insertContestSubmission(
+        db,
+        input,
+        await allocateContestSubmissionSequence(db, input.roomCode),
+    );
+};
+
+const allocateContestSubmissionSequence = async (db: RoomDatabase, roomCode: string) => {
+    const result = await db.query<{ sequence: number }>(
+        `INSERT INTO contest_submission_sequences (room_code, next_sequence)
+     VALUES ($1, 2)
+     ON CONFLICT (room_code) DO UPDATE SET
+       next_sequence = contest_submission_sequences.next_sequence + 1
+     RETURNING next_sequence - 1 AS sequence`,
+        [roomCode],
+    );
+    return Number(result.rows[0]?.sequence ?? 1);
+};
+
+const insertContestSubmission = async (
+    db: RoomDatabase,
+    input: ContestSubmissionInput,
+    sequence: number,
+): Promise<{ submission: ContestSubmissionRecord; reused: boolean }> => {
     const inserted = await db.query<ContestSubmissionRow>(
-        `WITH next_sequence AS (
-       SELECT COALESCE(MAX(sequence), 0) + 1 AS sequence
-       FROM contest_submissions
-       WHERE room_code = $2
-     )
-     INSERT INTO contest_submissions (
+        `INSERT INTO contest_submissions (
        id, room_code, player_id, problem_id, answer, submitted_at, submitted_at_ms,
        sequence, correct, score_awarded, penalty_ms, attempts, idempotency_key
      )
-     SELECT $1, $2, $3, $4, $5, to_timestamp($6 / 1000.0), $6, next_sequence.sequence, $7, $8, $9, $10, $11
-     FROM next_sequence
+     VALUES ($1, $2, $3, $4, $5, to_timestamp($6 / 1000.0), $6, $12, $7, $8, $9, $10, $11)
      ON CONFLICT (room_code, player_id, idempotency_key) DO NOTHING
      RETURNING id, room_code, player_id, problem_id, answer, submitted_at_ms::text, sequence, correct, score_awarded, penalty_ms, attempts, idempotency_key`,
         [
@@ -314,6 +385,7 @@ export const saveContestSubmission = async (
             input.penaltyMs,
             input.attempts,
             input.idempotencyKey,
+            sequence,
         ],
     );
 
@@ -344,4 +416,19 @@ export const readContestSubmissionByIdempotency = async (
         [roomCode, playerId, idempotencyKey],
     );
     return existing.rows[0] ? rowToContestSubmission(existing.rows[0]) : null;
+};
+
+export const readContestSubmissionsForRoom = async (
+    db: RoomDatabase,
+    roomCode: string,
+): Promise<ContestSubmissionRecord[]> => {
+    const result = await db.query<ContestSubmissionRow>(
+        `SELECT id, room_code, player_id, problem_id, answer, submitted_at_ms::text,
+            sequence, correct, score_awarded, penalty_ms, attempts, idempotency_key
+     FROM contest_submissions
+     WHERE room_code = $1
+     ORDER BY sequence ASC`,
+        [roomCode],
+    );
+    return result.rows.map(rowToContestSubmission);
 };

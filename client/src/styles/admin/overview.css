@@ -1,0 +1,102 @@
+.admin-context-strip {
+    display: grid;
+    grid-template-columns: 1.1fr 0.8fr 1.1fr 1fr;
+    border: 1px solid var(--admin-border);
+    border-top: 0;
+    background: color-mix(in srgb, var(--paper-deep) 64%, var(--paper));
+}
+
+.admin-context-strip > div {
+    min-width: 0;
+    display: grid;
+    gap: 4px;
+    border-right: 1px solid var(--admin-rule);
+    padding: 12px 14px;
+}
+
+.admin-context-strip > div:last-child {
+    border-right: 0;
+}
+
+.admin-context-strip b,
+.admin-exam-rule-strip b {
+    color: var(--admin-muted);
+    font-size: 11px;
+    font-weight: 850;
+}
+
+.admin-context-strip strong,
+.admin-context-strip span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.admin-context-strip strong {
+    font-size: 14px;
+    font-weight: 900;
+}
+
+.admin-context-strip span {
+    color: var(--admin-muted);
+    font-size: 12px;
+    font-weight: 760;
+}
+
+.admin-context-strip .dirty {
+    box-shadow: inset 0 -3px 0 var(--ui-accent-base);
+}
+
+.admin-context-strip .needs-attention {
+    box-shadow: inset 0 -3px 0 var(--danger);
+}
+
+.admin-exam-list > button em {
+    color: var(--admin-muted);
+    font-size: 11px;
+    font-style: normal;
+    font-weight: 760;
+}
+
+.admin-selected-exam {
+    display: grid;
+    gap: 4px;
+    border: 1px solid var(--admin-border);
+    background: var(--admin-surface);
+    padding: 11px 12px;
+}
+
+.admin-selected-exam strong {
+    font-size: 16px;
+    font-weight: 950;
+}
+
+.admin-selected-exam span {
+    color: var(--admin-muted);
+    font-size: 12px;
+    font-weight: 760;
+    line-height: 1.35;
+}
+
+.admin-exam-rule-strip {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    border: 1px solid var(--admin-border);
+    background: color-mix(in srgb, var(--accent-row) 48%, var(--paper));
+}
+
+.admin-exam-rule-strip span {
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+    border-right: 1px solid var(--admin-rule);
+    padding: 9px 10px;
+    font-size: 12px;
+    font-weight: 850;
+    white-space: nowrap;
+}
+
+.admin-exam-rule-strip span:last-child {
+    border-right: 0;
+}

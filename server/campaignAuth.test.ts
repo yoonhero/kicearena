@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { createCampaignAuthToken, verifyCampaignAuthToken } from "./campaignAuth.js";
+import {
+    createCampaignAuthToken,
+    createReferralVerificationToken,
+    verifyCampaignAuthToken,
+    verifyReferralVerificationToken,
+} from "./campaignAuth.js";
 
 const user = {
     id: "user-1",
@@ -35,5 +40,31 @@ describe("campaign auth tokens", () => {
         expect(verifyCampaignAuthToken(tampered, "secret", 2_000)).toBeNull();
         expect(verifyCampaignAuthToken(token, "other-secret", 2_000)).toBeNull();
         expect(verifyCampaignAuthToken(token, "secret", 12_000)).toBeNull();
+    });
+});
+
+describe("referral verification tokens", () => {
+    it("signs and verifies a school-bound referral ticket", () => {
+        const token = createReferralVerificationToken("snu226", "SNU-GWANAK", "secret", 1_000);
+
+        expect(verifyReferralVerificationToken(token, "secret", 2_000)).toMatchObject({
+            referralCode: "snu226",
+            schoolId: "SNU-GWANAK",
+        });
+    });
+
+    it("rejects tampered, expired, and wrong-secret referral tickets", () => {
+        const token = createReferralVerificationToken(
+            "snu226",
+            "SNU-GWANAK",
+            "secret",
+            1_000,
+            10_000,
+        );
+        const tampered = `${token.slice(0, -1)}x`;
+
+        expect(verifyReferralVerificationToken(tampered, "secret", 2_000)).toBeNull();
+        expect(verifyReferralVerificationToken(token, "other-secret", 2_000)).toBeNull();
+        expect(verifyReferralVerificationToken(token, "secret", 12_000)).toBeNull();
     });
 });

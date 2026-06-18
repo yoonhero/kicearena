@@ -26,6 +26,7 @@ export type ReferralLocationVerification = {
     school: HighSchool;
     distanceKm: number;
     verifiedAt: string;
+    verificationToken?: string;
     nickname?: string;
 };
 

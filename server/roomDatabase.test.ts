@@ -245,6 +245,81 @@ describePostgres("postgres room state persistence", () => {
         ).resolves.toBeNull();
     });
 
+    it("allocates unique contest sequences under concurrent inserts", async () => {
+        const original = { ...room(), code: "RACE", mode: "contest" as const, maxPlayers: 200 };
+        await saveRoomState(pool, original);
+
+        const saved = await Promise.all(
+            Array.from({ length: 20 }, (_, index) =>
+                saveContestSubmission(pool, {
+                    id: `race-submission-${index}`,
+                    roomCode: original.code,
+                    playerId: "player",
+                    problemId: "p1",
+                    answer: String(index),
+                    submittedAt: 2_000 + index,
+                    correct: false,
+                    scoreAwarded: 0,
+                    penaltyMs: 0,
+                    attempts: index + 1,
+                    idempotencyKey: `race-key-${index}`,
+                }),
+            ),
+        );
+
+        expect(saved.map((entry) => entry.submission.sequence).sort((a, b) => a - b)).toEqual(
+            Array.from({ length: 20 }, (_, index) => index + 1),
+        );
+
+        await deleteRoomState(pool, original.code);
+    });
+
+    it("hydrates contest submissions when the room snapshot lags behind", async () => {
+        const original = {
+            ...room(),
+            code: "HYDR8",
+            mode: "contest" as const,
+            maxPlayers: 200,
+            players: new Map([
+                [
+                    "player",
+                    player({
+                        score: 0,
+                        penaltyMs: 0,
+                        scoreBreakdown: { solved: 0, timeBonus: 0, difficultyBonus: 0 },
+                        submissions: [],
+                        submissionHistory: [],
+                    }),
+                ],
+            ]),
+        };
+        await saveRoomState(pool, original);
+        await saveContestSubmission(pool, {
+            id: "hydrated-submission",
+            roomCode: original.code,
+            playerId: "player",
+            problemId: "p1",
+            answer: "1",
+            submittedAt: 2_500,
+            correct: true,
+            scoreAwarded: 2,
+            penaltyMs: 60_000,
+            attempts: 1,
+            idempotencyKey: "hydrate-key",
+        });
+
+        const restored = await readRoomState(pool, original.code, new Map([[exam.id, exam]]));
+        expect(restored?.players.get("player")).toMatchObject({
+            score: 2,
+            penaltyMs: 60_000,
+            scoreBreakdown: { solved: 1 },
+            submissions: [{ problemId: "p1", answer: "1", correct: true }],
+            submissionHistory: [{ problemId: "p1", answer: "1", correct: true }],
+        });
+
+        await deleteRoomState(pool, original.code);
+    });
+
     it("records problem attempts as analytics rows that survive room deletion", async () => {
         const original = { ...room(), code: "TRIES", eventId: "preliminary-day" };
         await saveRoomState(pool, original);

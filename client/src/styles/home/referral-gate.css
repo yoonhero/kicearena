@@ -44,7 +44,10 @@
 }
 
 .referral-gate-head,
-.referral-school-card {
+.referral-school-card,
+.referral-entry-brief,
+.referral-reveal-meter,
+.referral-ticket-stamp {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -54,7 +57,9 @@
 .referral-gate-head span,
 .referral-school-card span,
 .referral-school-card em,
-.referral-gate-copy span {
+.referral-gate-copy span,
+.referral-entry-brief span,
+.referral-reveal-meter span {
     color: var(--muted);
     font-size: 0.82rem;
 }
@@ -73,17 +78,111 @@
     letter-spacing: 0;
 }
 
+.referral-school-reveal {
+    display: grid;
+    gap: 14px;
+}
+
+.referral-reveal-meter {
+    position: relative;
+    overflow: hidden;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--line);
+}
+
+.referral-reveal-meter::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 4px;
+    background: var(--line-soft);
+}
+
+.referral-reveal-meter::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 34%;
+    height: 4px;
+    background: var(--accent-strong);
+    transform-origin: left center;
+    animation: referral-meter-scan 1.05s ease-out both;
+}
+
+.referral-reveal-meter-matched::after {
+    width: 67%;
+}
+
+.referral-reveal-meter-issued::after {
+    width: 100%;
+}
+
+.referral-reveal-meter span {
+    position: relative;
+    z-index: 1;
+    font-weight: 800;
+}
+
+.referral-reveal-meter span.is-active,
+.referral-reveal-meter span.is-complete {
+    color: var(--line);
+}
+
 .referral-school-card {
+    position: relative;
     justify-content: flex-start;
     flex-wrap: wrap;
-    padding: 14px;
-    border: 1px solid var(--line);
-    background: rgba(255, 255, 255, 0.72);
+    min-height: 132px;
+    padding: clamp(16px, 3vw, 24px);
+    border: 2px solid var(--line);
+    background:
+        linear-gradient(90deg, rgba(242, 201, 76, 0.24), transparent 44%),
+        rgba(255, 255, 255, 0.78);
+    box-shadow: 0 8px 0 rgba(18, 18, 18, 0.08);
+    animation: referral-school-pop 520ms cubic-bezier(0.2, 1.25, 0.32, 1) both;
 }
 
 .referral-school-card strong {
     flex: 1;
     min-width: 160px;
+    overflow-wrap: anywhere;
+}
+
+.referral-school-card svg {
+    flex: 0 0 auto;
+}
+
+.referral-ticket-stamp {
+    justify-content: center;
+    width: fit-content;
+    min-height: 40px;
+    justify-self: end;
+    padding: 0 14px;
+    border: 2px solid var(--line);
+    background: var(--accent-strong);
+    color: var(--line);
+    font-weight: 900;
+    white-space: nowrap;
+    transform: rotate(-2deg);
+    animation: referral-stamp-land 360ms ease-out 720ms both;
+}
+
+.referral-school-reveal-issued .referral-ticket-stamp {
+    background: color-mix(in srgb, var(--ok) 18%, var(--paper));
+}
+
+.referral-entry-brief {
+    flex-wrap: wrap;
+    padding: 12px 0 2px;
+    border-top: 1.5px solid var(--line);
+}
+
+.referral-entry-brief strong {
+    font-size: 1rem;
+    line-height: 1.35;
 }
 
 .referral-gate-copy {
@@ -152,7 +251,61 @@
         padding: 18px;
     }
 
+    .referral-reveal-meter {
+        gap: 6px;
+    }
+
+    .referral-school-card {
+        min-height: 148px;
+    }
+
+    .referral-school-card strong {
+        min-width: 0;
+    }
+
     .referral-omr-name .omr-syllable-row {
         grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .referral-reveal-meter::after,
+    .referral-school-card,
+    .referral-ticket-stamp {
+        animation: none;
+    }
+}
+
+@keyframes referral-school-pop {
+    from {
+        opacity: 0;
+        transform: translateY(12px) scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes referral-stamp-land {
+    from {
+        opacity: 0;
+        transform: translateY(-10px) rotate(-8deg) scale(1.16);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) rotate(-2deg) scale(1);
+    }
+}
+
+@keyframes referral-meter-scan {
+    from {
+        transform: scaleX(0);
+    }
+
+    to {
+        transform: scaleX(1);
     }
 }

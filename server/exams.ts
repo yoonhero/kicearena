@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { ExamManifest, ExamPublic, ExamSummary, GymEventSummary } from "../shared/game.js";
-import { getProblemPointValue } from "../shared/game.js";
+import { examFreezeBeforeSec, getProblemPointValue } from "../shared/game.js";
 
 export const ACTIVE_EXAM_IDS = new Set(["preliminary-day"]);
 export const OPEN_REGISTRATION_EXAM_IDS = new Set(["preliminary-day"]);
@@ -35,6 +35,7 @@ export const toExamSummary = (exam: ExamManifest): ExamSummary => ({
     title: exam.title,
     subtitle: exam.subtitle,
     timeLimitSec: exam.timeLimitSec,
+    freezeBeforeSec: examFreezeBeforeSec(exam),
     problemCount: exam.problems.length,
 });
 

@@ -20,7 +20,7 @@ export const makeEventDisplays = (events: GymEventSummary[]): EventDisplay[] =>
     }));
 
 export const getEntrantStatus = (hasReferralVerification: boolean, hasOpenEvent: boolean) => {
-    if (hasReferralVerification) return "응시표 저장 완료";
+    if (hasReferralVerification) return "수험표 저장 완료";
     return hasOpenEvent ? "공개 관전 가능" : "인증 전";
 };
 
@@ -45,7 +45,7 @@ export const makeIndexEvents = (
 
 export const getAdmissionSkeletonNote = (displayEvents: EventDisplay[]) =>
     displayEvents.some((event) => event.status === "open" && event.registration === "open")
-        ? "응시표 없이 바로 풀 수 있습니다."
+        ? "수험표 없이 바로 풀 수 있습니다."
         : undefined;
 
 const formatEventStart = (startsAt: string | null) => {

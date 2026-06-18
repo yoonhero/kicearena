@@ -41,6 +41,7 @@ export interface ExamManifest {
     title: string;
     subtitle: string;
     timeLimitSec: number;
+    freezeBeforeSec?: number;
     releaseAt?: string;
     captureSummary?: CaptureSummary;
     problems: ProblemManifest[];
@@ -51,6 +52,7 @@ export interface ExamSummary {
     title: string;
     subtitle: string;
     timeLimitSec: number;
+    freezeBeforeSec: number;
     problemCount: number;
 }
 
@@ -353,6 +355,15 @@ export const ROOM_GUARDRAILS = {
     maxNicknameLength: 6,
     maxActiveRooms: 200,
 } as const;
+
+export const examFreezeBeforeSec = (
+    exam: Pick<ExamManifest, "timeLimitSec" | "freezeBeforeSec">,
+) => {
+    const value = exam.freezeBeforeSec ?? ROOM_GUARDRAILS.defaultFreezeBeforeSec;
+    if (!Number.isFinite(value))
+        return Math.min(ROOM_GUARDRAILS.defaultFreezeBeforeSec, exam.timeLimitSec);
+    return Math.max(0, Math.min(Math.round(value), exam.timeLimitSec));
+};
 
 export const normalizeAnswer = (value: string) => value.trim().replace(/\s+/g, "").toLowerCase();
 

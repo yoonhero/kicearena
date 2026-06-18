@@ -24,6 +24,7 @@ import {
     ROOM_GUARDRAILS,
     type ServerResponse,
     WRONG_ANSWER_PENALTY_MS,
+    examFreezeBeforeSec,
     isProblemBody,
     normalizeAnswer,
 } from "../shared/game.js";
@@ -41,8 +42,18 @@ import {
     validateRoomJoin,
 } from "../shared/roomLifecycle.js";
 import { runtimeMetricSamples, summarizeRoomMetrics } from "../shared/runtimeMetrics.js";
-import { normalizeStudentStatus } from "../shared/campaign.js";
-import { createCampaignAuthToken, verifyCampaignAuthToken } from "./campaignAuth.js";
+import {
+    DEFAULT_SNU_REFERRAL_CODE,
+    DEFAULT_SNU_REFERRAL_SCHOOL_ID,
+    normalizeStudentStatus,
+    type ReferralLocationVerification,
+} from "../shared/campaign.js";
+import {
+    createCampaignAuthToken,
+    createReferralVerificationToken,
+    verifyCampaignAuthToken,
+    verifyReferralVerificationToken,
+} from "./campaignAuth.js";
 import {
     attachReferralConversion,
     createCampaignUser,
@@ -78,6 +89,7 @@ import {
     formatDatabaseErrorSummary,
     isDatabaseConnectionUnavailableError,
 } from "./databaseHealth.js";
+import { KeyedMutex } from "./keyedMutex.js";
 import {
     isExamReleased,
     isOpenRegistrationExam,
@@ -119,6 +131,7 @@ import {
     normalizeSubmissionPenalty,
     scoreForAccepted,
 } from "./scoring.js";
+import { getPublicOrigin, renderRobotsTxt, renderSiteManifest, renderSitemapXml } from "./seo.js";
 import type { PlayerState, RoomState } from "./types.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -246,7 +259,7 @@ collectDefaultMetrics({
 
 const runtimeMetricsInfoGauge = new Gauge({
     name: "kice_arena_runtime_metrics_info",
-    help: "Stable heartbeat emitted by the KICE Arena runtime metrics collector.",
+    help: "Stable heartbeat emitted by the KICE 아레나 runtime metrics collector.",
     labelNames: ["service"],
     registers: [metricsRegistry],
 });
@@ -504,6 +517,9 @@ type RoomMutationContext = {
     afterCommit: Array<() => void>;
 };
 const roomMutationStorage = new AsyncLocalStorage<RoomMutationContext>();
+const roomMutationMutex = new KeyedMutex();
+const contestSubmitMutex = new KeyedMutex();
+const pendingRoomBroadcasts = new Map<string, ReturnType<typeof setTimeout>>();
 
 const warnRoomMaintenanceDatabaseUnavailable = (phase: string, error: unknown) => {
     console.warn(
@@ -638,6 +654,35 @@ const setCampaignAuthCookie = (
         campaignAuthCookie(createCampaignAuthToken(user, campaignAuthSecret)),
     );
 };
+const hasVerifiedReferralTicket = async (
+    verification: ReferralLocationVerification | undefined,
+) => {
+    const referralCode = readString(verification?.referralCode, 32).toLowerCase();
+    const schoolId = readString(verification?.school?.id, 80);
+    const claims = verifyReferralVerificationToken(
+        verification?.verificationToken,
+        campaignAuthSecret,
+    );
+    const isDevDefaultSnuTicket =
+        process.env.NODE_ENV !== "production" &&
+        referralCode === DEFAULT_SNU_REFERRAL_CODE &&
+        schoolId === DEFAULT_SNU_REFERRAL_SCHOOL_ID;
+    if (isDevDefaultSnuTicket) return true;
+
+    if (
+        !examCatalogPool ||
+        !claims ||
+        !referralCode ||
+        !schoolId ||
+        claims.referralCode !== referralCode ||
+        claims.schoolId !== schoolId
+    ) {
+        return false;
+    }
+
+    const allowedSchool = await readReferralWhitelistSchool(examCatalogPool, referralCode);
+    return allowedSchool?.id === schoolId;
+};
 const hashPassword = (password: string) => {
     const salt = crypto.randomBytes(16).toString("base64url");
     const key = crypto.scryptSync(password, salt, 64).toString("base64url");
@@ -712,6 +757,37 @@ const setSocketPlayer = (socket: Socket, ref: SocketPlayerRef) => {
     socket.data.playerId = ref.playerId;
     socket.data.socketToken = ref.socketToken;
     delete socket.data.spectator;
+};
+
+const getSocketPlayerRef = (socket: Socket): SocketPlayerRef | undefined => {
+    const existing = socketToPlayer.get(socket.id);
+    if (existing) return existing;
+    const { roomCode, playerId, socketToken } = socket.data as Partial<SocketPlayerRef>;
+    if (
+        typeof roomCode !== "string" ||
+        typeof playerId !== "string" ||
+        typeof socketToken !== "string"
+    )
+        return findSocketPlayerRefInRooms(socket);
+    const ref = { roomCode, playerId, socketToken };
+    socketToPlayer.set(socket.id, ref);
+    return ref;
+};
+
+const findSocketPlayerRefInRooms = (socket: Socket): SocketPlayerRef | undefined => {
+    for (const room of rooms.values()) {
+        for (const player of room.players.values()) {
+            if (player.socketId !== socket.id || !player.socketToken) continue;
+            const ref = {
+                roomCode: room.code,
+                playerId: player.id,
+                socketToken: player.socketToken,
+            };
+            setSocketPlayer(socket, ref);
+            return ref;
+        }
+    }
+    return undefined;
 };
 
 const clearLocalSocketPlayer = (socketId: string) => {
@@ -855,7 +931,14 @@ const withRoomMutation = async <T>(code: string, callback: () => Promise<T>): Pr
     const existingContext = roomMutationStorage.getStore();
     if (existingContext) return callback();
 
-    const client = await examCatalogPool.connect();
+    return roomMutationMutex.run(code, () => withRoomMutationTransaction(code, callback));
+};
+
+const withRoomMutationTransaction = async <T>(
+    code: string,
+    callback: () => Promise<T>,
+): Promise<T> => {
+    const client = await examCatalogPool!.connect();
     try {
         await client.query("BEGIN");
         await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [code]);
@@ -1162,6 +1245,26 @@ const emitRoom = (room: RoomState): RoomPublic => {
     return snapshot;
 };
 
+const scheduleRoomBroadcast = (room: RoomState, delayMs = 50) => {
+    if (pendingRoomBroadcasts.has(room.code)) return;
+    pendingRoomBroadcasts.set(
+        room.code,
+        setTimeout(() => {
+            pendingRoomBroadcasts.delete(room.code);
+            const snapshot = publicRoom(room);
+            io.to(room.code).emit("room:update", snapshot);
+            persistRoom(room);
+        }, delayMs),
+    );
+};
+
+const emitRoomAfterCommit = (room: RoomState) => {
+    maybeStartReleasedEventRoom(room);
+    maybeFreezeScoreboard(room);
+    bumpRoomVersion(room);
+    afterRoomCommit(() => scheduleRoomBroadcast(room));
+};
+
 const isFinished = (room: RoomState) =>
     room.status === "playing" && room.endsAt !== null && Date.now() >= room.endsAt;
 
@@ -1175,6 +1278,122 @@ const finishRoom = (room: RoomState, reason = "시험 종료. 답안지를 걷�
     addLog(room, "system", "채점 완료. 프리즈 이후 비공개 시도 공개를 시작합니다.");
     addLog(room, "system", reason);
     return emitRoom(room);
+};
+
+const submitContestAnswerFast = async (
+    socket: Socket,
+    ref: SocketPlayerRef,
+    payload: { problemId: string; answer: string; idempotencyKey?: string },
+    reply: (
+        response: ServerResponse<{
+            correct: boolean;
+            itemAwarded: ItemId | null;
+            itemAwards: ItemAward[];
+        }>,
+    ) => void,
+) => {
+    const room = rooms.get(ref.roomCode);
+    const player = room?.players.get(ref.playerId);
+    if (!room || !isCurrentPlayerSocket(player, ref) || room.status !== "playing") {
+        reply({ ok: false, error: "진행 중인 시험이 아닙니다." });
+        return true;
+    }
+    if (room.mode !== "contest") return false;
+    if (isFinished(room)) {
+        finishRoom(room);
+        reply({ ok: false, error: "시험이 종료되었습니다." });
+        return true;
+    }
+
+    const problem = getProblem(room, readString(payload?.problemId, 80));
+    if (!problem) {
+        reply({ ok: false, error: "문제를 찾을 수 없습니다." });
+        return true;
+    }
+    const answer = readString(payload?.answer, 24);
+    if (!answer) {
+        reply({ ok: false, error: "답안을 입력하세요." });
+        return true;
+    }
+
+    const idempotencyKey = readString(payload?.idempotencyKey, 120) || makeSubmissionId();
+    if (shouldRateLimit(socket.id, "answer:submit", RATE_LIMIT_MS.answerSubmit)) {
+        reply({ ok: false, error: "답안 제출 간격이 너무 짧습니다." });
+        return true;
+    }
+    const correct = normalizeAnswer(answer) === normalizeAnswer(problem.answer);
+    const previousCorrect = player.submissions.some(
+        (submission) => submission.problemId === problem.id && submission.correct,
+    );
+    const previousSubmission = player.submissions.find(
+        (submission) => submission.problemId === problem.id,
+    );
+    if (previousCorrect) {
+        reply({ ok: false, error: "이미 맞힌 문항입니다." });
+        return true;
+    }
+    if (problem.answerKind === "choice" && previousSubmission) {
+        reply({ ok: false, error: "5지선다 문항은 한 번만 제출할 수 있습니다." });
+        return true;
+    }
+
+    const attempts = (previousSubmission?.attempts ?? 0) + 1;
+    const rawSubmission = {
+        problemId: problem.id,
+        answer,
+        correct,
+        submittedAt: Date.now(),
+        scoreAwarded: correct && !previousCorrect ? scoreForAccepted(problem) : 0,
+        penaltyMs: 0,
+        attempts,
+    };
+    const submission = normalizeSubmissionPenalty(room, rawSubmission);
+    const db = roomDatabase();
+    if (!db) {
+        reply({ ok: false, error: "답안 저장소를 사용할 수 없습니다." });
+        return true;
+    }
+
+    answersSubmittedCounter.inc({ correct: String(correct) });
+    contestSubmissionsCounter.inc({ event_id: room.exam.id, correct: String(correct) });
+    const saved = await saveContestSubmission(db, {
+        id: makeSubmissionId(),
+        roomCode: room.code,
+        playerId: player.id,
+        problemId: problem.id,
+        answer,
+        submittedAt: submission.submittedAt,
+        correct: submission.correct,
+        scoreAwarded: submission.scoreAwarded,
+        penaltyMs: submission.penaltyMs,
+        attempts: submission.attempts,
+        idempotencyKey,
+    });
+    if (saved.reused) {
+        reply({
+            ok: true,
+            data: { correct: saved.submission.correct, itemAwarded: null, itemAwards: [] },
+        });
+        return true;
+    }
+
+    const durableSubmission = contestSubmissionToPublic(saved.submission);
+    await recordProblemAttempt(room, player, problem, durableSubmission, idempotencyKey);
+    applySubmissionToPlayer(player, durableSubmission);
+    addLog(
+        room,
+        "submit",
+        durableSubmission.correct
+            ? `${player.nickname} ${problem.number}번 정답 +${durableSubmission.scoreAwarded}점, 페널티 +${formatPenaltyMinutes(durableSubmission.penaltyMs)}분.`
+            : `${player.nickname} ${problem.number}번 오답. 정답 시 오답 페널티 +${Math.round(WRONG_ANSWER_PENALTY_MS / 60000)}분, 연속 ${player.consecutiveWrong}회.`,
+    );
+    touchRoom(room);
+    reply({
+        ok: true,
+        data: { correct: durableSubmission.correct, itemAwarded: null, itemAwards: [] },
+    });
+    emitRoomAfterCommit(room);
+    return true;
 };
 
 const runRoomMaintenance = async () => {
@@ -1356,6 +1575,10 @@ app.post("/api/campaign/referral-location-verify", async (req, res) => {
         res.sendStatus(503);
         return;
     }
+    if (!campaignAuthSecret) {
+        res.status(503).json({ error: "Campaign auth is not configured." });
+        return;
+    }
     const referralCode = readString(req.body?.referralCode, 32).toLowerCase();
     const latitude = Number(req.body?.latitude);
     const longitude = Number(req.body?.longitude);
@@ -1393,6 +1616,11 @@ app.post("/api/campaign/referral-location-verify", async (req, res) => {
         school: verified.school,
         distanceKm: Math.round(verified.distanceKm * 100) / 100,
         verifiedAt: new Date().toISOString(),
+        verificationToken: createReferralVerificationToken(
+            referralCode,
+            verified.school.id,
+            campaignAuthSecret,
+        ),
     });
 });
 
@@ -1666,6 +1894,7 @@ app.post("/api/admin/exams", async (req, res) => {
     const title = readString(req.body?.title, 120);
     const subtitle = readString(req.body?.subtitle, 160);
     const timeLimitSec = Number(req.body?.timeLimitSec);
+    const freezeBeforeSec = Number(req.body?.freezeBeforeSec);
     const active = req.body?.active === true;
     const releaseAtRaw = req.body?.releaseAt;
     const releaseAt =
@@ -1677,7 +1906,10 @@ app.post("/api/admin/exams", async (req, res) => {
         !subtitle ||
         !Number.isInteger(timeLimitSec) ||
         timeLimitSec < 60 ||
-        timeLimitSec > 24 * 60 * 60
+        timeLimitSec > 24 * 60 * 60 ||
+        !Number.isInteger(freezeBeforeSec) ||
+        freezeBeforeSec < 0 ||
+        freezeBeforeSec > timeLimitSec
     ) {
         res.status(400).json({ error: "Invalid exam payload." });
         return;
@@ -1693,6 +1925,7 @@ app.post("/api/admin/exams", async (req, res) => {
             title,
             subtitle,
             timeLimitSec,
+            freezeBeforeSec,
             active,
             releaseAt,
         });
@@ -1726,6 +1959,7 @@ app.patch("/api/admin/exams/:examId", async (req, res) => {
     const title = readString(req.body?.title, 120);
     const subtitle = readString(req.body?.subtitle, 160);
     const timeLimitSec = Number(req.body?.timeLimitSec);
+    const freezeBeforeSec = Number(req.body?.freezeBeforeSec);
     const active = req.body?.active === true;
     const releaseAtRaw = req.body?.releaseAt;
     const releaseAt =
@@ -1737,7 +1971,10 @@ app.patch("/api/admin/exams/:examId", async (req, res) => {
         !subtitle ||
         !Number.isInteger(timeLimitSec) ||
         timeLimitSec < 60 ||
-        timeLimitSec > 24 * 60 * 60
+        timeLimitSec > 24 * 60 * 60 ||
+        !Number.isInteger(freezeBeforeSec) ||
+        freezeBeforeSec < 0 ||
+        freezeBeforeSec > timeLimitSec
     ) {
         res.status(400).json({ error: "Invalid exam settings payload." });
         return;
@@ -1751,6 +1988,7 @@ app.patch("/api/admin/exams/:examId", async (req, res) => {
         title,
         subtitle,
         timeLimitSec,
+        freezeBeforeSec,
         active,
         releaseAt,
     });
@@ -1911,6 +2149,18 @@ app.get("/api/rooms/:code", async (req, res) => {
     });
 });
 
+app.get("/robots.txt", (req, res) => {
+    res.type("text/plain").send(renderRobotsTxt(getPublicOrigin(req.headers)));
+});
+
+app.get("/sitemap.xml", (req, res) => {
+    res.type("application/xml").send(renderSitemapXml(getPublicOrigin(req.headers)));
+});
+
+app.get("/site.webmanifest", (req, res) => {
+    res.type("application/manifest+json").json(renderSiteManifest(getPublicOrigin(req.headers)));
+});
+
 app.use("/api", apiNotFound);
 
 if (process.env.NODE_ENV === "production") {
@@ -2018,7 +2268,7 @@ io.on("connection", (socket) => {
                 );
                 const freezeBeforeSec = readPositiveSeconds(
                     payload?.freezeBeforeSec,
-                    ROOM_GUARDRAILS.defaultFreezeBeforeSec,
+                    examFreezeBeforeSec(exam),
                     0,
                     timeLimitSec,
                 );
@@ -2097,7 +2347,11 @@ io.on("connection", (socket) => {
     socket.on(
         "event:register",
         async (
-            payload: { eventId: string; nickname: string },
+            payload: {
+                eventId: string;
+                nickname: string;
+                referralVerification?: ReferralLocationVerification;
+            },
             reply: (response: ServerResponse<RoomPublic>) => void,
         ) => {
             await withRoomMutation("__event_register__", async () => {
@@ -2122,20 +2376,18 @@ io.on("connection", (socket) => {
                         campaignAuthCookieName,
                     );
                     const claims = verifyCampaignAuthToken(authToken, campaignAuthSecret);
-                    if (!claims) {
+                    const record =
+                        claims && examCatalogPool
+                            ? await readCampaignUserByUsername(examCatalogPool, claims.username)
+                            : null;
+                    const hasCampaignAccount = Boolean(record && record.user.id === claims?.sub);
+                    const hasReferralTicket = await hasVerifiedReferralTicket(
+                        payload?.referralVerification,
+                    );
+                    if (!hasCampaignAccount && !hasReferralTicket) {
                         replyAfterRoomCommit(reply, {
                             ok: false,
-                            error: "로그인 인증이 만료되었습니다. 다시 로그인하세요.",
-                        });
-                        return;
-                    }
-                    const record = examCatalogPool
-                        ? await readCampaignUserByUsername(examCatalogPool, claims.username)
-                        : null;
-                    if (!record || record.user.id !== claims.sub) {
-                        replyAfterRoomCommit(reply, {
-                            ok: false,
-                            error: "등록된 계정만 이벤트에 등록할 수 있습니다.",
+                            error: "로그인 또는 수험표 인증이 필요합니다.",
                         });
                         return;
                     }
@@ -2222,10 +2474,7 @@ io.on("connection", (socket) => {
                     version: 0,
                     status: "lobby",
                     timeLimitSec: exam.timeLimitSec,
-                    freezeBeforeSec: Math.min(
-                        ROOM_GUARDRAILS.defaultFreezeBeforeSec,
-                        exam.timeLimitSec,
-                    ),
+                    freezeBeforeSec: examFreezeBeforeSec(exam),
                     itemEnabled: false,
                     startedAt: null,
                     endsAt: null,
@@ -2370,10 +2619,7 @@ io.on("connection", (socket) => {
                         version: 0,
                         status: "lobby",
                         timeLimitSec: exam.timeLimitSec,
-                        freezeBeforeSec: Math.min(
-                            ROOM_GUARDRAILS.defaultFreezeBeforeSec,
-                            exam.timeLimitSec,
-                        ),
+                        freezeBeforeSec: examFreezeBeforeSec(exam),
                         itemEnabled: false,
                         startedAt: null,
                         endsAt: null,
@@ -2751,7 +2997,7 @@ io.on("connection", (socket) => {
                 }>,
             ) => void,
         ) => {
-            const ref = socketToPlayer.get(socket.id);
+            const ref = getSocketPlayerRef(socket);
             if (!ref) {
                 replyAfterRoomCommit(reply, {
                     ok: false,
@@ -2759,6 +3005,13 @@ io.on("connection", (socket) => {
                 });
                 return;
             }
+            const contestSubmitKey = `${ref.roomCode}:${ref.playerId}:${readString(payload?.problemId, 80)}`;
+            if (
+                await contestSubmitMutex.run(contestSubmitKey, () =>
+                    submitContestAnswerFast(socket, ref, payload, reply),
+                )
+            )
+                return;
             await withRoomMutation(ref.roomCode, async () => {
                 const room = await getPersistedRoom(ref.roomCode);
                 const player = room?.players.get(ref.playerId);
@@ -2902,7 +3155,7 @@ io.on("connection", (socket) => {
                         },
                     });
                     touchRoom(room);
-                    emitRoom(room);
+                    emitRoomAfterCommit(room);
                     return;
                 }
 
@@ -3117,7 +3370,7 @@ const startServer = async () => {
     await restoreRoomsFromDatabase();
     await configureSocketAdapter();
     httpServer.listen(port, () => {
-        console.log(`KICE arena server listening on http://localhost:${port}`);
+        console.log(`KICE 아레나 server listening on http://localhost:${port}`);
     });
 };
 
@@ -3137,6 +3390,6 @@ process.once("SIGTERM", () => {
 });
 
 startServer().catch((error) => {
-    console.error("Unable to start KICE arena server.", error);
+    console.error("Unable to start KICE 아레나 server.", error);
     process.exit(1);
 });

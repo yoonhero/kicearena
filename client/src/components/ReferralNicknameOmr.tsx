@@ -12,7 +12,7 @@ import {
 
 export function ReferralNicknameOmr({
     ariaLabel = "응시자 성명 OMR 입력",
-    caption = "응시표에 인쇄됩니다",
+    caption = "수험표에 인쇄됩니다",
     className = "",
     nickname,
     setNickname,

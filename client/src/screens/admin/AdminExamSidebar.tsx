@@ -1,5 +1,7 @@
 import { Eye, EyeOff, Plus } from "lucide-react";
+import { examFreezeBeforeSec } from "../../../../shared/game";
 import { makeSlug } from "./adminFormUtils";
+import type { AdminExam } from "./adminTypes";
 import type { AdminEditorModel } from "./useAdminEditor";
 
 export function AdminExamSidebar({ editor }: { editor: AdminEditorModel }) {
@@ -25,7 +27,7 @@ export function AdminExamSidebar({ editor }: { editor: AdminEditorModel }) {
             {newExamOpen && (
                 <section className="admin-new-exam">
                     <div className="admin-body-builder-head">
-                        <span>새 문제지</span>
+                        <span>새 문제지 등록</span>
                         <strong>{newExam.active ? "공개" : "비공개"}</strong>
                     </div>
                     <label>
@@ -62,7 +64,7 @@ export function AdminExamSidebar({ editor }: { editor: AdminEditorModel }) {
                             }
                         />
                     </label>
-                    <div className="admin-new-exam-row">
+                    <div className="admin-time-settings-row">
                         <label>
                             <span>제한 시간(분)</span>
                             <input
@@ -73,13 +75,25 @@ export function AdminExamSidebar({ editor }: { editor: AdminEditorModel }) {
                                 inputMode="numeric"
                             />
                         </label>
+                        <label>
+                            <span>프리즈 시간(분)</span>
+                            <input
+                                value={newExam.freezeBeforeMin}
+                                onChange={(event) =>
+                                    actions.updateNewExam("freezeBeforeMin", event.target.value)
+                                }
+                                inputMode="numeric"
+                            />
+                        </label>
+                    </div>
+                    <div className="admin-new-exam-row">
                         <button
                             type="button"
                             className={`admin-visibility-btn ${newExam.active ? "published" : ""}`}
                             onClick={() => actions.updateNewExam("active", !newExam.active)}
                         >
                             {newExam.active ? <Eye size={16} /> : <EyeOff size={16} />}
-                            {newExam.active ? "공개" : "비공개"}
+                            {newExam.active ? "생성 즉시 공개" : "비공개로 생성"}
                         </button>
                     </div>
                     <label>
@@ -110,11 +124,20 @@ export function AdminExamSidebar({ editor }: { editor: AdminEditorModel }) {
                     onClick={() => setters.setSelectedExamId(exam.id)}
                 >
                     <strong>{exam.title}</strong>
-                    <span>
-                        {exam.problems.length}문항 · {exam.active ? "공개" : "비공개"}
-                    </span>
+                    <span>{examSubtitle(exam)}</span>
+                    <em>{examTiming(exam)}</em>
                 </button>
             ))}
         </aside>
     );
 }
+
+const examSubtitle = (exam: AdminExam) =>
+    `${exam.problems.length}문항 · ${exam.active ? "공개" : "비공개"}`;
+
+const examTiming = (exam: AdminExam) => {
+    const timeLimitMin = Math.round(exam.timeLimitSec / 60);
+    const freezeBeforeMin = Math.round(examFreezeBeforeSec(exam) / 60);
+    if (freezeBeforeMin === 0) return `${timeLimitMin}분 · 프리즈 없음`;
+    return `${timeLimitMin}분 · 종료 ${freezeBeforeMin}분 전 프리즈`;
+};

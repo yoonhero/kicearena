@@ -34,6 +34,7 @@ describe("exam serialization", () => {
             title: "Mock Exam",
             subtitle: "Server test",
             timeLimitSec: 1200,
+            freezeBeforeSec: 600,
             problemCount: 1,
         });
     });

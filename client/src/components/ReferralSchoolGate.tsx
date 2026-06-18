@@ -1,15 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BadgeCheck, LocateFixed, TicketCheck } from "lucide-react";
+import { BadgeCheck, LocateFixed, School, TicketCheck } from "lucide-react";
 import type { ReferralLocationVerification } from "../../../shared/campaign";
 import {
     readStoredReferralVerification,
     saveReferralVerification,
 } from "../lib/referralVerification";
-import {
-    shouldHandleDefaultSnuReferralInDev,
-    verifyDefaultSnuReferralInDev,
-} from "../lib/devReferralFallback";
+import { verifyDefaultSnuReferralInDev } from "../lib/devReferralFallback";
 import { ReferralNicknameOmr } from "./ReferralNicknameOmr";
+
+type RevealStage = "idle" | "locating" | "matched" | "issued";
 
 export function ReferralSchoolGate({
     referralCode,
@@ -27,19 +26,35 @@ export function ReferralSchoolGate({
     const [status, setStatus] = useState("");
     const [error, setError] = useState("");
     const [checking, setChecking] = useState(false);
+    const [revealStage, setRevealStage] = useState<RevealStage>(() =>
+        verification ? "issued" : "idle",
+    );
     const mountedRef = useRef(true);
+    const checkingRef = useRef(false);
+    const verifyAbortRef = useRef<AbortController | null>(null);
+    const revealTimersRef = useRef<number[]>([]);
     const distanceLabel = useMemo(() => {
         if (!verification) return "";
         return `${verification.distanceKm.toFixed(2)}km`;
     }, [verification]);
+    const clearRevealTimers = () => {
+        revealTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+        revealTimersRef.current = [];
+    };
     useEffect(
-        () => () => {
-            mountedRef.current = false;
+        () => {
+            mountedRef.current = true;
+            return () => {
+                mountedRef.current = false;
+                verifyAbortRef.current?.abort();
+                clearRevealTimers();
+            };
         },
         [],
     );
 
     const verifyLocation = async () => {
+        if (checkingRef.current) return;
         setError("");
         if (!nickname.trim()) {
             setError("성명을 먼저 정하세요.");
@@ -47,6 +62,8 @@ export function ReferralSchoolGate({
         }
         setStatus("위치 확인 중");
         setChecking(true);
+        checkingRef.current = true;
+        setRevealStage("locating");
         let timeout = 0;
         try {
             const position = await new Promise<GeolocationPosition>((resolve, reject) => {
@@ -56,21 +73,9 @@ export function ReferralSchoolGate({
                     maximumAge: 30000,
                 });
             });
-            const devFallback = verifyDefaultSnuReferralInDev(
-                referralCode,
-                position.coords.latitude,
-                position.coords.longitude,
-            );
-            if (devFallback) {
-                issueTicket(devFallback);
-                return;
-            }
-            if (shouldHandleDefaultSnuReferralInDev(referralCode)) {
-                setError("서울대학교 근처에서만 발급할 수 있습니다.");
-                setStatus("");
-                return;
-            }
+            if (!mountedRef.current) return;
             const controller = new AbortController();
+            verifyAbortRef.current = controller;
             timeout = window.setTimeout(() => controller.abort(), 10000);
             const response = await fetch("/api/campaign/referral-location-verify", {
                 method: "POST",
@@ -84,12 +89,22 @@ export function ReferralSchoolGate({
             });
             if (!mountedRef.current) return;
             if (!response.ok) {
+                const devFallback = verifyDefaultSnuReferralInDev(
+                    referralCode,
+                    position.coords.latitude,
+                    position.coords.longitude,
+                );
+                if (devFallback) {
+                    issueTicket(devFallback);
+                    return;
+                }
                 setError(
                     response.status === 403
                         ? "이 위치에서는 학교 인증을 완료할 수 없습니다."
                         : "인증 서버가 실행 중인지 확인하세요.",
                 );
                 setStatus("");
+                setRevealStage("idle");
                 return;
             }
             const nextVerification = (await response.json()) as ReferralLocationVerification;
@@ -102,22 +117,42 @@ export function ReferralSchoolGate({
                         : "브라우저 위치 권한을 허용해야 인증할 수 있습니다.",
                 );
                 setStatus("");
+                setRevealStage("idle");
             }
         } finally {
             if (timeout) window.clearTimeout(timeout);
+            verifyAbortRef.current = null;
+            checkingRef.current = false;
             if (mountedRef.current) setChecking(false);
         }
     };
 
     const issueTicket = (nextVerification: ReferralLocationVerification) => {
         const ticket = { ...nextVerification, nickname: nickname.trim() };
-        saveReferralVerification(ticket);
+        clearRevealTimers();
         setVerification(ticket);
-        setStatus("수험표 발행 완료");
-        window.setTimeout(() => {
-            if (mountedRef.current) onVerified(ticket);
-        }, 650);
+        setRevealStage("matched");
+        setStatus(`${ticket.school.name} 확인`);
+        const saveTimer = window.setTimeout(() => {
+            if (!mountedRef.current) return;
+            saveReferralVerification(ticket);
+            setRevealStage("issued");
+            setStatus("수험표 발행 완료");
+        }, 1050);
+        revealTimersRef.current = [saveTimer];
     };
+
+    const revealStepClass = (stage: RevealStage) => {
+        const stageOrder: Record<RevealStage, number> = {
+            idle: 0,
+            locating: 1,
+            matched: 2,
+            issued: 3,
+        };
+        if (revealStage === stage) return "is-active";
+        return stageOrder[revealStage] > stageOrder[stage] ? "is-complete" : "";
+    };
+    const ticketReady = verification && revealStage === "issued";
 
     return (
         <main className="referral-gate-layout">
@@ -125,23 +160,46 @@ export function ReferralSchoolGate({
                 <div className="referral-gate-head">
                     <span>
                         <BadgeCheck size={16} />
-                        응시표 발급
+                        수험표 발급
                     </span>
-                    <strong>{verification ? "발급 완료" : referralCode}</strong>
+                    <strong>{ticketReady ? "발급 완료" : referralCode}</strong>
                 </div>
 
+                {(verification || revealStage === "locating") && (
+                    <div
+                        className={`referral-reveal-meter referral-reveal-meter-${revealStage}`}
+                        aria-hidden="true"
+                    >
+                        <span className={revealStepClass("locating")}>위치 확인</span>
+                        <span className={revealStepClass("matched")}>학교 확인</span>
+                        <span className={revealStepClass("issued")}>수험표 발급</span>
+                    </div>
+                )}
+
                 {verification ? (
-                    <div className="referral-school-card">
-                        <TicketCheck size={20} />
-                        <span>{verification.school.region}</span>
-                        <strong>{verification.school.name}</strong>
-                        <em>{distanceLabel}</em>
+                    <div className={`referral-school-reveal referral-school-reveal-${revealStage}`}>
+                        <div className="referral-school-card">
+                            <School size={22} />
+                            <span>{verification.school.region}</span>
+                            <strong>{verification.school.name}</strong>
+                            <em>{distanceLabel}</em>
+                        </div>
+                        <div className="referral-ticket-stamp" aria-hidden="true">
+                            <TicketCheck size={18} />
+                            <span>{ticketReady ? "발급 완료" : "학교 확인"}</span>
+                        </div>
+                        {ticketReady && (
+                            <div className="referral-entry-brief">
+                                <span>입장 준비 완료</span>
+                                <strong>{verification.nickname} 수험표가 발급되었습니다.</strong>
+                            </div>
+                        )}
                     </div>
                 ) : (
                     <>
                         <div className="referral-gate-copy">
                             <strong>성명을 정한 뒤 학교 위치를 확인하세요.</strong>
-                            <span>인증이 끝나면 응시표가 이 기기에 저장됩니다.</span>
+                            <span>인증이 끝나면 수험표가 이 기기에 저장됩니다.</span>
                         </div>
                         <ReferralNicknameOmr nickname={nickname} setNickname={setNickname} />
                     </>
@@ -162,9 +220,10 @@ export function ReferralSchoolGate({
                         type="button"
                         className="omr-action referral-gate-action"
                         onClick={() => onVerified(verification)}
+                        disabled={!ticketReady}
                     >
                         <TicketCheck size={18} />
-                        응시표 확인
+                        {ticketReady ? "시험실 입장" : "발급 중"}
                     </button>
                 )}
                 <button type="button" className="referral-gate-exit" onClick={onExit}>

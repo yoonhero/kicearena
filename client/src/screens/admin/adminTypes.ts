@@ -15,6 +15,7 @@ export type ExamSettingsForm = {
     title: string;
     subtitle: string;
     timeLimitMin: string;
+    freezeBeforeMin: string;
     active: boolean;
     releaseAt: string;
 };

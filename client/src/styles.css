@@ -14,6 +14,7 @@
 @import "./styles/home/gym-events.css";
 @import "./styles/home/gym-invite.css";
 @import "./styles/home/gym-ticket.css";
+@import "./styles/home/admission-skeleton-ticket.css";
 @import "./styles/home/event-poster.css";
 @import "./styles/home/event-administration.css";
 @import "./styles/home/exam-reference-home.css";
@@ -43,6 +44,7 @@
 
 /* Admin screen */
 @import "./styles/admin/layout.css";
+@import "./styles/admin/overview.css";
 @import "./styles/admin/campaign.css";
 @import "./styles/admin/editor.css";
 
