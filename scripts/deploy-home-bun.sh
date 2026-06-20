@@ -194,10 +194,19 @@ PLIST
 }
 
 restart_launchd_service() {
-  local domain="gui/$(id -u)"
-  launchctl bootout "$domain" "$PLIST_PATH" >/dev/null 2>&1 || true
-  launchctl bootstrap "$domain" "$PLIST_PATH"
-  launchctl kickstart -k "${domain}/${LABEL}"
+  local uid
+  uid="$(id -u)"
+
+  for domain in "gui/${uid}" "user/${uid}"; do
+    launchctl bootout "$domain" "$PLIST_PATH" >/dev/null 2>&1 || true
+    if launchctl bootstrap "$domain" "$PLIST_PATH"; then
+      launchctl kickstart -k "${domain}/${LABEL}"
+      return 0
+    fi
+  done
+
+  echo "Failed to bootstrap launchd service in gui/${uid} or user/${uid}." >&2
+  return 1
 }
 
 wait_for_health() {
