@@ -243,6 +243,16 @@ wait_for_health() {
   return 1
 }
 
+run_smoke_checks() {
+  local port="${PORT:-${HOST_PORT:-3001}}"
+  local base_url="http://127.0.0.1:${port}"
+
+  for path in "/" "/practice" "/competition" "/login" "/api/exams" "/api/events"; do
+    curl -fsS "${base_url}${path}" >/dev/null
+    echo "Verified route: ${base_url}${path}"
+  done
+}
+
 main() {
   export PATH="${HOME}/.bun/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:${PATH}"
 
@@ -274,6 +284,7 @@ main() {
   write_launchd_plist
   restart_launchd_service
   wait_for_health
+  run_smoke_checks
 }
 
 main "$@"
