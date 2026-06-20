@@ -1,45 +1,68 @@
+import type { ReactNode } from "react";
+
 export function HomeLandingScreen({
     goContest,
-    goSignup,
+    siteNav,
 }: {
     goContest: () => void;
-    goSignup: () => void;
+    siteNav: ReactNode;
 }) {
     return (
         <main className="exam-site-layout">
             <section className="exam-landing-cover" aria-labelledby="home-title">
                 <header className="exam-reference-head">
                     <strong>제 2 교시</strong>
-                    <span>2026학년도 KICE ARENA 모의고사 안내문</span>
-                    <em>홈</em>
+                    <span>2027학년도 KICE ARENA 모의평가 문제지</span>
+                    <em>1</em>
                 </header>
                 <h1 id="home-title">수학 영역</h1>
-                <div className="exam-cover-summary">
-                    <p>
-                        KICE Arena는 정해진 시간 안에 수학 모의고사를 풀고, 제출 기록과 순위표로
-                        같은 시험실 응시자와 비교하는 대회형 풀이 서비스입니다.
-                    </p>
-                    <dl>
-                        <div>
-                            <dt>응시</dt>
-                            <dd>초대 또는 공개 대회에 입장해 문제를 풉니다.</dd>
-                        </div>
-                        <div>
-                            <dt>기록</dt>
-                            <dd>정답, 제출 시각, 순위 변동을 시험 종료 후 확인합니다.</dd>
-                        </div>
-                        <div>
-                            <dt>수험표</dt>
-                            <dd>위치 인증과 이메일 인증을 마친 계정으로 참가 자격을 보관합니다.</dd>
-                        </div>
-                    </dl>
+                {siteNav}
+                <div className="exam-paper-preview" aria-label="응시 안내">
+                    <div className="exam-choice-stamp">응시자 유의사항</div>
+                    <div className="exam-guide-sheet">
+                        <section className="exam-notice-block">
+                            <h2>대회 안내</h2>
+                            <ol>
+                                <li>
+                                    초대 또는 공개 대회에 입장하여 제한 시간 안에 문제를 풉니다.
+                                </li>
+                                <li>제출 시각과 정답 기록은 시험 종료 후 순위표에 반영됩니다.</li>
+                                <li>인증을 마친 계정만 정식 응시 기록과 수험표를 보관합니다.</li>
+                            </ol>
+                        </section>
+                        <section
+                            className="exam-handwriting-box"
+                            aria-labelledby="handwriting-title"
+                        >
+                            <h2 id="handwriting-title">필적 확인란</h2>
+                            <p>정해진 시간 안에 끝까지 풀이하겠습니다.</p>
+                        </section>
+                        <dl className="exam-entry-fields">
+                            <div>
+                                <dt>교시</dt>
+                                <dd>제 2 교시</dd>
+                            </div>
+                            <div>
+                                <dt>과목</dt>
+                                <dd>수학 영역</dd>
+                            </div>
+                            <div>
+                                <dt>입장</dt>
+                                <dd>대회 목록</dd>
+                            </div>
+                        </dl>
+                    </div>
+                </div>
+                <div className="exam-cover-footer">
+                    <span>
+                        <b>1</b>
+                        <b>1</b>
+                    </span>
+                    <em>KICE ARENA 모의고사 안내문</em>
                 </div>
                 <div className="exam-cover-actions">
                     <button type="button" className="gym-primary-action" onClick={goContest}>
-                        대회 보러가기
-                    </button>
-                    <button type="button" className="gym-secondary-action" onClick={goSignup}>
-                        수험표 만들기
+                        대회 입장하기
                     </button>
                 </div>
             </section>

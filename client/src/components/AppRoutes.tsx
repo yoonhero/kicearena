@@ -1,4 +1,5 @@
 import type { CampaignUserPublic, ReferralLocationVerification } from "../../../shared/campaign";
+import type { ReactNode } from "react";
 import type { ExamPublic, PlayerPublic, RoomPublic, GymEventSummary } from "../../../shared/game";
 import { ArenaScreen } from "../screens/ArenaScreen";
 import { AuthSignupScreen } from "../screens/AuthSignupScreen";
@@ -137,66 +138,90 @@ export function AppRoutes(props: {
 }
 
 function HomePageRoutes(props: Parameters<typeof AppRoutes>[0]) {
+    const canUseSignup = Boolean(props.referralVerification?.school?.id);
+    const canUseProfile = Boolean(props.campaignUser?.emailVerified);
+    const effectivePage =
+        (props.page === "signup" && !canUseSignup) || (props.page === "profile" && !canUseProfile)
+            ? "contest"
+            : props.page;
+    const siteNav = props.inviteMode ? null : (
+        <SiteNav page={effectivePage} setPage={props.setPage} showProfile={canUseProfile} />
+    );
+
+    if (props.inviteMode || effectivePage === "contest") {
+        return <HomeContestRoute {...props} siteNav={siteNav} />;
+    }
+    if (effectivePage === "profile" && canUseProfile) {
+        return (
+            <ProfileScreen
+                campaignUser={props.campaignUser}
+                referralVerification={props.referralVerification}
+                goSignup={() => props.setPage("signup")}
+                siteNav={siteNav}
+            />
+        );
+    }
+    if (effectivePage === "signup" && canUseSignup) {
+        return (
+            <AuthSignupScreen
+                referralVerification={props.referralVerification}
+                onRegistered={props.setCampaignUser}
+                onVerified={(user) => {
+                    props.setCampaignUser(user);
+                    props.setPage("profile");
+                }}
+                siteNav={siteNav}
+            />
+        );
+    }
+    return <HomeLandingScreen goContest={() => props.setPage("contest")} siteNav={siteNav} />;
+}
+
+function HomeContestRoute({
+    siteNav,
+    ...props
+}: Parameters<typeof AppRoutes>[0] & { siteNav: ReactNode }) {
     return (
-        <>
-            <SiteNav page={props.page} setPage={props.setPage} />
-            {props.page === "home" && !props.inviteMode && (
-                <HomeLandingScreen
-                    goContest={() => props.setPage("contest")}
-                    goSignup={() => props.setPage("signup")}
-                />
-            )}
-            {(props.page === "contest" || props.inviteMode) && (
-                <EventHomeScreen
-                    events={props.events}
-                    eventsUnavailable={props.eventsUnavailable}
-                    campaignUser={props.campaignUser}
-                    referralVerification={props.referralVerification}
-                    hasReferralVerification={props.hasReferralVerification}
-                    nickname={props.nickname}
-                    setNickname={props.setNickname}
-                    joinInviteRoom={props.joinInviteRoom}
-                    inviteMode={props.inviteMode}
-                    inviteRoomCode={props.inviteCode}
-                    joiningInvite={props.joiningInvite}
-                    exitInviteMode={props.exitInviteMode}
-                    registerForEvent={props.registerForEvent}
-                    spectateEvent={props.spectateEvent}
-                    pendingEventAction={props.pendingEventAction}
-                    error={props.error}
-                />
-            )}
-            {props.page === "profile" && !props.inviteMode && (
-                <ProfileScreen
-                    campaignUser={props.campaignUser}
-                    referralVerification={props.referralVerification}
-                    goSignup={() => props.setPage("signup")}
-                />
-            )}
-            {props.page === "signup" && !props.inviteMode && (
-                <AuthSignupScreen
-                    referralVerification={props.referralVerification}
-                    onRegistered={props.setCampaignUser}
-                    onVerified={(user) => {
-                        props.setCampaignUser(user);
-                        props.setPage("profile");
-                    }}
-                />
-            )}
-        </>
+        <EventHomeScreen
+            events={props.events}
+            eventsUnavailable={props.eventsUnavailable}
+            campaignUser={props.campaignUser}
+            referralVerification={props.referralVerification}
+            hasReferralVerification={props.hasReferralVerification}
+            nickname={props.nickname}
+            setNickname={props.setNickname}
+            joinInviteRoom={props.joinInviteRoom}
+            inviteMode={props.inviteMode}
+            inviteRoomCode={props.inviteCode}
+            joiningInvite={props.joiningInvite}
+            exitInviteMode={props.exitInviteMode}
+            registerForEvent={props.registerForEvent}
+            spectateEvent={props.spectateEvent}
+            pendingEventAction={props.pendingEventAction}
+            error={props.error}
+            siteNav={siteNav}
+        />
     );
 }
 
-function SiteNav({ page, setPage }: { page: SitePage; setPage: (page: SitePage) => void }) {
+function SiteNav({
+    page,
+    setPage,
+    showProfile,
+}: {
+    page: SitePage;
+    setPage: (page: SitePage) => void;
+    showProfile: boolean;
+}) {
+    const navItems = [
+        ["home", "홈"],
+        ["contest", "대회"],
+        ...(showProfile ? ([["profile", "프로필"]] as const) : []),
+    ] as const;
+
     return (
         <nav className="exam-site-nav" aria-label="주요 메뉴">
-            {(
-                [
-                    ["home", "홈"],
-                    ["contest", "대회"],
-                    ["profile", "프로필"],
-                ] as const
-            ).map(([target, label]) => (
+            {navItems.map(([target, label]) => (
                 <button
                     key={target}
                     type="button"

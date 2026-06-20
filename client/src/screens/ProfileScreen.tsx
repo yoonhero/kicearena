@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { CampaignUserPublic, ReferralLocationVerification } from "../../../shared/campaign";
 import { AdmissionSkeletonTicket } from "./AdmissionSkeletonTicket";
 import { SavedAdmissionTicket } from "./SavedAdmissionTicket";
@@ -6,10 +7,12 @@ export function ProfileScreen({
     campaignUser,
     referralVerification,
     goSignup,
+    siteNav,
 }: {
     campaignUser: CampaignUserPublic | null;
     referralVerification: ReferralLocationVerification | null;
     goSignup: () => void;
+    siteNav: ReactNode;
 }) {
     const hasTicket = Boolean(campaignUser || referralVerification);
     return (
@@ -21,6 +24,7 @@ export function ProfileScreen({
                     <em>{campaignUser?.emailVerified ? "이메일 확인" : "확인 필요"}</em>
                 </header>
                 <h1 id="profile-title">나의 수험표</h1>
+                {siteNav}
                 <div className="exam-profile-ticket">
                     {hasTicket ? (
                         <SavedAdmissionTicket

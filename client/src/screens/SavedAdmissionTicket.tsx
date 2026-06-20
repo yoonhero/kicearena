@@ -6,7 +6,6 @@ type AdmissionTicketData = {
     referralCode: string;
     region: string;
     schoolName: string;
-    username: string;
     verifiedAt: string;
 };
 
@@ -33,7 +32,6 @@ const readAdmissionTicketData = (
         referralCode: campaignUser?.referralCode ?? referralVerification?.referralCode ?? "",
         region: school?.region ?? "",
         schoolName: school?.name ?? "",
-        username: campaignUser?.username ?? "",
         verifiedAt: ticketVerifiedAt(referralVerification),
     };
 };
@@ -82,7 +80,6 @@ export function SavedAdmissionTicket({
                 <div className="gym-ticket-side">
                     <span>수험번호</span>
                     <strong>{ticket.referralCode}</strong>
-                    {ticket.username && <em>{ticket.username}</em>}
                 </div>
             </div>
             <p className="gym-ticket-note">이 기기에 저장된 수험표로 참가합니다.</p>

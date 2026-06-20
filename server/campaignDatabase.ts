@@ -79,6 +79,7 @@ type CampaignUserRow = {
     address: string;
     latitude: string | number | null;
     longitude: string | number | null;
+    payment_meta?: Record<string, unknown> | null;
 };
 
 const toHighSchool = (row: HighSchoolRow): HighSchool => ({
@@ -108,7 +109,10 @@ const toPublicUser = (row: CampaignUserRow): CampaignUserPublic => {
         school,
         referralCode: row.referral_code,
         referralAllowed: row.referral_allowed === true,
-        badgeLabel: schoolRepresentativeBadge(school.name),
+        badgeLabel:
+            typeof row.payment_meta?.nickname === "string" && row.payment_meta.nickname.trim()
+                ? row.payment_meta.nickname.trim()
+                : schoolRepresentativeBadge(school.name),
         marketingEmailConsent: row.marketing_email_consent === true,
     };
 };
@@ -177,7 +181,8 @@ export const readCampaignUserByUsername = async (db: CampaignDatabase, username:
     const result = await db.query<CampaignUserRow>(
         `SELECT user_account.id, user_account.username, user_account.email, user_account.email_verified_at,
             user_account.password_hash, user_account.student_status,
-            user_account.marketing_email_consent, user_account.school_id, user_account.referral_code,
+            user_account.marketing_email_consent, user_account.payment_meta,
+            user_account.school_id, user_account.referral_code,
             whitelist.referral_code IS NOT NULL AS referral_allowed,
             school.name AS school_name, school.region, school.address, school.latitude, school.longitude
      FROM campaign_users user_account
@@ -211,7 +216,8 @@ export const createCampaignUser = async (
      )
      SELECT created.id, created.username, created.email, created.email_verified_at,
             created.password_hash, created.student_status,
-            created.marketing_email_consent, created.school_id, created.referral_code,
+            created.marketing_email_consent, created.payment_meta,
+            created.school_id, created.referral_code,
             whitelist.referral_code IS NOT NULL AS referral_allowed,
             school.name AS school_name, school.region, school.address, school.latitude, school.longitude
      FROM created
@@ -257,6 +263,7 @@ export const verifyCampaignUserEmail = async (
      )
      SELECT verified.id, verified.username, verified.email, verified.email_verified_at,
             verified.password_hash, verified.student_status, verified.marketing_email_consent,
+            verified.payment_meta,
             verified.school_id, verified.referral_code,
             whitelist.referral_code IS NOT NULL AS referral_allowed,
             school.name AS school_name, school.region, school.address, school.latitude, school.longitude

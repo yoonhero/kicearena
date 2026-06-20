@@ -17,7 +17,16 @@ type PendingEventAction = { eventId: string; action: "register" | "spectate" } |
 const needsSpectatorFallback = (
     event: GymEventSummary | undefined,
     verifiedCampaignUser: CampaignUserPublic | null,
-) => event?.status !== "ended" && event?.registration !== "open" && !verifiedCampaignUser;
+) =>
+    Boolean(
+        event &&
+        !verifiedCampaignUser &&
+        (event.status !== "ended" || !isPreliminaryEvent(event)) &&
+        (event.registration !== "open" || !isPreliminaryEvent(event)),
+    );
+
+const isPreliminaryEvent = (event: Pick<GymEventSummary, "id" | "title">) =>
+    event.id === "preliminary-day" || event.title.includes("예비소집일");
 
 export function App() {
     const [inviteCode, setInviteCode] = useState(readInviteCode);

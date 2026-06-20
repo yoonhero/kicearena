@@ -1,4 +1,5 @@
 import { DoorOpen, Eye, LogIn, UserRound } from "lucide-react";
+import type { ReactNode } from "react";
 import { useEffect, useMemo } from "react";
 import type { CampaignUserPublic, ReferralLocationVerification } from "../../../shared/campaign";
 import type { GymEventSummary } from "../../../shared/game";
@@ -16,6 +17,9 @@ type EntrantState = {
     hasVerifiedAccount: boolean;
 };
 
+const isPreliminaryEvent = (event: Pick<EventDisplay, "id" | "title">) =>
+    event.id === "preliminary-day" || event.title.includes("예비소집일");
+
 export function EventHomeScreen({
     events,
     eventsUnavailable,
@@ -31,6 +35,7 @@ export function EventHomeScreen({
     exitInviteMode,
     registerForEvent,
     spectateEvent,
+    siteNav,
     pendingEventAction,
     error,
 }: {
@@ -48,6 +53,7 @@ export function EventHomeScreen({
     exitInviteMode: () => void;
     registerForEvent: (eventId: string) => Promise<void>;
     spectateEvent: (eventId: string) => Promise<void>;
+    siteNav: ReactNode;
     pendingEventAction: PendingEventAction;
     error: string;
 }) {
@@ -138,6 +144,7 @@ export function EventHomeScreen({
                 </header>
 
                 <h1 id="exam-reference-title">수학 영역</h1>
+                {siteNav}
 
                 <section
                     className="gym-event-list exam-reference-events"
@@ -200,6 +207,13 @@ function getEventAccess({
     entrantState: EntrantState;
 }): EventAccess {
     if (event.status === "ended") {
+        if (!isPreliminaryEvent(event) && !entrantState.hasVerifiedAccount) {
+            return {
+                canRegister: false,
+                canSpectate: true,
+                hint: "로그인한 응시자만 종료된 시험지를 다시 풀 수 있습니다.",
+            };
+        }
         return {
             canRegister: true,
             canSpectate: true,
@@ -207,6 +221,13 @@ function getEventAccess({
         };
     }
     if (event.registration === "open") {
+        if (!isPreliminaryEvent(event) && !entrantState.hasVerifiedAccount) {
+            return {
+                canRegister: false,
+                canSpectate: true,
+                hint: "예비소집일 외 시험 응시는 로그인 후 가능합니다.",
+            };
+        }
         return {
             canRegister: true,
             canSpectate: true,

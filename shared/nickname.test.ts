@@ -12,6 +12,10 @@ describe("nickname helpers", () => {
         expect(composeNickname("민", "재")).toBe("민재");
     });
 
+    it("composes a three-syllable referral nickname", () => {
+        expect(composeNickname("김", "수", "학")).toBe("김수학");
+    });
+
     it("composes nickname syllables from initial, medial, and final jamo", () => {
         expect(composeHangulSyllable({ initial: "ㅁ", vowel: "ㅣ", final: "ㄴ" })).toBe("민");
         expect(
@@ -37,6 +41,17 @@ describe("nickname helpers", () => {
         expect(createRandomNicknameParts(random)).toEqual([
             { initial: "ㄱ", vowel: "ㅔ", final: "ㄹ" },
             { initial: "ㄷ", vowel: "ㅐ", final: "ㄴ" },
+        ]);
+    });
+
+    it("creates three random nickname parts for referral OMR names", () => {
+        const values = [0, 0.99, 0.5, 0.25, 0.75, 0.2, 0.9, 0.1, 0.4];
+        const random = () => values.shift() ?? 0;
+
+        expect(createRandomNicknameParts(random, 3)).toEqual([
+            { initial: "ㄱ", vowel: "ㅔ", final: "ㄹ" },
+            { initial: "ㄷ", vowel: "ㅐ", final: "ㄴ" },
+            { initial: "ㅎ", vowel: "ㅏ", final: "ㄹ" },
         ]);
     });
 

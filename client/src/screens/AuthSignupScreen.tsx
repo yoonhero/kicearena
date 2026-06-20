@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { ReactNode } from "react";
 import {
     STUDENT_STATUS_LABELS,
     STUDENT_STATUSES,
@@ -7,6 +8,7 @@ import {
     type StudentStatus,
 } from "../../../shared/campaign";
 import { saveCampaignUser } from "../lib/campaignSession";
+import { ReferralNicknameOmr } from "../components/ReferralNicknameOmr";
 
 type RegisterResponse = {
     user: CampaignUserPublic;
@@ -37,25 +39,33 @@ type SignupContentProps = {
     setPrivacyAccepted: (value: boolean) => void;
     setStudentStatus: (value: StudentStatus) => void;
     setTermsAccepted: (value: boolean) => void;
-    setUsername: (value: string) => void;
+    setNickname: (value: string) => void;
     setVerificationCode: (value: string) => void;
     studentStatus: StudentStatus;
     termsAccepted: boolean;
-    username: string;
+    nickname: string;
     verificationCode: string;
     verifyEmail: () => Promise<void>;
 };
+
+const createInternalUsername = () =>
+    `u${Date.now().toString(36)}${Math.random().toString(36).slice(2, 9)}`.slice(0, 32);
+
+const trimNickname = (value: string) => Array.from(value.trim()).slice(0, 3).join("");
 
 export function AuthSignupScreen({
     referralVerification,
     onRegistered,
     onVerified,
+    siteNav,
 }: {
     referralVerification: ReferralLocationVerification | null;
     onRegistered: (user: CampaignUserPublic) => void;
     onVerified: (user: CampaignUserPublic) => void;
+    siteNav: ReactNode;
 }) {
-    const [username, setUsername] = useState(referralVerification?.nickname ?? "");
+    const [internalUsername] = useState(createInternalUsername);
+    const [nickname, setNickname] = useState(trimNickname(referralVerification?.nickname ?? ""));
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [studentStatus, setStudentStatus] = useState<StudentStatus>("g3");
@@ -74,7 +84,7 @@ export function AuthSignupScreen({
     const school = referralVerification?.school;
     const canSubmit = [
         Boolean(school?.id),
-        Boolean(username.trim()),
+        Array.from(nickname.trim()).length === 3,
         Boolean(email.trim()),
         password.length >= 8,
         termsAccepted,
@@ -90,7 +100,7 @@ export function AuthSignupScreen({
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    username,
+                    username: internalUsername,
                     email,
                     password,
                     studentStatus,
@@ -99,6 +109,7 @@ export function AuthSignupScreen({
                     termsAccepted,
                     privacyAccepted,
                     marketingEmailConsent,
+                    paymentMeta: { nickname: trimNickname(nickname) },
                 }),
             });
             if (!response.ok) throw new Error((await response.json()).error ?? "회원가입 실패");
@@ -147,6 +158,7 @@ export function AuthSignupScreen({
                     <em>{school ? school.name : "초대 필요"}</em>
                 </header>
                 <h1 id="signup-title">응시자 정보</h1>
+                {siteNav}
                 <SignupContent
                     canSubmit={canSubmit}
                     deliveryStatus={deliveryStatus}
@@ -165,11 +177,11 @@ export function AuthSignupScreen({
                     setPrivacyAccepted={setPrivacyAccepted}
                     setStudentStatus={setStudentStatus}
                     setTermsAccepted={setTermsAccepted}
-                    setUsername={setUsername}
+                    setNickname={(value) => setNickname(trimNickname(value))}
                     setVerificationCode={setVerificationCode}
                     studentStatus={studentStatus}
                     termsAccepted={termsAccepted}
-                    username={username}
+                    nickname={nickname}
                     verificationCode={verificationCode}
                     verifyEmail={verifyEmail}
                 />
@@ -221,52 +233,58 @@ function SignupFields({
     setEmail,
     setPassword,
     setStudentStatus,
-    setUsername,
+    setNickname,
     studentStatus,
-    username,
+    nickname,
 }: Pick<
     SignupContentProps,
     | "email"
+    | "nickname"
     | "password"
     | "setEmail"
+    | "setNickname"
     | "setPassword"
     | "setStudentStatus"
-    | "setUsername"
     | "studentStatus"
-    | "username"
 >) {
     return (
-        <div className="exam-auth-grid">
-            <label>
-                <span>유저네임</span>
-                <input value={username} onChange={(event) => setUsername(event.target.value)} />
-            </label>
-            <label>
-                <span>이메일</span>
-                <input value={email} onChange={(event) => setEmail(event.target.value)} />
-            </label>
-            <label>
-                <span>비밀번호</span>
-                <input
-                    type="password"
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                />
-            </label>
-            <label>
-                <span>신분</span>
-                <select
-                    value={studentStatus}
-                    onChange={(event) => setStudentStatus(event.target.value as StudentStatus)}
-                >
-                    {STUDENT_STATUSES.map((status) => (
-                        <option key={status} value={status}>
-                            {STUDENT_STATUS_LABELS[status]}
-                        </option>
-                    ))}
-                </select>
-            </label>
-        </div>
+        <>
+            <ReferralNicknameOmr
+                ariaLabel="회원가입 수험표 닉네임 OMR 입력"
+                caption="3글자 닉네임, 중복 가능"
+                className="signup-omr-name"
+                nickname={nickname}
+                setNickname={setNickname}
+                syllableCount={3}
+            />
+            <div className="exam-auth-grid">
+                <label>
+                    <span>이메일</span>
+                    <input value={email} onChange={(event) => setEmail(event.target.value)} />
+                </label>
+                <label>
+                    <span>비밀번호</span>
+                    <input
+                        type="password"
+                        value={password}
+                        onChange={(event) => setPassword(event.target.value)}
+                    />
+                </label>
+                <label>
+                    <span>신분</span>
+                    <select
+                        value={studentStatus}
+                        onChange={(event) => setStudentStatus(event.target.value as StudentStatus)}
+                    >
+                        {STUDENT_STATUSES.map((status) => (
+                            <option key={status} value={status}>
+                                {STUDENT_STATUS_LABELS[status]}
+                            </option>
+                        ))}
+                    </select>
+                </label>
+            </div>
+        </>
     );
 }
 

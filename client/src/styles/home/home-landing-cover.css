@@ -1,0 +1,232 @@
+.exam-paper-preview {
+    border-top: 2px solid rgba(18, 18, 18, 0.82);
+    padding-top: 18px;
+}
+
+.exam-choice-stamp {
+    width: fit-content;
+    min-width: 132px;
+    border: 1.5px solid rgba(18, 18, 18, 0.78);
+    background: #fffef9;
+    padding: 7px 16px;
+    color: #050505;
+    font-size: clamp(17px, 2vw, 24px);
+    font-weight: 850;
+    line-height: 1;
+    text-align: center;
+}
+
+.exam-guide-sheet {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(210px, 0.48fr);
+    gap: clamp(20px, 4vw, 36px);
+    margin-top: 22px;
+}
+
+.exam-notice-block {
+    display: grid;
+    align-content: start;
+    gap: 14px;
+    padding-right: clamp(12px, 3vw, 28px);
+    border-right: 1.5px solid rgba(18, 18, 18, 0.72);
+}
+
+.exam-guide-sheet h2 {
+    margin: 0;
+    color: #050505;
+    font-size: clamp(16px, 1.7vw, 21px);
+    font-weight: 850;
+    line-height: 1.35;
+}
+
+.exam-notice-block h2 {
+    color: rgba(18, 18, 18, 0.72);
+    font-size: 13px;
+    font-weight: 850;
+}
+
+.exam-notice-block ol {
+    display: grid;
+    gap: 12px;
+    margin: 0;
+    padding-left: 22px;
+}
+
+.exam-notice-block li,
+.exam-entry-fields dd,
+.exam-handwriting-box p {
+    margin: 0;
+    color: #1f2933;
+    font-size: clamp(14px, 1.5vw, 18px);
+    font-weight: 700;
+    line-height: 1.45;
+    word-break: keep-all;
+}
+
+.exam-handwriting-box {
+    display: grid;
+    align-content: start;
+    gap: 12px;
+    border-top: 1.5px solid rgba(18, 18, 18, 0.5);
+    border-bottom: 1.5px solid rgba(18, 18, 18, 0.5);
+    padding: 14px 0;
+}
+
+.exam-handwriting-box p {
+    min-height: 68px;
+    display: flex;
+    align-items: center;
+    border-bottom: 2px solid rgba(18, 18, 18, 0.62);
+    color: #050505;
+    font-size: clamp(16px, 1.8vw, 20px);
+    font-weight: 750;
+    line-height: 1.4;
+}
+
+.exam-entry-fields {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(0, 0.96fr) minmax(0, 0.96fr) minmax(0, 1fr);
+    margin: 2px 0 0;
+    border-top: 1.5px solid rgba(18, 18, 18, 0.68);
+    border-bottom: 1.5px solid rgba(18, 18, 18, 0.68);
+}
+
+.exam-entry-fields div {
+    display: grid;
+    grid-template-columns: 60px minmax(0, 1fr);
+    min-height: 46px;
+    border-right: 1px solid rgba(18, 18, 18, 0.24);
+}
+
+.exam-entry-fields div:last-child {
+    border-right: 0;
+}
+
+.exam-entry-fields dt,
+.exam-entry-fields dd {
+    display: grid;
+    align-items: center;
+    padding: 0 12px;
+    white-space: nowrap;
+}
+
+.exam-entry-fields dt {
+    background: rgba(251, 239, 178, 0.44);
+    color: rgba(18, 18, 18, 0.72);
+    font-size: 13px;
+    font-weight: 850;
+}
+
+.exam-cover-footer {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: end;
+    gap: 16px;
+    margin-top: 18px;
+}
+
+.exam-cover-footer span {
+    grid-column: 2;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 64px;
+    height: 28px;
+    border: 1.5px solid rgba(18, 18, 18, 0.78);
+    color: #050505;
+    font-size: 14px;
+    font-weight: 850;
+    line-height: 1;
+}
+
+.exam-cover-footer span::after {
+    content: "";
+    grid-column: 1 / -1;
+    grid-row: 1;
+    border-bottom: 1.5px solid rgba(18, 18, 18, 0.72);
+    transform: skewY(-22deg);
+    transform-origin: left center;
+}
+
+.exam-cover-footer b {
+    display: grid;
+    place-items: center;
+    font-weight: inherit;
+}
+
+.exam-cover-footer em {
+    justify-self: end;
+    color: rgba(18, 18, 18, 0.72);
+    font-size: 13px;
+    font-style: normal;
+    font-weight: 650;
+}
+
+@media (max-width: 640px) {
+    .exam-guide-sheet {
+        grid-template-columns: 1fr;
+        gap: 18px;
+        margin-top: 18px;
+    }
+
+    .exam-notice-block {
+        gap: 12px;
+        border-right: 0;
+        padding-right: 0;
+    }
+
+    .exam-notice-block ol {
+        gap: 10px;
+    }
+
+    .exam-handwriting-box {
+        gap: 10px;
+        padding: 12px 0;
+    }
+
+    .exam-handwriting-box p {
+        min-height: 50px;
+        font-size: 15px;
+    }
+
+    .exam-entry-fields {
+        grid-template-columns: 1fr;
+    }
+
+    .exam-entry-fields div {
+        border-right: 0;
+        border-bottom: 1px solid rgba(18, 18, 18, 0.18);
+    }
+
+    .exam-entry-fields div:last-child {
+        border-bottom: 0;
+    }
+
+    .exam-notice-block li,
+    .exam-entry-fields dd {
+        font-size: 13px;
+        line-height: 1.35;
+    }
+}
+
+@media (max-width: 520px) {
+    .exam-paper-preview {
+        padding-top: 16px;
+    }
+
+    .exam-cover-footer {
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 12px;
+        margin-top: 12px;
+    }
+
+    .exam-cover-footer span {
+        grid-column: 1;
+        justify-self: start;
+    }
+
+    .exam-cover-footer em {
+        justify-self: end;
+        text-align: right;
+    }
+}

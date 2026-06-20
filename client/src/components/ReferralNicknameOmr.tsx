@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { ROOM_GUARDRAILS } from "../../../shared/game";
 import {
     composeNickname,
     createRandomNicknameParts,
@@ -16,28 +15,31 @@ export function ReferralNicknameOmr({
     className = "",
     nickname,
     setNickname,
+    syllableCount = 3,
 }: {
     ariaLabel?: string;
     caption?: string;
     className?: string;
     nickname: string;
     setNickname: (nickname: string) => void;
+    syllableCount?: number;
 }) {
-    const [activeSlot, setActiveSlot] = useState<0 | 1>(0);
-    const [nameParts, setNameParts] = useState<[NicknameJamo, NicknameJamo]>(() =>
-        createRandomNicknameParts(),
+    const [activeSlot, setActiveSlot] = useState(0);
+    const [nameParts, setNameParts] = useState<NicknameJamo[]>(() =>
+        createRandomNicknameParts(undefined, syllableCount),
     );
-    const displayedName = Array.from(nickname).slice(0, 2);
+    const displayedName = Array.from(nickname).slice(0, syllableCount);
+    const activePart = nameParts[activeSlot] ?? nameParts[0];
 
     useEffect(() => {
-        if (!nickname) setNickname(composeNickname(nameParts[0], nameParts[1]));
+        if (!nickname) setNickname(composeNickname(...nameParts));
     }, []);
 
     const setNicknamePart = (kind: keyof NicknameJamo, value: string) => {
         setNameParts((previous) => {
-            const next: [NicknameJamo, NicknameJamo] = [{ ...previous[0] }, { ...previous[1] }];
-            next[activeSlot] = { ...next[activeSlot], [kind]: value };
-            setNickname(composeNickname(next[0], next[1]));
+            const next = previous.map((part) => ({ ...part }));
+            next[activeSlot] = { ...(next[activeSlot] ?? next[0]), [kind]: value };
+            setNickname(composeNickname(...next));
             return next;
         });
     };
@@ -50,7 +52,7 @@ export function ReferralNicknameOmr({
                     <span>{caption}</span>
                 </div>
                 <div className="omr-maker-cells" role="tablist" aria-label="수정할 이름 글자 선택">
-                    {[0, 1].map((index) => {
+                    {Array.from({ length: syllableCount }, (_, index) => {
                         const cellText = displayedName[index] ?? "";
                         return (
                             <button
@@ -59,7 +61,7 @@ export function ReferralNicknameOmr({
                                 className={`omr-name-cell ${activeSlot === index ? "active" : ""} ${
                                     cellText ? "" : "empty"
                                 }`}
-                                onClick={() => setActiveSlot(index as 0 | 1)}
+                                onClick={() => setActiveSlot(index)}
                                 role="tab"
                                 aria-selected={activeSlot === index}
                                 aria-label={`${index + 1}번째 글자 ${cellText || "비어 있음"} 수정`}
@@ -72,19 +74,19 @@ export function ReferralNicknameOmr({
                 <JamoRow
                     label={`${activeSlot + 1}글자 초성 선택`}
                     values={NICKNAME_INITIALS}
-                    selected={nameParts[activeSlot].initial}
+                    selected={activePart.initial}
                     onSelect={(jamo) => setNicknamePart("initial", jamo)}
                 />
                 <JamoRow
                     label={`${activeSlot + 1}글자 중성 선택`}
                     values={NICKNAME_VOWELS}
-                    selected={nameParts[activeSlot].vowel}
+                    selected={activePart.vowel}
                     onSelect={(jamo) => setNicknamePart("vowel", jamo)}
                 />
                 <JamoRow
                     label={`${activeSlot + 1}글자 종성 선택`}
                     values={NICKNAME_FINALS}
-                    selected={nameParts[activeSlot].final ?? ""}
+                    selected={activePart.final ?? ""}
                     onSelect={(jamo) => setNicknamePart("final", jamo)}
                     emptyLabel="없음"
                 />
@@ -93,8 +95,10 @@ export function ReferralNicknameOmr({
                 <span>직접 수정</span>
                 <input
                     value={nickname}
-                    maxLength={ROOM_GUARDRAILS.maxNicknameLength}
-                    onChange={(event) => setNickname(sanitizeNickname(event.target.value))}
+                    maxLength={syllableCount}
+                    onChange={(event) =>
+                        setNickname(sanitizeNickname(event.target.value, syllableCount))
+                    }
                     placeholder="닉네임"
                 />
             </label>

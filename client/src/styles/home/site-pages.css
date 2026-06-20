@@ -1,80 +1,116 @@
 .exam-site-nav {
-    position: sticky;
-    top: 0;
-    z-index: 20;
+    width: 100%;
     display: flex;
     justify-content: center;
-    gap: 8px;
-    border-bottom: 1px solid rgba(18, 18, 18, 0.18);
-    background: rgba(247, 245, 239, 0.94);
-    padding: 10px;
+    gap: 0;
+    margin: -10px auto 0;
+    border-top: 0;
+    border-bottom: 1.5px solid rgba(18, 18, 18, 0.62);
+    background: transparent;
+    padding: 0;
 }
 
 .exam-site-nav button {
-    min-height: 40px;
-    border: 1px solid rgba(18, 18, 18, 0.34);
-    border-radius: 4px;
-    background: #fffef9;
+    flex: 1;
+    min-height: 38px;
+    border: 0;
+    border-right: 1px solid rgba(18, 18, 18, 0.22);
+    border-radius: 0;
+    background: transparent;
     color: #1f2933;
-    padding: 0 16px;
+    padding: 0 clamp(14px, 3vw, 24px);
+    font-size: 15px;
     font-weight: 800;
 }
 
+.exam-site-nav button:last-child {
+    border-right: 0;
+}
+
 .exam-site-nav button.active {
-    background: #f2c94c;
+    background: linear-gradient(180deg, rgba(251, 239, 178, 0.12), rgba(251, 239, 178, 0.38));
+    box-shadow: inset 0 -2px 0 rgba(18, 18, 18, 0.72);
 }
 
 .exam-site-layout {
-    width: min(980px, calc(100vw - 32px));
-    min-height: calc(100dvh - 61px);
-    padding: 24px 0;
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 100dvh;
+    display: grid;
+    place-items: center;
+    padding: 24px 16px;
     background: #f3f3f0;
 }
 
 .exam-landing-cover,
 .exam-profile-paper,
 .exam-signup-paper {
+    box-sizing: border-box;
+    width: min(980px, 100%);
+    border: 0;
+    background: #fffef9;
+    color: #050505;
+    padding: clamp(30px, 5vw, 70px) clamp(22px, 5vw, 72px) clamp(24px, 4vw, 46px);
+}
+
+.exam-landing-cover {
+    width: min(820px, calc(100vw - 64px));
+}
+
+.exam-profile-paper,
+.exam-signup-paper {
     border: 1.5px solid rgba(18, 18, 18, 0.62);
     background:
         linear-gradient(90deg, rgba(18, 18, 18, 0.01) 0 1px, transparent 1px 23px),
         linear-gradient(180deg, rgba(18, 18, 18, 0.008) 0 1px, transparent 1px 28px), #fffef9;
+}
+
+.exam-landing-cover .exam-reference-head em {
+    border: 0;
+    padding: 0;
     color: #050505;
-    padding: clamp(22px, 4vw, 46px);
+    font-size: clamp(28px, 4vw, 44px);
+    font-weight: 850;
+    grid-column: 3;
+    grid-row: 1;
+}
+
+.exam-landing-cover .exam-reference-head {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    align-items: center;
+    column-gap: clamp(12px, 2.4vw, 28px);
+    row-gap: 6px;
+    margin-bottom: 6px;
+}
+
+.exam-landing-cover .exam-reference-head strong {
+    grid-column: 1;
+    grid-row: 2;
+}
+
+.exam-landing-cover .exam-reference-head span {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    padding-right: clamp(30px, 5vw, 54px);
 }
 
 .exam-landing-cover h1,
 .exam-profile-paper h1,
 .exam-signup-paper h1 {
-    margin: 0 0 26px;
+    margin: 0 0 22px;
     text-align: center;
     font-size: clamp(42px, 7vw, 72px);
     line-height: 1;
 }
 
-.exam-cover-summary {
-    border-top: 1.5px solid rgba(18, 18, 18, 0.58);
-    border-bottom: 1.5px solid rgba(18, 18, 18, 0.58);
-    padding: 20px 0;
-}
-
-.exam-cover-summary p {
-    max-width: 680px;
-    margin: 0 auto 22px;
-    font-size: clamp(18px, 2.4vw, 24px);
-    font-weight: 750;
-    line-height: 1.45;
-    text-align: center;
-    word-break: keep-all;
-}
-
-.exam-cover-summary dl,
 .exam-auth-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
 }
 
-.exam-cover-summary div,
 .exam-auth-grid label,
 .exam-email-verify label {
     display: grid;
@@ -84,7 +120,6 @@
     padding: 13px;
 }
 
-.exam-cover-summary dt,
 .exam-auth-grid span,
 .exam-email-verify span {
     font-size: 13px;
@@ -92,18 +127,15 @@
     color: rgba(18, 18, 18, 0.68);
 }
 
-.exam-cover-summary dd {
-    margin: 0;
-    font-size: 16px;
-    font-weight: 700;
-    line-height: 1.35;
-}
-
 .exam-cover-actions,
 .exam-email-verify {
     display: grid;
     gap: 10px;
     margin-top: 22px;
+}
+
+.exam-cover-actions .gym-primary-action {
+    min-height: 48px;
 }
 
 .exam-profile-ticket {
@@ -130,6 +162,15 @@
     font-weight: 750;
 }
 
+.signup-omr-name {
+    margin: 0 auto 18px;
+}
+
+.signup-omr-name .omr-name-maker,
+.signup-omr-name .nickname-direct-field {
+    width: min(520px, 100%);
+}
+
 .exam-consent-list {
     display: grid;
     gap: 10px;
@@ -149,12 +190,13 @@
 
 @media (max-width: 720px) {
     .exam-site-layout {
-        width: min(100vw - 14px, 560px);
-        padding: 8px 0 18px;
+        padding: 8px 7px 18px;
     }
 
     .exam-site-nav {
+        width: 100%;
         justify-content: stretch;
+        margin-top: -6px;
     }
 
     .exam-site-nav button {
@@ -162,8 +204,20 @@
         padding: 0 8px;
     }
 
-    .exam-cover-summary dl,
     .exam-auth-grid {
         grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 520px) {
+    .exam-landing-cover {
+        width: 100%;
+    }
+
+    .exam-landing-cover .exam-reference-head span {
+        padding-right: 34px;
+        font-size: 17px;
+        line-height: 1.25;
+        word-break: keep-all;
     }
 }

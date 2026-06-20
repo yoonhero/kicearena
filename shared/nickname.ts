@@ -87,23 +87,24 @@ export type NicknameJamo = {
     final?: string;
 };
 
+export type NicknameParts = [NicknameJamo, ...NicknameJamo[]];
+
 const pickRandom = <T>(values: readonly T[], random: () => number) =>
     values[Math.floor(random() * values.length)] ?? values[0];
 
+const createRandomNicknamePart = (random: () => number): NicknameJamo => ({
+    initial: pickRandom(NICKNAME_INITIALS, random),
+    vowel: pickRandom(NICKNAME_VOWELS, random),
+    final: pickRandom(NICKNAME_FINALS, random),
+});
+
 export const createRandomNicknameParts = (
     random: () => number = Math.random,
-): [NicknameJamo, NicknameJamo] => [
-    {
-        initial: pickRandom(NICKNAME_INITIALS, random),
-        vowel: pickRandom(NICKNAME_VOWELS, random),
-        final: pickRandom(NICKNAME_FINALS, random),
-    },
-    {
-        initial: pickRandom(NICKNAME_INITIALS, random),
-        vowel: pickRandom(NICKNAME_VOWELS, random),
-        final: pickRandom(NICKNAME_FINALS, random),
-    },
-];
+    syllableCount = 2,
+): NicknameParts =>
+    Array.from({ length: Math.max(1, syllableCount) }, () =>
+        createRandomNicknamePart(random),
+    ) as NicknameParts;
 
 export const sanitizeNickname = (
     value: string,
@@ -119,10 +120,12 @@ export const composeHangulSyllable = ({ initial, vowel, final = "" }: NicknameJa
     return String.fromCharCode(0xac00 + (initialIndex * 21 + vowelIndex) * 28 + finalIndex);
 };
 
-export const composeNickname = (first: string | NicknameJamo, second: string | NicknameJamo) =>
+export const composeNickname = (...parts: Array<string | NicknameJamo>) =>
     sanitizeNickname(
-        `${typeof first === "string" ? first : composeHangulSyllable(first)}${typeof second === "string" ? second : composeHangulSyllable(second)}`,
-        2,
+        parts
+            .map((part) => (typeof part === "string" ? part : composeHangulSyllable(part)))
+            .join(""),
+        parts.length,
     );
 
 export const createRandomNickname = (random: () => number = Math.random) => {

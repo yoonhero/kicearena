@@ -22,8 +22,8 @@ export function HomeNameEntry(props: {
 }) {
     const [nameEditorOpen, setNameEditorOpen] = useState(false);
     const [activeSlot, setActiveSlot] = useState<0 | 1>(0);
-    const [nameParts, setNameParts] = useState<[NicknameJamo, NicknameJamo]>(() =>
-        createRandomNicknameParts(),
+    const [nameParts, setNameParts] = useState<[NicknameJamo, NicknameJamo]>(
+        () => createRandomNicknameParts(undefined, 2) as [NicknameJamo, NicknameJamo],
     );
     const nameSlots = 2;
     const displayedName = Array.from(props.nickname).slice(0, nameSlots);

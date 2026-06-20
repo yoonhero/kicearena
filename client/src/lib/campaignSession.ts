@@ -44,6 +44,6 @@ export const saveCampaignUser = (user: CampaignUserPublic) => {
 };
 
 export const entrantNickname = (user: CampaignUserPublic) =>
-    Array.from(user.username.trim() || user.badgeLabel.trim())
+    Array.from(user.badgeLabel.trim() || user.username.trim())
         .slice(0, 6)
         .join("");
