@@ -8,6 +8,7 @@ PLIST_PATH="${HOME}/Library/LaunchAgents/${LABEL}.plist"
 RUN_DIR="${ROOT_DIR}/.deploy"
 RUNNER_PATH="${RUN_DIR}/run-home-server.sh"
 LOG_DIR="${RUN_DIR}/logs"
+PID_FILE="${RUN_DIR}/home-server.pid"
 
 usage() {
   cat <<'USAGE'
@@ -205,8 +206,22 @@ restart_launchd_service() {
     fi
   done
 
-  echo "Failed to bootstrap launchd service in gui/${uid} or user/${uid}." >&2
-  return 1
+  echo "Failed to bootstrap launchd service in gui/${uid} or user/${uid}; falling back to nohup." >&2
+  restart_nohup_service
+}
+
+restart_nohup_service() {
+  if [ -f "$PID_FILE" ]; then
+    local old_pid
+    old_pid="$(cat "$PID_FILE" 2>/dev/null || true)"
+    if [ -n "$old_pid" ] && kill -0 "$old_pid" >/dev/null 2>&1; then
+      kill "$old_pid" >/dev/null 2>&1 || true
+      sleep 1
+    fi
+  fi
+
+  nohup "$RUNNER_PATH" >> "${LOG_DIR}/home-server.out.log" 2>> "${LOG_DIR}/home-server.err.log" < /dev/null &
+  echo "$!" > "$PID_FILE"
 }
 
 wait_for_health() {
