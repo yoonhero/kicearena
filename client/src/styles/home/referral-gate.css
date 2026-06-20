@@ -78,6 +78,53 @@
     letter-spacing: 0;
 }
 
+.referral-gate-sheet h1 {
+    margin: 0;
+    font-size: clamp(1.6rem, 4vw, 2.6rem);
+    line-height: 1.08;
+    letter-spacing: 0;
+}
+
+.referral-invite-url {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 0;
+    border-top: 1.5px solid var(--line);
+    border-bottom: 1.5px solid var(--line);
+}
+
+.referral-invite-url span {
+    color: var(--muted);
+    font-size: 0.82rem;
+    font-weight: 800;
+}
+
+.referral-invite-url code {
+    overflow: hidden;
+    color: var(--line);
+    font-family: var(--font-sans);
+    font-size: 0.92rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.referral-invite-url button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 38px;
+    padding: 0 12px;
+    border: 1.5px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--paper-deep);
+    color: var(--line);
+    font-weight: 800;
+    cursor: pointer;
+}
+
 .referral-school-reveal {
     display: grid;
     gap: 14px;
@@ -260,6 +307,14 @@
 
     .referral-school-card strong {
         min-width: 0;
+    }
+
+    .referral-invite-url {
+        grid-template-columns: 1fr auto;
+    }
+
+    .referral-invite-url span {
+        grid-column: 1 / -1;
     }
 
     .referral-omr-name .omr-syllable-row {

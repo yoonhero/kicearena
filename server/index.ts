@@ -243,10 +243,7 @@ const hasValidMetricsBearerToken = (authorization: string | undefined) => {
 };
 
 const hasAdminAccess = (req: express.Request) => {
-    if (adminToken) return req.get("x-admin-token")?.trim() === adminToken;
-    return (
-        process.env.NODE_ENV !== "production" && isPrivateNetworkAddress(req.socket.remoteAddress)
-    );
+    return Boolean(adminToken && req.get("x-admin-token")?.trim() === adminToken);
 };
 
 collectDefaultMetrics({

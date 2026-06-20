@@ -8,11 +8,18 @@ import {
 } from "../../shared/game";
 import { AppLoading, AppRoutes, type SitePage } from "./components/AppRoutes";
 import { useReferralGateState } from "./hooks/useReferralGateState";
-import { getScreen, readInviteCode, readSitePage, writeClipboard } from "./lib/appFlow";
+import {
+    getScreen,
+    readInviteCode,
+    readReferralCode,
+    readSitePage,
+    writeClipboard,
+} from "./lib/appFlow";
 import { entrantNickname, readStoredCampaignUser } from "./lib/campaignSession";
-import { emitWithAck, socket } from "./lib/socket";
+import { usePracticeRoomFlow } from "./hooks/usePracticeRoomFlow";
 
 type PendingEventAction = { eventId: string; action: "register" | "spectate" } | null;
+type SocketModule = typeof import("./lib/socket");
 
 const needsSpectatorFallback = (
     event: GymEventSummary | undefined,
@@ -28,10 +35,15 @@ const needsSpectatorFallback = (
 const isPreliminaryEvent = (event: Pick<GymEventSummary, "id" | "title">) =>
     event.id === "preliminary-day" || event.title.includes("예비소집일");
 
+const emitWithAck = async <T,>(event: string, payload?: unknown) => {
+    const socketModule: SocketModule = await import("./lib/socket");
+    return socketModule.emitWithAck<T>(event, payload);
+};
+
 export function App() {
     const [inviteCode, setInviteCode] = useState(readInviteCode);
     const [page, setPageState] = useState<SitePage>(() =>
-        readInviteCode() ? "contest" : readSitePage(),
+        readInviteCode() ? "competition" : readReferralCode() ? "signup" : readSitePage(),
     );
     const [events, setEvents] = useState<GymEventSummary[]>([]);
     const [spectatorExam, setSpectatorExam] = useState<ExamPublic | null>(null);
@@ -49,6 +61,14 @@ export function App() {
     const [pendingEventAction, setPendingEventAction] = useState<PendingEventAction>(null);
     const [eventsLoaded, setEventsLoaded] = useState(false);
     const [eventsUnavailable, setEventsUnavailable] = useState(false);
+    const practiceRoom = usePracticeRoomFlow({
+        emitWithAck,
+        nickname,
+        roomCode,
+        setError,
+        setRoom,
+        setRoomCode,
+    });
 
     const resetRoomSession = useCallback((nextRoomCode = "") => {
         setRoom(null);
@@ -64,34 +84,60 @@ export function App() {
 
     const setPage = useCallback((nextPage: SitePage) => {
         setPageState(nextPage);
-        const path = nextPage === "home" ? "/" : `/${nextPage}`;
-        window.history.pushState({}, "", `${path}${window.location.search}${window.location.hash}`);
+        const path =
+            nextPage === "home" ? "/" : nextPage === "signup" ? "/profile" : `/${nextPage}`;
+        const url = new URL(window.location.href);
+        url.pathname = path;
+        if (nextPage !== "signup") url.searchParams.delete("c");
+        window.history.pushState({}, "", `${url.pathname}${url.search}${url.hash}`);
     }, []);
 
     useEffect(() => {
-        const onPopState = () => setPageState(readInviteCode() ? "contest" : readSitePage());
+        const onPopState = () =>
+            setPageState(
+                readInviteCode() ? "competition" : readReferralCode() ? "signup" : readSitePage(),
+            );
         window.addEventListener("popstate", onPopState);
         return () => window.removeEventListener("popstate", onPopState);
     }, []);
 
+    const ownPlayer = useMemo<PlayerPublic | null>(() => {
+        if (!room) return null;
+        return room.players.find((player) => player.id === ownPlayerId) ?? null;
+    }, [room, ownPlayerId]);
+
+    const screen = getScreen(room, spectatorExam, ownPlayerId);
+    const shouldLoadEvents = screen === "home" && (page === "competition" || Boolean(inviteCode));
+
     useEffect(() => {
+        if (!shouldLoadEvents || eventsLoaded) return;
+        let cancelled = false;
         fetch("/api/events")
             .then((res) => {
                 if (!res.ok) throw new Error(`events:${res.status}`);
                 return res.json();
             })
             .then((data: GymEventSummary[]) => {
+                if (cancelled) return;
                 setEvents(data);
                 setEventsUnavailable(false);
             })
             .catch((error) => {
+                if (cancelled) return;
                 setEventsUnavailable(true);
                 console.warn("Failed to load gym events", error);
             })
-            .finally(() => setEventsLoaded(true));
-    }, []);
+            .finally(() => {
+                if (!cancelled) setEventsLoaded(true);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [eventsLoaded, shouldLoadEvents]);
 
     useEffect(() => {
+        let cleanup: (() => void) | undefined;
+        let cancelled = false;
         const onRoomUpdate = (nextRoom: RoomPublic) => {
             setRoom((current) =>
                 current && current.code === nextRoom.code && current.version > nextRoom.version
@@ -103,15 +149,22 @@ export function App() {
             }
         };
         const onRoomRemoved = () => resetRoomSession("");
-        socket.on("room:update", onRoomUpdate);
-        socket.on("player:you", setOwnPlayerId);
-        socket.on("room:kicked", onRoomRemoved);
-        socket.on("room:closed", onRoomRemoved);
+        void import("./lib/socket").then(({ socket }) => {
+            if (cancelled) return;
+            socket.on("room:update", onRoomUpdate);
+            socket.on("player:you", setOwnPlayerId);
+            socket.on("room:kicked", onRoomRemoved);
+            socket.on("room:closed", onRoomRemoved);
+            cleanup = () => {
+                socket.off("room:update", onRoomUpdate);
+                socket.off("player:you", setOwnPlayerId);
+                socket.off("room:kicked", onRoomRemoved);
+                socket.off("room:closed", onRoomRemoved);
+            };
+        });
         return () => {
-            socket.off("room:update", onRoomUpdate);
-            socket.off("player:you", setOwnPlayerId);
-            socket.off("room:kicked", onRoomRemoved);
-            socket.off("room:closed", onRoomRemoved);
+            cancelled = true;
+            cleanup?.();
         };
     }, [ownPlayerId, resetRoomSession]);
 
@@ -126,12 +179,6 @@ export function App() {
         }
     }, [room?.status, room?.exam.problems]);
 
-    const ownPlayer = useMemo<PlayerPublic | null>(() => {
-        if (!room) return null;
-        return room.players.find((player) => player.id === ownPlayerId) ?? null;
-    }, [room, ownPlayerId]);
-
-    const screen = getScreen(room, spectatorExam, ownPlayerId);
     const isInviteMode = screen === "home" && Boolean(inviteCode);
     const {
         referralCode,
@@ -146,6 +193,10 @@ export function App() {
     ) => {
         completeReferralGate(verification);
         setPage("signup");
+    };
+    const exitReferralToCompetition = () => {
+        exitReferralGate();
+        setPage("competition");
     };
     const leaveRoom = async () => {
         const leavingRoom = room;
@@ -210,25 +261,11 @@ export function App() {
         }
     };
 
-    const joinRoom = async () => {
-        setError("");
-        const code = roomCode.trim().toUpperCase();
-        const response = await emitWithAck<RoomPublic>("room:join", {
-            code,
-            nickname,
-        });
-        if (!response.ok || !response.data) {
-            setError(response.error ?? "입장 실패");
-            return;
-        }
-        setRoom(response.data);
-    };
-
     const joinInviteRoom = async () => {
         if (joiningInvite) return;
         setJoiningInvite(true);
         try {
-            await joinRoom();
+            await practiceRoom.joinRoom();
         } finally {
             setJoiningInvite(false);
         }
@@ -263,14 +300,14 @@ export function App() {
         window.setTimeout(() => setCopiedLink(false), 1200);
     };
 
-    if (!eventsLoaded) {
+    if (shouldLoadEvents && !eventsLoaded) {
         return (
             <AppLoading
                 inviteCode={inviteCode}
                 needsReferralGate={needsReferralGate}
                 referralCode={referralCode}
                 completeReferralGate={completeReferralAndSignup}
-                exitReferralGate={exitReferralGate}
+                exitReferralGate={exitReferralToCompetition}
             />
         );
     }
@@ -278,12 +315,12 @@ export function App() {
     return (
         <AppRoutes
             screen={screen}
-            page={inviteCode ? "contest" : page}
+            page={inviteCode ? "competition" : page}
             setPage={setPage}
             needsReferralGate={needsReferralGate}
             referralCode={referralCode}
             completeReferralGate={completeReferralAndSignup}
-            exitReferralGate={exitReferralGate}
+            exitReferralGate={exitReferralToCompetition}
             events={events}
             eventsUnavailable={eventsUnavailable}
             campaignUser={campaignUser}
@@ -292,6 +329,19 @@ export function App() {
             hasReferralVerification={hasReferralVerification}
             nickname={nickname}
             setNickname={setNickname}
+            exams={practiceRoom.exams}
+            selectedExamId={practiceRoom.selectedExamId}
+            setSelectedExamId={practiceRoom.setSelectedExamId}
+            timeLimitMin={practiceRoom.timeLimitMin}
+            setTimeLimitMin={practiceRoom.setTimeLimitMin}
+            freezeBeforeMin={practiceRoom.freezeBeforeMin}
+            setFreezeBeforeMin={practiceRoom.setFreezeBeforeMin}
+            itemEnabled={practiceRoom.itemEnabled}
+            setItemEnabled={practiceRoom.setItemEnabled}
+            roomCode={roomCode}
+            setRoomCode={setRoomCode}
+            createRoom={practiceRoom.createRoom}
+            joinRoom={practiceRoom.joinRoom}
             joinInviteRoom={joinInviteRoom}
             inviteMode={isInviteMode}
             inviteCode={inviteCode}

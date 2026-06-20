@@ -21,6 +21,42 @@
     padding: 14px;
 }
 
+.admin-token-topbar {
+    grid-template-columns: minmax(180px, 1fr) minmax(240px, 340px) auto;
+}
+
+.admin-token-gate {
+    display: grid;
+    gap: 10px;
+    max-width: 680px;
+    margin: 16px auto 0;
+    border: 1px solid var(--admin-border);
+    background: var(--paper);
+    padding: clamp(20px, 4vw, 34px);
+}
+
+.admin-token-gate span,
+.admin-token-gate p {
+    color: var(--admin-muted);
+    font-weight: 800;
+}
+
+.admin-token-gate h1 {
+    margin: 0;
+    font-size: clamp(24px, 4vw, 38px);
+    line-height: 1.1;
+}
+
+.admin-token-gate strong {
+    color: var(--danger);
+}
+
+.admin-token-gate em {
+    color: var(--ui-accent-ink);
+    font-style: normal;
+    font-weight: 900;
+}
+
 .admin-topbar > div {
     display: grid;
     gap: 4px;

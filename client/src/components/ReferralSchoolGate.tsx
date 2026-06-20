@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BadgeCheck, LocateFixed, School, TicketCheck } from "lucide-react";
+import { BadgeCheck, Copy, LocateFixed, School, TicketCheck } from "lucide-react";
 import type { ReferralLocationVerification } from "../../../shared/campaign";
 import {
     readStoredReferralVerification,
     saveReferralVerification,
 } from "../lib/referralVerification";
+import { writeClipboard } from "../lib/appFlow";
 import { verifyDefaultSnuReferralInDev } from "../lib/devReferralFallback";
 import { ReferralNicknameOmr } from "./ReferralNicknameOmr";
 
@@ -26,6 +27,7 @@ export function ReferralSchoolGate({
     const [status, setStatus] = useState("");
     const [error, setError] = useState("");
     const [checking, setChecking] = useState(false);
+    const [copiedInviteUrl, setCopiedInviteUrl] = useState(false);
     const [revealStage, setRevealStage] = useState<RevealStage>(() =>
         verification ? "issued" : "idle",
     );
@@ -37,6 +39,14 @@ export function ReferralSchoolGate({
         if (!verification) return "";
         return `${verification.distanceKm.toFixed(2)}km`;
     }, [verification]);
+    const inviteUrl = useMemo(() => {
+        const url = new URL(window.location.href);
+        url.pathname = "/";
+        url.search = "";
+        url.hash = "";
+        url.searchParams.set("c", referralCode);
+        return url.toString();
+    }, [referralCode]);
     const clearRevealTimers = () => {
         revealTimersRef.current.forEach((timer) => window.clearTimeout(timer));
         revealTimersRef.current = [];
@@ -150,16 +160,30 @@ export function ReferralSchoolGate({
         return stageOrder[revealStage] > stageOrder[stage] ? "is-complete" : "";
     };
     const ticketReady = verification && revealStage === "issued";
+    const copyInviteUrl = async () => {
+        await writeClipboard(inviteUrl);
+        setCopiedInviteUrl(true);
+        window.setTimeout(() => setCopiedInviteUrl(false), 1200);
+    };
 
     return (
         <main className="referral-gate-layout">
-            <section className="referral-gate-sheet">
+            <section className="referral-gate-sheet" aria-labelledby="referral-gate-title">
                 <div className="referral-gate-head">
                     <span>
                         <BadgeCheck size={16} />
                         수험표 발급
                     </span>
                     <strong>{ticketReady ? "발급 완료" : referralCode}</strong>
+                </div>
+                <h1 id="referral-gate-title">초대 링크 확인</h1>
+                <div className="referral-invite-url">
+                    <span>초대 URL</span>
+                    <code>{inviteUrl}</code>
+                    <button type="button" onClick={() => void copyInviteUrl()}>
+                        <Copy size={16} />
+                        {copiedInviteUrl ? "복사됨" : "복사"}
+                    </button>
                 </div>
 
                 {(verification || revealStage === "locating") && (
@@ -220,11 +244,11 @@ export function ReferralSchoolGate({
                         disabled={!ticketReady}
                     >
                         <TicketCheck size={18} />
-                        {ticketReady ? "시험실 입장" : "발급 중"}
+                        {ticketReady ? "회원가입" : "발급 중"}
                     </button>
                 )}
                 <button type="button" className="referral-gate-exit" onClick={onExit}>
-                    관전으로 보기
+                    대회 목록 보기
                 </button>
                 {status && <p className="campaign-status">{status}</p>}
                 {error && <p className="error-text">{error}</p>}

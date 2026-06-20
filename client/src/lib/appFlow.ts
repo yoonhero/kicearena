@@ -1,20 +1,28 @@
 import type { ExamPublic, RoomPublic } from "../../../shared/game";
 import type { AppScreen, SitePage } from "../components/AppRoutes";
-import { ROOM_SESSION_KEY, socket } from "./socket";
 
 export type SavedRoomSession = {
     code: string;
     playerId: string;
 };
 
+export const ROOM_SESSION_KEY = "kice-arena:last-session";
 export const REJOIN_CONNECT_TIMEOUT_MS = 2500;
 
 export const readInviteCode = () =>
     new URLSearchParams(window.location.search).get("room")?.trim().toUpperCase() ?? "";
 
+export const readReferralCode = () =>
+    new URLSearchParams(window.location.search).get("c")?.trim().toLowerCase() ?? "";
+
 export const readSitePage = (): SitePage => {
     const path = window.location.pathname.replace(/^\/+/, "");
-    if (path === "contest" || path === "profile" || path === "signup") return path;
+    if (path === "competition" || path === "contest" || path === "compeition") {
+        return "competition";
+    }
+    if (path === "practice") return "practice";
+    if (path === "profile") return "profile";
+    if (path === "login") return "login";
     return "home";
 };
 
@@ -47,19 +55,21 @@ export const readSavedRoomSession = (): SavedRoomSession | null => {
 
 export const waitForSocketConnection = () =>
     new Promise<boolean>((resolve) => {
-        if (socket.connected) {
-            resolve(true);
-            return;
-        }
-        const timeout = window.setTimeout(() => {
-            socket.off("connect", onConnect);
-            resolve(false);
-        }, REJOIN_CONNECT_TIMEOUT_MS);
-        const onConnect = () => {
-            window.clearTimeout(timeout);
-            resolve(true);
-        };
-        socket.once("connect", onConnect);
+        void import("./socket").then(({ socket }) => {
+            if (socket.connected) {
+                resolve(true);
+                return;
+            }
+            const timeout = window.setTimeout(() => {
+                socket.off("connect", onConnect);
+                resolve(false);
+            }, REJOIN_CONNECT_TIMEOUT_MS);
+            const onConnect = () => {
+                window.clearTimeout(timeout);
+                resolve(true);
+            };
+            socket.once("connect", onConnect);
+        });
     });
 
 export const getScreen = (

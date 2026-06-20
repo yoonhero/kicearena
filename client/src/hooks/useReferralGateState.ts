@@ -1,14 +1,12 @@
 import { useState } from "react";
 import type { ReferralLocationVerification } from "../../../shared/campaign";
 import type { AppScreen } from "../components/AppRoutes";
+import { readReferralCode } from "../lib/appFlow";
 import {
     hasStoredReferralLocationVerification,
     readAnyStoredReferralVerification,
     readStoredReferralVerification,
 } from "../lib/referralVerification";
-
-const readReferralCode = () =>
-    new URLSearchParams(window.location.search).get("c")?.trim().toLowerCase() ?? "";
 
 export function useReferralGateState(screen: AppScreen) {
     const [referralCode, setReferralCode] = useState(readReferralCode);

@@ -29,7 +29,8 @@
         align-items: flex-start;
     }
 
-    .exam-head strong {
+    .exam-head strong,
+    .exam-head h1 {
         text-align: right;
     }
 }

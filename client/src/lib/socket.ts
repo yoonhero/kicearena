@@ -4,7 +4,6 @@ import type { ServerResponse } from "../../../shared/game";
 export const socket: Socket = io({
     transports: ["websocket"],
 });
-export const ROOM_SESSION_KEY = "kice-arena:last-session";
 
 const callback =
     <T>(resolve: (value: ServerResponse<T>) => void) =>

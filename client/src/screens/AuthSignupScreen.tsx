@@ -7,8 +7,9 @@ import {
     type ReferralLocationVerification,
     type StudentStatus,
 } from "../../../shared/campaign";
-import { saveCampaignUser } from "../lib/campaignSession";
+import { AuthEmailVerificationStep } from "./AuthEmailVerificationStep";
 import { ReferralNicknameOmr } from "../components/ReferralNicknameOmr";
+import { saveCampaignUser } from "../lib/campaignSession";
 
 type RegisterResponse = {
     user: CampaignUserPublic;
@@ -28,6 +29,7 @@ type SignupContentProps = {
     email: string;
     hasSchool: boolean;
     marketingEmailConsent: boolean;
+    nickname: string;
     password: string;
     pending: boolean;
     privacyAccepted: boolean;
@@ -35,23 +37,22 @@ type SignupContentProps = {
     register: () => Promise<void>;
     setEmail: (value: string) => void;
     setMarketingEmailConsent: (value: boolean) => void;
+    setNickname: (value: string) => void;
     setPassword: (value: string) => void;
     setPrivacyAccepted: (value: boolean) => void;
     setStudentStatus: (value: StudentStatus) => void;
     setTermsAccepted: (value: boolean) => void;
-    setNickname: (value: string) => void;
+    setUsername: (value: string) => void;
     setVerificationCode: (value: string) => void;
     studentStatus: StudentStatus;
     termsAccepted: boolean;
-    nickname: string;
+    username: string;
     verificationCode: string;
     verifyEmail: () => Promise<void>;
 };
 
-const createInternalUsername = () =>
-    `u${Date.now().toString(36)}${Math.random().toString(36).slice(2, 9)}`.slice(0, 32);
-
 const trimNickname = (value: string) => Array.from(value.trim()).slice(0, 3).join("");
+const isValidAccountId = (value: string) => /^[a-z0-9._-]{3,32}$/.test(value);
 
 export function AuthSignupScreen({
     referralVerification,
@@ -64,8 +65,8 @@ export function AuthSignupScreen({
     onVerified: (user: CampaignUserPublic) => void;
     siteNav: ReactNode;
 }) {
-    const [internalUsername] = useState(createInternalUsername);
     const [nickname, setNickname] = useState(trimNickname(referralVerification?.nickname ?? ""));
+    const [username, setUsername] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [studentStatus, setStudentStatus] = useState<StudentStatus>("g3");
@@ -84,6 +85,7 @@ export function AuthSignupScreen({
     const school = referralVerification?.school;
     const canSubmit = [
         Boolean(school?.id),
+        isValidAccountId(username),
         Array.from(nickname.trim()).length === 3,
         Boolean(email.trim()),
         password.length >= 8,
@@ -100,7 +102,7 @@ export function AuthSignupScreen({
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    username: internalUsername,
+                    username,
                     email,
                     password,
                     studentStatus,
@@ -159,6 +161,11 @@ export function AuthSignupScreen({
                 </header>
                 <h1 id="signup-title">응시자 정보</h1>
                 {siteNav}
+                <div className="exam-signup-step" aria-label="수험표 발급 단계">
+                    <span>수험표 발급</span>
+                    <i />
+                    <strong>원서 접수</strong>
+                </div>
                 <SignupContent
                     canSubmit={canSubmit}
                     deliveryStatus={deliveryStatus}
@@ -166,6 +173,7 @@ export function AuthSignupScreen({
                     email={email}
                     hasSchool={Boolean(school)}
                     marketingEmailConsent={marketingEmailConsent}
+                    nickname={nickname}
                     password={password}
                     pending={pending}
                     privacyAccepted={privacyAccepted}
@@ -173,15 +181,16 @@ export function AuthSignupScreen({
                     register={register}
                     setEmail={setEmail}
                     setMarketingEmailConsent={setMarketingEmailConsent}
+                    setNickname={setNickname}
                     setPassword={setPassword}
                     setPrivacyAccepted={setPrivacyAccepted}
                     setStudentStatus={setStudentStatus}
                     setTermsAccepted={setTermsAccepted}
-                    setNickname={(value) => setNickname(trimNickname(value))}
+                    setUsername={setUsername}
                     setVerificationCode={setVerificationCode}
                     studentStatus={studentStatus}
                     termsAccepted={termsAccepted}
-                    nickname={nickname}
+                    username={username}
                     verificationCode={verificationCode}
                     verifyEmail={verifyEmail}
                 />
@@ -201,7 +210,7 @@ function SignupContent(props: SignupContentProps) {
     }
     if (props.registeredUser) {
         return (
-            <EmailVerificationStep
+            <AuthEmailVerificationStep
                 deliveryStatus={props.deliveryStatus}
                 devCode={props.devCode}
                 pending={props.pending}
@@ -212,30 +221,37 @@ function SignupContent(props: SignupContentProps) {
         );
     }
     return (
-        <>
+        <form
+            className="exam-auth-form"
+            onSubmit={(event) => {
+                event.preventDefault();
+                void props.register();
+            }}
+        >
             <SignupFields {...props} />
             <ConsentList {...props} />
             <button
-                type="button"
+                type="submit"
                 className="gym-primary-action"
-                onClick={() => void props.register()}
                 disabled={!props.canSubmit || props.pending}
             >
                 {props.pending ? "접수 중" : "회원가입"}
             </button>
-        </>
+        </form>
     );
 }
 
 function SignupFields({
     email,
+    nickname,
     password,
     setEmail,
+    setNickname,
     setPassword,
     setStudentStatus,
-    setNickname,
+    setUsername,
     studentStatus,
-    nickname,
+    username,
 }: Pick<
     SignupContentProps,
     | "email"
@@ -245,7 +261,9 @@ function SignupFields({
     | "setNickname"
     | "setPassword"
     | "setStudentStatus"
+    | "setUsername"
     | "studentStatus"
+    | "username"
 >) {
     return (
         <>
@@ -259,12 +277,27 @@ function SignupFields({
             />
             <div className="exam-auth-grid">
                 <label>
+                    <span>아이디</span>
+                    <input
+                        autoComplete="username"
+                        inputMode="email"
+                        value={username}
+                        onChange={(event) => setUsername(event.target.value.toLowerCase())}
+                        placeholder="letters.number"
+                    />
+                </label>
+                <label>
                     <span>이메일</span>
-                    <input value={email} onChange={(event) => setEmail(event.target.value)} />
+                    <input
+                        autoComplete="email"
+                        value={email}
+                        onChange={(event) => setEmail(event.target.value)}
+                    />
                 </label>
                 <label>
                     <span>비밀번호</span>
                     <input
+                        autoComplete="new-password"
                         type="password"
                         value={password}
                         onChange={(event) => setPassword(event.target.value)}
@@ -338,55 +371,4 @@ function ConsentList({
             </label>
         </div>
     );
-}
-
-function EmailVerificationStep({
-    deliveryStatus,
-    devCode,
-    pending,
-    setVerificationCode,
-    verificationCode,
-    verifyEmail,
-}: Pick<
-    SignupContentProps,
-    | "deliveryStatus"
-    | "devCode"
-    | "pending"
-    | "setVerificationCode"
-    | "verificationCode"
-    | "verifyEmail"
->) {
-    return (
-        <div className="exam-email-verify">
-            <label>
-                <span>이메일 인증 코드</span>
-                <input
-                    inputMode="numeric"
-                    value={verificationCode}
-                    onChange={(event) => setVerificationCode(event.target.value)}
-                />
-            </label>
-            <EmailDeliveryNotice deliveryStatus={deliveryStatus} />
-            {devCode && <p>개발 인증 코드: {devCode}</p>}
-            <button
-                type="button"
-                className="gym-primary-action"
-                onClick={() => void verifyEmail()}
-                disabled={verificationCode.length < 6 || pending}
-            >
-                {pending ? "확인 중" : "이메일 인증"}
-            </button>
-        </div>
-    );
-}
-
-function EmailDeliveryNotice({ deliveryStatus }: Pick<SignupContentProps, "deliveryStatus">) {
-    if (deliveryStatus === "sent") return <p>인증 코드를 이메일로 보냈습니다.</p>;
-    if (deliveryStatus === "failed") {
-        return <p>메일 발송에 실패했습니다. 운영자에게 발송 설정을 확인해야 합니다.</p>;
-    }
-    if (deliveryStatus === "not-configured") {
-        return <p>메일 발송 provider가 아직 연결되지 않았습니다.</p>;
-    }
-    return null;
 }

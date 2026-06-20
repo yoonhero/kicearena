@@ -1,4 +1,5 @@
 import katex from "katex";
+import "katex/dist/katex.min.css";
 import { memo, useMemo } from "react";
 
 const MAX_MATH_CACHE_ENTRIES = 300;

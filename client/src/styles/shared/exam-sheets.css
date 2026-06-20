@@ -62,8 +62,12 @@
     font-size: 14px;
 }
 
-.exam-head strong {
+.exam-head strong,
+.exam-head h1 {
+    margin: 0;
     font-size: clamp(18px, 2.4vw, 28px);
+    line-height: 1.1;
+    letter-spacing: 0;
 }
 
 .cover-head strong {

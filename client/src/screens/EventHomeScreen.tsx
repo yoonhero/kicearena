@@ -58,6 +58,10 @@ export function EventHomeScreen({
     error: string;
 }) {
     const displayEvents = useMemo(() => makeEventDisplays(events), [events]);
+    const indexEvents = useMemo(
+        () => makeIndexEvents(displayEvents, eventsUnavailable),
+        [displayEvents, eventsUnavailable],
+    );
     const entrantState = {
         hasReferralVerification,
         hasVerifiedAccount: campaignUser?.emailVerified === true,
@@ -65,7 +69,6 @@ export function EventHomeScreen({
     const nextEvent = displayEvents[0];
     const scheduleCountLabel = eventsUnavailable ? "확인 대기" : `${displayEvents.length}건`;
     const hasDisplayEvents = displayEvents.length > 0;
-    const indexEvents = makeIndexEvents(displayEvents, eventsUnavailable);
     useEffect(() => {
         if (inviteMode && !nickname.trim() && referralVerification?.nickname?.trim()) {
             setNickname(referralVerification.nickname);
@@ -82,7 +85,7 @@ export function EventHomeScreen({
                         <em>초대 시험실</em>
                     </header>
 
-                    <h1 id="invite-reference-title">수학 영역</h1>
+                    <h1 id="invite-reference-title">초대 시험실</h1>
 
                     <section
                         className="gym-event-list exam-reference-events"
@@ -151,7 +154,7 @@ export function EventHomeScreen({
                     aria-label="응시 가능한 시험"
                 >
                     <div className="gym-section-label">
-                        <span>시험 시간표</span>
+                        <span>공개 대회</span>
                         <strong>{scheduleCountLabel}</strong>
                     </div>
                     {hasDisplayEvents ? (
@@ -175,10 +178,10 @@ export function EventHomeScreen({
                     )}
                 </section>
 
-                <section className="exam-reference-index" aria-label="시험지 확인">
-                    <p>※ 시험 목록은 현재 공개 상태를 요약한 보조 확인란입니다.</p>
+                <section className="exam-reference-index" aria-label="대회 상태 요약">
+                    <p>※ 공개 상태와 입장 가능 여부를 확인합니다.</p>
                     <div className="exam-index-row">
-                        <span>시험 목록</span>
+                        <span>대회 목록</span>
                         <i />
                         <strong>{scheduleCountLabel}</strong>
                     </div>
@@ -279,6 +282,7 @@ function EventRow({
     const pendingThisEvent = pendingEventAction?.eventId === event.id;
     const access = getEventAccess({ event, entrantState });
     const actionLocked = Boolean(pendingEventAction);
+    const registerLabel = eventRegisterLabel(event, pendingThisEvent, pendingEventAction);
 
     return (
         <article
@@ -288,8 +292,8 @@ function EventRow({
         >
             <div className="gym-event-main">
                 <span className={`gym-event-status ${event.status}`}>{event.statusLabel}</span>
-                <h2>{event.title}</h2>
-                <p>{event.subtitle}</p>
+                <h2>{event.displayTitle}</h2>
+                <p>{event.displaySubtitle}</p>
             </div>
             <div className="gym-event-actions">
                 {access.canRegister && (
@@ -300,13 +304,7 @@ function EventRow({
                         disabled={actionLocked}
                     >
                         <UserRound size={18} />
-                        {pendingThisEvent && pendingEventAction?.action === "register"
-                            ? "응시 중"
-                            : event.status === "ended"
-                              ? "문제 풀어보기"
-                              : event.registration === "open"
-                                ? "예비소집일 응시"
-                                : "시험 응시"}
+                        {registerLabel}
                     </button>
                 )}
                 {access.canSpectate && (
@@ -347,4 +345,15 @@ function EventRow({
             </dl>
         </article>
     );
+}
+
+function eventRegisterLabel(
+    event: EventDisplay,
+    pendingThisEvent: boolean,
+    pendingEventAction: PendingEventAction,
+) {
+    if (pendingThisEvent && pendingEventAction?.action === "register") return "응시 중";
+    if (event.status === "ended") return "문제 풀어보기";
+    if (event.registration !== "open") return "시험 응시";
+    return event.status === "open" ? "지금 응시하기" : "대기실 입장";
 }

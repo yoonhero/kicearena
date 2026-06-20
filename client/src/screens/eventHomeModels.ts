@@ -1,6 +1,8 @@
 import type { GymEventSummary } from "../../../shared/game";
 
 export type EventDisplay = GymEventSummary & {
+    displaySubtitle: string;
+    displayTitle: string;
     startLabel: string;
     statusLabel: string;
     durationLabel: string;
@@ -14,6 +16,8 @@ export type IndexDisplay = {
 export const makeEventDisplays = (events: GymEventSummary[]): EventDisplay[] =>
     events.map((event) => ({
         ...event,
+        displaySubtitle: displayEventSubtitle(event),
+        displayTitle: displayEventTitle(event),
         startLabel: formatEventStart(event.startsAt),
         statusLabel:
             event.status === "upcoming" ? "예정" : event.status === "ended" ? "종료" : "공개",
@@ -31,7 +35,7 @@ export const makeIndexEvents = (
 ): IndexDisplay[] => {
     if (displayEvents.length > 0) {
         return displayEvents.slice(0, 3).map((event) => ({
-            title: event.title,
+            title: event.displayTitle,
             detail: `${event.statusLabel} · ${event.startLabel}`,
         }));
     }
@@ -61,4 +65,22 @@ const formatEventStart = (startsAt: string | null) => {
         hour: "2-digit",
         minute: "2-digit",
     });
+};
+
+const weakSubtitlePatterns = [/^안녕/i, /^반갑/i, /^hello/i, /^test$/i, /^테스트$/i];
+
+const displayEventTitle = (event: GymEventSummary) => {
+    const title = event.title.trim();
+    if (title.length >= 2) return title;
+    return event.status === "ended" ? "종료된 모의고사" : "공개 모의고사";
+};
+
+const displayEventSubtitle = (event: GymEventSummary) => {
+    const subtitle = event.subtitle.trim();
+    if (subtitle.length >= 6 && !weakSubtitlePatterns.some((pattern) => pattern.test(subtitle))) {
+        return subtitle;
+    }
+    return event.status === "ended"
+        ? "최종 순위와 개인 풀이를 확인합니다."
+        : "정해진 시간 안에 응시하고 기록을 확인합니다.";
 };

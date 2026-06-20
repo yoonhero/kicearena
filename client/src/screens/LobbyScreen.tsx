@@ -270,10 +270,10 @@ export function LobbyScreen({
     return (
         <main className="lobby-layout">
             <section className="exam-sheet lobby-sheet">
-                <div className="exam-head">
+                <header className="exam-head">
                     <span>입실 확인</span>
-                    <strong>{room.exam.title}</strong>
-                </div>
+                    <h1>{room.exam.title}</h1>
+                </header>
                 <div className="room-code">
                     <span>시험실 코드</span>
                     <button

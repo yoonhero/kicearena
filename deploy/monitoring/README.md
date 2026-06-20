@@ -16,23 +16,26 @@ Prometheus scrape config. Keep the app endpoint reachable only over a private
 network or through a reverse proxy that restricts `/metrics` to trusted private
 or Prometheus source ranges.
 
-The integrated `docker-compose.yml` mounts `./secrets/kice-arena-metrics-token`
-as a Docker secret for both the app and Prometheus when `METRICS_TOKEN_FILE` is
-set. Without that override, it uses the committed development token at
-`deploy/monitoring/kice-arena-metrics-token.default` so a fresh clone can start
-with only `docker compose up`.
+The current home-server deploy runs the app directly on macOS Bun and only keeps
+Postgres/Redis in Docker. In that mode, set `METRICS_BEARER_TOKEN` in the root
+`.env`; do not start the bundled Prometheus/Grafana stack until its scrape
+target is changed from the old Docker gateway to the host app.
 
-The app reads the token through `METRICS_BEARER_TOKEN_FILE`, while Prometheus
-reads the same secret from `/run/secrets/kice_arena_metrics_token`.
+The integrated Docker monitoring stack below is archived for the previous
+blue/green Docker gateway deployment and for a later cloud/runtime migration.
+It mounts `./secrets/kice-arena-metrics-token` as a Docker secret for both the
+app and Prometheus when `METRICS_TOKEN_FILE` is set. Without that override, it
+uses the committed development token at
+`deploy/monitoring/kice-arena-metrics-token.default`.
 
-For the bundled home-server stack, run:
+For the archived bundled Docker stack, run:
 
 ```bash
 docker compose up -d
 ```
 
-That starts the app, Prometheus, Alertmanager, the Discord alert bridge, and
-Grafana. It also starts Prometheus exporters for Postgres and Redis. The
+That starts the Docker app, Prometheus, Alertmanager, the Discord alert bridge,
+and Grafana. It also starts Prometheus exporters for Postgres and Redis. The
 bundled `prometheus.yml` already loads the scrape jobs, Alertmanager target,
 and rule file:
 
@@ -138,8 +141,9 @@ docker compose up -d
 ```
 
 When deploying through GitHub Actions, set `DISCORD_WEBHOOK_URL` as a
-GitHub secret instead of editing `.env` by hand. The deploy workflow writes the
-remote `.env` file before running Docker Compose.
+GitHub secret instead of editing `.env` by hand. The current host-Bun deploy
+workflow writes the remote `.env` file, but it does not start this bundled
+Docker monitoring stack.
 
 Optional Alertmanager webhook example:
 

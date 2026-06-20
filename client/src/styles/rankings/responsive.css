@@ -105,11 +105,7 @@
     }
 
     .scoreboard-state-strip {
-        grid-template-columns: minmax(0, 1fr);
-    }
-
-    .scoreboard-state-strip span {
-        justify-content: flex-start;
+        display: none;
     }
 
     .problem-range-tabs button {

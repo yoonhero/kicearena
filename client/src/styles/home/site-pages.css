@@ -10,8 +10,11 @@
     padding: 0;
 }
 
-.exam-site-nav button {
+.exam-site-nav a {
     flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     min-height: 38px;
     border: 0;
     border-right: 1px solid rgba(18, 18, 18, 0.22);
@@ -21,13 +24,14 @@
     padding: 0 clamp(14px, 3vw, 24px);
     font-size: 15px;
     font-weight: 800;
+    text-decoration: none;
 }
 
-.exam-site-nav button:last-child {
+.exam-site-nav a:last-child {
     border-right: 0;
 }
 
-.exam-site-nav button.active {
+.exam-site-nav a.active {
     background: linear-gradient(180deg, rgba(251, 239, 178, 0.12), rgba(251, 239, 178, 0.38));
     box-shadow: inset 0 -2px 0 rgba(18, 18, 18, 0.72);
 }
@@ -44,6 +48,7 @@
 
 .exam-landing-cover,
 .exam-profile-paper,
+.exam-login-paper,
 .exam-signup-paper {
     box-sizing: border-box;
     width: min(980px, 100%);
@@ -58,6 +63,7 @@
 }
 
 .exam-profile-paper,
+.exam-login-paper,
 .exam-signup-paper {
     border: 1.5px solid rgba(18, 18, 18, 0.62);
     background:
@@ -98,6 +104,7 @@
 
 .exam-landing-cover h1,
 .exam-profile-paper h1,
+.exam-login-paper h1,
 .exam-signup-paper h1 {
     margin: 0 0 22px;
     text-align: center;
@@ -128,6 +135,7 @@
 }
 
 .exam-cover-actions,
+.exam-auth-form,
 .exam-email-verify {
     display: grid;
     gap: 10px;
@@ -141,6 +149,47 @@
 .exam-profile-ticket {
     max-width: 520px;
     margin: 0 auto 18px;
+}
+
+.exam-signup-step {
+    display: grid;
+    grid-template-columns: auto minmax(20px, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    margin: -12px 0 22px;
+    color: rgba(18, 18, 18, 0.68);
+    font-size: 13px;
+    font-weight: 900;
+}
+
+.exam-signup-step i {
+    height: 1px;
+    background: rgba(18, 18, 18, 0.24);
+}
+
+.exam-signup-step strong {
+    color: #6d5800;
+}
+
+.exam-profile-actions {
+    display: grid;
+    max-width: 520px;
+    margin: 0 auto 18px;
+}
+
+.exam-profile-ticket .gym-omr-block,
+.exam-profile-ticket .gym-admission-slip {
+    margin-top: 0;
+}
+
+.exam-profile-ticket .admission-skeleton-ticket {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+}
+
+.exam-profile-ticket .admission-skeleton-note {
+    grid-template-columns: 74px minmax(0, 1fr);
+    width: 100%;
 }
 
 .exam-auth-notice,
@@ -164,11 +213,20 @@
 
 .signup-omr-name {
     margin: 0 auto 18px;
+    display: grid;
+    gap: 12px;
 }
 
 .signup-omr-name .omr-name-maker,
 .signup-omr-name .nickname-direct-field {
     width: min(520px, 100%);
+}
+
+.signup-omr-name .nickname-direct-field {
+    border: 0;
+    border-top: 1px solid rgba(18, 18, 18, 0.2);
+    background: transparent;
+    padding: 12px 0 0;
 }
 
 .exam-consent-list {
@@ -199,7 +257,7 @@
         margin-top: -6px;
     }
 
-    .exam-site-nav button {
+    .exam-site-nav a {
         flex: 1;
         padding: 0 8px;
     }

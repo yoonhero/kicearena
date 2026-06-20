@@ -1,10 +1,10 @@
 import type { ReactNode } from "react";
 
 export function HomeLandingScreen({
-    goContest,
+    goCompetition,
     siteNav,
 }: {
-    goContest: () => void;
+    goCompetition: () => void;
     siteNav: ReactNode;
 }) {
     return (
@@ -61,7 +61,7 @@ export function HomeLandingScreen({
                     <em>KICE ARENA 모의고사 안내문</em>
                 </div>
                 <div className="exam-cover-actions">
-                    <button type="button" className="gym-primary-action" onClick={goContest}>
+                    <button type="button" className="gym-primary-action" onClick={goCompetition}>
                         대회 입장하기
                     </button>
                 </div>

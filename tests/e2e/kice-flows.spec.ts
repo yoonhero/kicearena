@@ -32,22 +32,27 @@ async function composeNickname(page: Page, nickname = "민재") {
     }
 }
 
+async function selectPreliminaryExam(page: Page) {
+    await page.getByRole("radio", { name: /예비소집일/ }).click();
+}
+
 async function createRoom(page: Page, nickname = "민재") {
-    await page.goto("/");
+    await page.goto("/practice");
     await composeNickname(page, nickname);
+    await selectPreliminaryExam(page);
     await expect(page.getByLabel("직접 수정")).toHaveValue(nickname);
-    await page.getByRole("button", { name: "방 열기" }).click();
-    await expect(page.getByText("입실 현황")).toBeVisible();
+    await page.getByRole("button", { name: "시험실 만들기" }).click();
+    await expect(page.getByRole("heading", { name: "응시자 확인" })).toBeVisible();
     return (await page.locator(".room-code button").first().innerText()).replace(/[^A-Z0-9]/g, "");
 }
 
 async function joinRoom(page: Page, roomCode: string, nickname: string) {
-    await page.goto("/");
+    await page.goto("/practice");
     await page.getByLabel("직접 수정").fill(nickname);
-    await page.getByRole("tab", { name: "기존 방 입장" }).click();
+    await page.getByRole("tab", { name: "시험실 입장" }).click();
     await page.getByPlaceholder("ABCDE").fill(roomCode);
     await page.locator(".join-panel").getByRole("button", { name: "입장" }).click();
-    await expect(page.getByText("입실 현황")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "응시자 확인" })).toBeVisible();
 }
 
 const emitSocketAck = <T>(socket: Socket, event: string, payload: unknown) =>
@@ -87,7 +92,7 @@ test("host can kick from lobby and nicknames support composer plus manual fallba
     await page.getByLabel("손님 추방").click();
 
     await expect(page.getByText("손님")).toHaveCount(0);
-    await expect(guest.getByRole("tab", { name: "방 생성" })).toBeVisible();
+    await expect(guest.getByRole("tab", { name: "시험실 만들기" })).toBeVisible();
 
     await guestContext.close();
 });
@@ -102,23 +107,24 @@ test("guest can leave a lobby without staying in the roster", async ({ browser, 
     await expect(page.getByText("나감")).toBeVisible();
     await guest.getByRole("button", { name: "나가기" }).click();
 
-    await expect(guest.getByRole("tab", { name: "방 생성" })).toBeVisible();
+    await expect(guest.getByRole("tab", { name: "시험실 만들기" })).toBeVisible();
     await expect(page.getByText("나감")).toHaveCount(0);
 
     await guestContext.close();
 });
 
 test("solver exposes problem movement, rankings, and one-cell freeze reveal", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/practice");
     await composeNickname(page, "도진");
-    await page.getByRole("button", { name: "세부 설정" }).click();
+    await selectPreliminaryExam(page);
+    await page.getByRole("button", { name: "시간 직접 조정" }).click();
     await page.getByLabel("시험 시간", { exact: true }).fill("5");
     await expect(page.getByLabel("프리즈 시작")).toHaveValue("0");
-    await page.getByRole("button", { name: "방 열기" }).click();
-    await expect(page.getByText("입실 현황")).toBeVisible();
+    await page.getByRole("button", { name: "시험실 만들기" }).click();
+    await expect(page.getByRole("heading", { name: "응시자 확인" })).toBeVisible();
 
-    await page.getByRole("button", { name: "타종" }).click();
-    await expect(page.getByRole("button", { name: "순위표 보기" })).toBeVisible();
+    await page.getByRole("button", { name: "시험 시작" }).click();
+    await expect(page.getByRole("button", { name: "순위표" })).toBeVisible();
 
     await page.getByRole("button", { name: "다음 문제" }).click();
     await expect(page.getByText("2번")).toBeVisible();
@@ -142,7 +148,7 @@ test("solver exposes problem movement, rankings, and one-cell freeze reveal", as
     await page.keyboard.press("r");
     await expect(page.getByRole("heading", { name: "순위표" })).toBeVisible();
     await page.keyboard.press("r");
-    await expect(page.getByRole("button", { name: "순위표 보기" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "순위표" })).toBeVisible();
 
     await page.setViewportSize({ width: 390, height: 760 });
     await page.getByRole("button", { name: "시험 종료" }).click();
@@ -190,13 +196,14 @@ test("solver exposes problem movement, rankings, and one-cell freeze reveal", as
 test("host can queue rapid reveal presses without losing steps or showing rate-limit errors", async ({
     page,
 }) => {
-    await page.goto("/");
+    await page.goto("/practice");
     await composeNickname(page, "도진");
-    await page.getByRole("button", { name: "세부 설정" }).click();
+    await selectPreliminaryExam(page);
+    await page.getByRole("button", { name: "시간 직접 조정" }).click();
     await page.getByLabel("시험 시간", { exact: true }).fill("5");
     await expect(page.getByLabel("프리즈 시작")).toHaveValue("0");
-    await page.getByRole("button", { name: "방 열기" }).click();
-    await expect(page.getByText("입실 현황")).toBeVisible();
+    await page.getByRole("button", { name: "시험실 만들기" }).click();
+    await expect(page.getByRole("heading", { name: "응시자 확인" })).toBeVisible();
     const roomCode = (await page.locator(".room-code button").first().innerText()).replace(
         /[^A-Z0-9]/g,
         "",
@@ -205,8 +212,8 @@ test("host can queue rapid reveal presses without losing steps or showing rate-l
     const guest = await connectReadyGuest(roomCode, "연타");
     try {
         await expect(page.getByText("2/60명")).toBeVisible();
-        await page.getByRole("button", { name: "타종" }).click();
-        await expect(page.getByRole("button", { name: "순위표 보기" })).toBeVisible();
+        await page.getByRole("button", { name: "시험 시작" }).click();
+        await expect(page.getByRole("button", { name: "순위표" })).toBeVisible();
 
         await submitSocketAnswer(guest, "pre-004", "1");
         await submitSocketAnswer(guest, "pre-004", PRELIMINARY_ANSWERS.get("pre-004")!);
@@ -235,14 +242,15 @@ test("host can queue rapid reveal presses without losing steps or showing rate-l
 });
 
 test("mobile solver controls do not overlap the problem or answer choices", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/practice");
     await composeNickname(page, "도진");
-    await page.getByRole("button", { name: "방 열기" }).click();
-    await expect(page.getByText("입실 현황")).toBeVisible();
+    await selectPreliminaryExam(page);
+    await page.getByRole("button", { name: "시험실 만들기" }).click();
+    await expect(page.getByRole("heading", { name: "응시자 확인" })).toBeVisible();
 
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.getByRole("button", { name: "타종" }).click();
-    await expect(page.getByRole("button", { name: "순위표 보기" })).toBeVisible();
+    await page.getByRole("button", { name: "시험 시작" }).click();
+    await expect(page.getByRole("button", { name: "순위표" })).toBeVisible();
     await page.getByRole("button", { name: "다음 문제" }).click();
     await expect(page.locator(".problem-focus-head strong")).toContainText("2번");
 
@@ -290,14 +298,15 @@ test("mobile solver controls do not overlap the problem or answer choices", asyn
 });
 
 test("mobile rankings keep the scoreboard visible above the fold", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/practice");
     await composeNickname(page, "도진");
-    await page.getByRole("button", { name: "방 열기" }).click();
-    await expect(page.getByText("입실 현황")).toBeVisible();
+    await selectPreliminaryExam(page);
+    await page.getByRole("button", { name: "시험실 만들기" }).click();
+    await expect(page.getByRole("heading", { name: "응시자 확인" })).toBeVisible();
 
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.getByRole("button", { name: "타종" }).click();
-    await page.getByRole("button", { name: "순위표 보기" }).click();
+    await page.getByRole("button", { name: "시험 시작" }).click();
+    await page.getByRole("button", { name: "순위표" }).click();
     await expect(page.getByRole("heading", { name: "순위표" })).toBeVisible();
 
     const boardMetrics = await page.locator(".domjudge-board").evaluate((board) => {

@@ -8,13 +8,16 @@ export function ProfileScreen({
     referralVerification,
     goSignup,
     siteNav,
+    goCompetition,
 }: {
     campaignUser: CampaignUserPublic | null;
     referralVerification: ReferralLocationVerification | null;
     goSignup: () => void;
     siteNav: ReactNode;
+    goCompetition: () => void;
 }) {
     const hasTicket = Boolean(campaignUser || referralVerification);
+    const canContinueSignup = Boolean(referralVerification && !campaignUser?.emailVerified);
     return (
         <main className="exam-site-layout">
             <section className="exam-profile-paper" aria-labelledby="profile-title">
@@ -25,6 +28,13 @@ export function ProfileScreen({
                 </header>
                 <h1 id="profile-title">나의 수험표</h1>
                 {siteNav}
+                {canContinueSignup && (
+                    <div className="exam-profile-actions">
+                        <button type="button" className="gym-primary-action" onClick={goSignup}>
+                            회원가입 계속
+                        </button>
+                    </div>
+                )}
                 <div className="exam-profile-ticket">
                     {hasTicket ? (
                         <SavedAdmissionTicket
@@ -37,13 +47,19 @@ export function ProfileScreen({
                             referralVerification={referralVerification}
                         />
                     ) : (
-                        <AdmissionSkeletonTicket note="초대 링크에서 위치 인증 후 회원가입을 완료하면 수험표가 저장됩니다." />
+                        <AdmissionSkeletonTicket note="위치 인증 후 수험표를 발급할 수 있습니다." />
                     )}
                 </div>
-                {!campaignUser?.emailVerified && (
-                    <button type="button" className="gym-primary-action" onClick={goSignup}>
-                        회원가입 계속하기
-                    </button>
+                {!hasTicket && (
+                    <div className="exam-profile-actions">
+                        <button
+                            type="button"
+                            className="gym-secondary-action"
+                            onClick={goCompetition}
+                        >
+                            대회 목록 보기
+                        </button>
+                    </div>
                 )}
             </section>
         </main>
