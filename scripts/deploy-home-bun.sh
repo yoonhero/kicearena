@@ -45,6 +45,22 @@ require_command() {
   fi
 }
 
+ensure_bun() {
+  if command -v bun >/dev/null 2>&1; then
+    return 0
+  fi
+
+  echo "Bun is not installed for this deploy user. Installing Bun..."
+  curl -fsSL https://bun.sh/install | bash
+  export BUN_INSTALL="${HOME}/.bun"
+  export PATH="${BUN_INSTALL}/bin:${PATH}"
+
+  if ! command -v bun >/dev/null 2>&1; then
+    echo "Bun install completed but bun is still not on PATH." >&2
+    exit 1
+  fi
+}
+
 ensure_docker() {
   if [ "${KICE_DOCKER_BACKEND:-}" = "colima" ]; then
     require_command colima
@@ -207,9 +223,9 @@ main() {
   export PATH="${HOME}/.bun/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:${PATH}"
 
   require_command git
-  require_command bun
-  require_command docker
   require_command curl
+  ensure_bun
+  require_command docker
   require_command launchctl
 
   validate_branch
