@@ -204,6 +204,8 @@ wait_for_health() {
 }
 
 main() {
+  export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:${PATH}"
+
   require_command git
   require_command bun
   require_command docker
@@ -215,7 +217,6 @@ main() {
   sync_branch
   load_env_file
 
-  export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:${PATH}"
   export NODE_ENV=production
   export PORT="${PORT:-${HOST_PORT:-3001}}"
   export DATABASE_URL="${DATABASE_URL:-$(default_database_url)}"
