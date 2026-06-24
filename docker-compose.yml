@@ -163,7 +163,7 @@ services:
             - --storage.tsdb.path=/prometheus
             - --web.enable-lifecycle
         volumes:
-            - ./deploy/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+            - ${PROMETHEUS_CONFIG:-./deploy/monitoring/prometheus.yml}:/etc/prometheus/prometheus.yml:ro
             - ./deploy/monitoring/rules:/etc/prometheus/rules:ro
             - prometheus-data:/prometheus
         ports:
@@ -171,8 +171,6 @@ services:
         secrets:
             - kice_arena_metrics_token
         depends_on:
-            kice-arena-gateway:
-                condition: service_healthy
             postgres-exporter:
                 condition: service_started
             redis-exporter:

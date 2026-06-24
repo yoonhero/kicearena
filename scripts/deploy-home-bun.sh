@@ -9,6 +9,7 @@ RUN_DIR="${ROOT_DIR}/.deploy"
 RUNNER_PATH="${RUN_DIR}/run-home-server.sh"
 LOG_DIR="${RUN_DIR}/logs"
 PID_FILE="${RUN_DIR}/home-server.pid"
+SUPERVISOR_FILE="${RUN_DIR}/home-server-supervisor"
 
 usage() {
   cat <<'USAGE'
@@ -136,7 +137,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-    export PATH="${HOME}/.bun/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+export PATH="${HOME}/.bun/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 
 if [ -f "${ROOT_DIR}/.env" ]; then
   set -a
@@ -197,11 +198,13 @@ PLIST
 restart_launchd_service() {
   local uid
   uid="$(id -u)"
+  stop_nohup_service
 
   for domain in "gui/${uid}" "user/${uid}"; do
     launchctl bootout "$domain" "$PLIST_PATH" >/dev/null 2>&1 || true
     if launchctl bootstrap "$domain" "$PLIST_PATH"; then
       launchctl kickstart -k "${domain}/${LABEL}"
+      echo "launchd:${domain}/${LABEL}" > "$SUPERVISOR_FILE"
       return 0
     fi
   done
@@ -210,18 +213,34 @@ restart_launchd_service() {
   restart_nohup_service
 }
 
-restart_nohup_service() {
+stop_nohup_service() {
   if [ -f "$PID_FILE" ]; then
     local old_pid
     old_pid="$(cat "$PID_FILE" 2>/dev/null || true)"
     if [ -n "$old_pid" ] && kill -0 "$old_pid" >/dev/null 2>&1; then
       kill "$old_pid" >/dev/null 2>&1 || true
       sleep 1
+      if kill -0 "$old_pid" >/dev/null 2>&1; then
+        kill -TERM "$old_pid" >/dev/null 2>&1 || true
+        sleep 1
+      fi
     fi
+    rm -f "$PID_FILE"
   fi
+}
 
+restart_nohup_service() {
+  stop_nohup_service
   nohup "$RUNNER_PATH" >> "${LOG_DIR}/home-server.out.log" 2>> "${LOG_DIR}/home-server.err.log" < /dev/null &
-  echo "$!" > "$PID_FILE"
+  local new_pid="$!"
+  echo "$new_pid" > "$PID_FILE"
+  echo "nohup:${new_pid}" > "$SUPERVISOR_FILE"
+  sleep 1
+  if ! kill -0 "$new_pid" >/dev/null 2>&1; then
+    echo "nohup fallback process exited before healthcheck; refusing to validate a stale listener." >&2
+    tail -n 120 "${LOG_DIR}/home-server.err.log" 2>/dev/null || true
+    return 1
+  fi
 }
 
 wait_for_health() {
@@ -251,6 +270,12 @@ run_smoke_checks() {
     curl -fsS "${base_url}${path}" >/dev/null
     echo "Verified route: ${base_url}${path}"
   done
+}
+
+report_supervisor() {
+  if [ -f "$SUPERVISOR_FILE" ]; then
+    echo "Home server supervisor: $(cat "$SUPERVISOR_FILE")"
+  fi
 }
 
 main() {
@@ -285,6 +310,7 @@ main() {
   restart_launchd_service
   wait_for_health
   run_smoke_checks
+  report_supervisor
 }
 
 main "$@"

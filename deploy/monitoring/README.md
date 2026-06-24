@@ -18,8 +18,16 @@ or Prometheus source ranges.
 
 The current home-server deploy runs the app directly on macOS Bun and only keeps
 Postgres/Redis in Docker. In that mode, set `METRICS_BEARER_TOKEN` in the root
-`.env`; do not start the bundled Prometheus/Grafana stack until its scrape
-target is changed from the old Docker gateway to the host app.
+`.env` and start monitoring with the host-Bun Prometheus config:
+
+```bash
+PROMETHEUS_CONFIG=./deploy/monitoring/prometheus-host-bun.yml docker compose up -d \
+  postgres redis postgres-exporter redis-exporter alertmanager alertmanager-discord prometheus grafana
+```
+
+That config scrapes `host.docker.internal:3001`, which is the macOS Docker path
+back to the host Bun app. Use the default `prometheus.yml` only with the archived
+Docker gateway runtime.
 
 The integrated Docker monitoring stack below is archived for the previous
 blue/green Docker gateway deployment and for a later cloud/runtime migration.
@@ -28,7 +36,7 @@ app and Prometheus when `METRICS_TOKEN_FILE` is set. Without that override, it
 uses the committed development token at
 `deploy/monitoring/kice-arena-metrics-token.default`.
 
-For the archived bundled Docker stack, run:
+For the archived bundled Docker app/gateway stack, run:
 
 ```bash
 docker compose up -d
