@@ -106,6 +106,13 @@ default_redis_url() {
   printf 'redis://127.0.0.1:%s' "$port"
 }
 
+run_step() {
+  local label="$1"
+  shift
+  printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$label"
+  "$@"
+}
+
 validate_branch() {
   if [ -z "$BRANCH" ]; then
     return 0
@@ -299,11 +306,11 @@ main() {
 
   ensure_docker
   docker compose stop kice-arena kice-arena-blue kice-arena-green kice-arena-gateway kice-arena-seed >/dev/null 2>&1 || true
-  docker compose up -d postgres redis
+  run_step "Starting Postgres and Redis" docker compose up -d postgres redis
 
-  bun install --frozen-lockfile
-  bun run build
-  bun run db:seed
+  run_step "Installing dependencies" bun install --frozen-lockfile
+  run_step "Building production assets" bun run build
+  run_step "Seeding exam catalog" bun run db:seed
 
   write_runner
   write_launchd_plist
