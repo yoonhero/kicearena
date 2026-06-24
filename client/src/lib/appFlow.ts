@@ -1,5 +1,6 @@
 import type { ExamPublic, RoomPublic } from "../../../shared/game";
-import type { AppScreen, SitePage } from "../components/AppRoutes";
+import type { AppScreen } from "./appRouteTypes";
+import { sitePageFromPath, type SitePage } from "./siteRoutes";
 
 export type SavedRoomSession = {
     code: string;
@@ -16,14 +17,7 @@ export const readReferralCode = () =>
     new URLSearchParams(window.location.search).get("c")?.trim().toLowerCase() ?? "";
 
 export const readSitePage = (): SitePage => {
-    const path = window.location.pathname.replace(/^\/+/, "");
-    if (path === "competition" || path === "contest" || path === "compeition") {
-        return "competition";
-    }
-    if (path === "practice") return "practice";
-    if (path === "profile") return "profile";
-    if (path === "login") return "login";
-    return "home";
+    return sitePageFromPath(window.location.pathname);
 };
 
 export const writeClipboard = async (text: string) => {

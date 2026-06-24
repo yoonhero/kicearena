@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { ReferralLocationVerification } from "../../../shared/campaign";
-import type { AppScreen } from "../components/AppRoutes";
+import type { AppScreen } from "../lib/appRouteTypes";
 import { readReferralCode } from "../lib/appFlow";
 import {
     hasStoredReferralLocationVerification,

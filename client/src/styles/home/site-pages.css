@@ -1,3 +1,12 @@
+.exam-site-layout,
+.exam-reference-layout {
+    --exam-page-bg: #f3f3f0;
+    --exam-page-paper: #fffef9;
+    --exam-page-ink: #050505;
+    --exam-page-line: rgba(18, 18, 18, 0.62);
+    --exam-page-width: 980px;
+}
+
 .exam-site-nav {
     width: 100%;
     display: flex;
@@ -43,7 +52,7 @@
     display: grid;
     place-items: center;
     padding: 24px 16px;
-    background: #f3f3f0;
+    background: var(--exam-page-bg);
 }
 
 .exam-landing-cover,
@@ -53,8 +62,8 @@
     box-sizing: border-box;
     width: min(980px, 100%);
     border: 0;
-    background: #fffef9;
-    color: #050505;
+    background: var(--exam-page-paper);
+    color: var(--exam-page-ink);
     padding: clamp(30px, 5vw, 70px) clamp(22px, 5vw, 72px) clamp(24px, 4vw, 46px);
 }
 
@@ -65,10 +74,11 @@
 .exam-profile-paper,
 .exam-login-paper,
 .exam-signup-paper {
-    border: 1.5px solid rgba(18, 18, 18, 0.62);
+    border: 1.5px solid var(--exam-page-line);
     background:
         linear-gradient(90deg, rgba(18, 18, 18, 0.01) 0 1px, transparent 1px 23px),
-        linear-gradient(180deg, rgba(18, 18, 18, 0.008) 0 1px, transparent 1px 28px), #fffef9;
+        linear-gradient(180deg, rgba(18, 18, 18, 0.008) 0 1px, transparent 1px 28px),
+        var(--exam-page-paper);
 }
 
 .exam-landing-cover .exam-reference-head em {
@@ -209,6 +219,15 @@
     color: #1f2933;
     font: inherit;
     font-weight: 750;
+}
+
+.exam-auth-grid input:focus-visible,
+.exam-auth-grid select:focus-visible,
+.exam-email-verify input:focus-visible {
+    outline: 2px solid var(--ui-accent-base);
+    outline-offset: 2px;
+    border-bottom-color: var(--line);
+    background: var(--ui-accent-soft);
 }
 
 .signup-omr-name {

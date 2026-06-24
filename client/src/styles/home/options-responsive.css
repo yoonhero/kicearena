@@ -47,10 +47,10 @@
     }
 
     .quick-preset {
-        min-height: 48px;
-        border: 0;
-        border-bottom: 1px solid rgba(18, 18, 18, 0.18);
-        padding: 7px 5px;
+        min-height: 62px;
+        border: 1px solid rgba(18, 18, 18, 0.14);
+        border-bottom: 2px solid rgba(18, 18, 18, 0.24);
+        padding: 7px 6px;
         touch-action: manipulation;
     }
 
@@ -59,18 +59,22 @@
     }
 
     .quick-preset strong {
-        font-size: 12px;
+        font-size: 11px;
     }
 
     .preset-mini-head {
         display: grid;
         gap: 2px;
-        justify-items: center;
+        justify-items: start;
     }
 
     .preset-mini-head em {
         font-size: 9px;
-        white-space: normal;
+        white-space: nowrap;
+    }
+
+    .preset-mini-track {
+        height: 16px;
     }
 
     .room-option-grid {

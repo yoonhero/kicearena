@@ -6,7 +6,7 @@ import {
     type PlayerPublic,
     type RoomPublic,
 } from "../../shared/game";
-import { AppLoading, AppRoutes, type SitePage } from "./components/AppRoutes";
+import { AppLoading, AppRoutes } from "./components/AppRoutes";
 import { useReferralGateState } from "./hooks/useReferralGateState";
 import {
     getScreen,
@@ -16,6 +16,7 @@ import {
     writeClipboard,
 } from "./lib/appFlow";
 import { entrantNickname, readStoredCampaignUser } from "./lib/campaignSession";
+import { sitePathForPage, type SitePage } from "./lib/siteRoutes";
 import { usePracticeRoomFlow } from "./hooks/usePracticeRoomFlow";
 
 type PendingEventAction = { eventId: string; action: "register" | "spectate" } | null;
@@ -84,8 +85,7 @@ export function App() {
 
     const setPage = useCallback((nextPage: SitePage) => {
         setPageState(nextPage);
-        const path =
-            nextPage === "home" ? "/" : nextPage === "signup" ? "/profile" : `/${nextPage}`;
+        const path = sitePathForPage(nextPage);
         const url = new URL(window.location.href);
         url.pathname = path;
         if (nextPage !== "signup") url.searchParams.delete("c");

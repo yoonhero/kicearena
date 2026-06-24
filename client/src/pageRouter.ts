@@ -1,20 +1,12 @@
+import { isEnabledSitePath, normalizeRoutePath } from "./lib/siteRoutes";
+
 export type PageRoute = "app" | "admin" | "admin-campaign" | "not-found";
 
-const normalizePathname = (pathname: string) => {
-    const normalized = pathname.replace(/\/+$/, "");
-    return normalized || "/";
-};
-
 export const getPageRoute = (pathname: string): PageRoute => {
-    switch (normalizePathname(pathname)) {
-        case "/":
-        case "/competition":
-        case "/compeition":
-        case "/contest":
-        case "/practice":
-        case "/profile":
-        case "/login":
-            return "app";
+    const normalized = normalizeRoutePath(pathname);
+    if (isEnabledSitePath(normalized)) return "app";
+
+    switch (normalized) {
         case "/admin":
             return "admin";
         case "/admin/campaign":
