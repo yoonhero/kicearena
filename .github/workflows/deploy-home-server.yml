@@ -22,6 +22,19 @@ jobs:
         environment: production
 
         steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Build deploy artifact
+              run: |
+                  set -euo pipefail
+                  curl -fsSL https://bun.sh/install | bash
+                  export BUN_INSTALL="$HOME/.bun"
+                  export PATH="$BUN_INSTALL/bin:$PATH"
+                  bun install --frozen-lockfile
+                  bun run build
+                  tar -czf /tmp/kice-dist.tgz dist
+
             - name: Prepare SSH key
               env:
                   DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
@@ -124,7 +137,7 @@ jobs:
                     -o ServerAliveInterval=30 \
                     -o ServerAliveCountMax=10 \
                     "$DEPLOY_USER@$DEPLOY_HOST" \
-                    "mkdir -p $Q_DEPLOY_PATH && cat > $Q_DEPLOY_PATH/.env" < "$ENV_FILE"
+                    "mkdir -p $Q_DEPLOY_PATH/.deploy && cat > $Q_DEPLOY_PATH/.env" < "$ENV_FILE"
 
                   ssh \
                     -i ~/.ssh/deploy_key \
@@ -136,4 +149,16 @@ jobs:
                     -o ServerAliveInterval=30 \
                     -o ServerAliveCountMax=10 \
                     "$DEPLOY_USER@$DEPLOY_HOST" \
-                    "cd $Q_DEPLOY_PATH && git fetch --prune origin && git checkout $Q_BRANCH && git pull --ff-only origin $Q_BRANCH && bash scripts/deploy-home-bun.sh"
+                    "cat > $Q_DEPLOY_PATH/.deploy/dist.tgz" < /tmp/kice-dist.tgz
+
+                  ssh \
+                    -i ~/.ssh/deploy_key \
+                    -p 222 \
+                    -o IdentitiesOnly=yes \
+                    -o PreferredAuthentications=publickey \
+                    -o PasswordAuthentication=no \
+                    -o StrictHostKeyChecking=yes \
+                    -o ServerAliveInterval=30 \
+                    -o ServerAliveCountMax=10 \
+                    "$DEPLOY_USER@$DEPLOY_HOST" \
+                    "cd $Q_DEPLOY_PATH && git fetch --prune origin && git checkout $Q_BRANCH && git pull --ff-only origin $Q_BRANCH && rm -rf dist && tar -xzf .deploy/dist.tgz && KICE_SKIP_BUILD=1 bash scripts/deploy-home-bun.sh"

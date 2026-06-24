@@ -329,7 +329,11 @@ main() {
   run_step "Starting Postgres and Redis" docker compose up -d postgres redis
 
   run_step "Installing dependencies" bun install --frozen-lockfile
-  run_step_with_heartbeat "Building production assets" bun run build
+  if [ "${KICE_SKIP_BUILD:-}" = "1" ]; then
+    run_step "Using prebuilt production assets" test -d dist/client
+  else
+    run_step_with_heartbeat "Building production assets" bun run build
+  fi
   run_step "Seeding exam catalog" bun run db:seed
 
   write_runner
