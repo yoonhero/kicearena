@@ -113,6 +113,26 @@ run_step() {
   "$@"
 }
 
+run_step_with_heartbeat() {
+  local label="$1"
+  shift
+  printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$label"
+
+  set +e
+  "$@" &
+  local command_pid="$!"
+  while kill -0 "$command_pid" >/dev/null 2>&1; do
+    sleep 30
+    if kill -0 "$command_pid" >/dev/null 2>&1; then
+      printf '[%s] Still running: %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$label"
+    fi
+  done
+  wait "$command_pid"
+  local status="$?"
+  set -e
+  return "$status"
+}
+
 validate_branch() {
   if [ -z "$BRANCH" ]; then
     return 0
@@ -309,7 +329,7 @@ main() {
   run_step "Starting Postgres and Redis" docker compose up -d postgres redis
 
   run_step "Installing dependencies" bun install --frozen-lockfile
-  run_step "Building production assets" bun run build
+  run_step_with_heartbeat "Building production assets" bun run build
   run_step "Seeding exam catalog" bun run db:seed
 
   write_runner

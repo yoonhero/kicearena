@@ -121,6 +121,8 @@ jobs:
                     -o PreferredAuthentications=publickey \
                     -o PasswordAuthentication=no \
                     -o StrictHostKeyChecking=yes \
+                    -o ServerAliveInterval=30 \
+                    -o ServerAliveCountMax=10 \
                     "$DEPLOY_USER@$DEPLOY_HOST" \
                     "mkdir -p $Q_DEPLOY_PATH && cat > $Q_DEPLOY_PATH/.env" < "$ENV_FILE"
 
@@ -131,5 +133,7 @@ jobs:
                     -o PreferredAuthentications=publickey \
                     -o PasswordAuthentication=no \
                     -o StrictHostKeyChecking=yes \
+                    -o ServerAliveInterval=30 \
+                    -o ServerAliveCountMax=10 \
                     "$DEPLOY_USER@$DEPLOY_HOST" \
                     "cd $Q_DEPLOY_PATH && git fetch --prune origin && git checkout $Q_BRANCH && git pull --ff-only origin $Q_BRANCH && bash scripts/deploy-home-bun.sh"
