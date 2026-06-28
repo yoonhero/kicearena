@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+    <title id="title">KICE Arena scoreboard grid favicon option</title>
+    <desc id="desc">Competitive ranking grid with one highlighted active row and live result cells.</desc>
+    <rect width="64" height="64" rx="8" fill="#fffef9" />
+    <rect x="9" y="12" width="46" height="40" fill="#ffffff" stroke="#111111" stroke-width="4" />
+    <path d="M9 24h46M9 36h46M9 48h46M22 12v40M36 12v40" stroke="#111111" stroke-width="3" />
+    <rect x="11" y="26" width="42" height="8" fill="#fbefb2" />
+    <rect x="38" y="14" width="15" height="8" fill="#31c46b" />
+    <rect x="38" y="38" width="15" height="8" fill="#e8c93a" />
+    <path d="M14 18h5M14 30h5M14 42h5" stroke="#111111" stroke-width="3" stroke-linecap="square" />
+</svg>

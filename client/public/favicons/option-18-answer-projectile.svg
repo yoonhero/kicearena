@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+    <title id="title">KICE Arena answer projectile favicon option</title>
+    <desc id="desc">An active OMR answer launching into a math expression target.</desc>
+    <rect width="64" height="64" rx="8" fill="#fffef9" />
+    <rect x="8" y="9" width="48" height="46" fill="#ffffff" stroke="#111111" stroke-width="3.5" />
+    <circle cx="19" cy="44" r="6" fill="#e8c93a" stroke="#111111" stroke-width="3.5" />
+    <circle cx="34" cy="44" r="6" fill="none" stroke="#111111" stroke-width="3.5" />
+    <path d="M25 39l21-18" stroke="#e8c93a" stroke-width="6" stroke-linecap="square" />
+    <path d="M29 37l17-14" stroke="#111111" stroke-width="2.5" stroke-linecap="square" />
+    <path d="M43 17h10M43 25h10M48 12v18" stroke="#111111" stroke-width="3.2" stroke-linecap="square" />
+    <path d="M15 19h20M15 27h14" stroke="#121212" stroke-width="2.5" stroke-linecap="square" opacity=".45" />
+</svg>
