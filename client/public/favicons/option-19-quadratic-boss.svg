@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+    <title id="title">KICE Arena quadratic boss favicon option</title>
+    <desc id="desc">A small solver facing a dominant quadratic parabola with a marked vertex.</desc>
+    <rect width="64" height="64" rx="8" fill="#fffef9" />
+    <rect x="8" y="8" width="48" height="48" fill="#ffffff" stroke="#111111" stroke-width="3.5" />
+    <path d="M29 49h24M33 52V16" stroke="#111111" stroke-width="3" stroke-linecap="square" />
+    <path d="M31 48c5-28 15-28 21 0" fill="none" stroke="#111111" stroke-width="7" stroke-linecap="square" />
+    <path d="M31 48c5-28 15-28 21 0" fill="none" stroke="#e8c93a" stroke-width="3.5" stroke-linecap="square" />
+    <circle cx="42" cy="25" r="4" fill="#ffffff" stroke="#111111" stroke-width="3" />
+    <circle cx="17" cy="35" r="5" fill="#e8c93a" stroke="#111111" stroke-width="3" />
+    <path d="M17 40v12M17 44l8-4M17 52l-6 5M18 52l7 5" stroke="#111111" stroke-width="4" stroke-linecap="square" />
+</svg>

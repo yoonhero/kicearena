@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+    <title id="title">KICE Arena reveal rank sheet favicon option</title>
+    <desc id="desc">Final score reveal sheet with ranking movement and yellow winner row.</desc>
+    <rect width="64" height="64" rx="8" fill="#fffef9" />
+    <rect x="8" y="10" width="48" height="44" fill="#ffffff" stroke="#111111" stroke-width="4" />
+    <path d="M8 23h48M8 36h48M8 49h48M25 10v44" stroke="#111111" stroke-width="3" />
+    <rect x="10" y="25" width="44" height="9" fill="#fbefb2" />
+    <path d="M15 30h5M15 43h5M31 17h15M31 30h15M31 43h15" stroke="#111111" stroke-width="3" stroke-linecap="square" />
+    <path d="M48 44V31h-6l8-10 8 10h-6v13z" fill="#e8c93a" stroke="#111111" stroke-width="2.5" stroke-linejoin="round" />
+</svg>

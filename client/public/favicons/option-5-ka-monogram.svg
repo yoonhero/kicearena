@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+    <title id="title">KICE Arena KA monogram favicon option</title>
+    <desc id="desc">Compact KA monogram on exam paper with a yellow administration underline.</desc>
+    <rect width="64" height="64" rx="8" fill="#fffef9" />
+    <rect x="8" y="8" width="48" height="48" fill="none" stroke="#111111" stroke-width="4" />
+    <path d="M15 45h34" stroke="#e8c93a" stroke-width="7" stroke-linecap="square" />
+    <path d="M17 43V19h6v9l8-9h7L28 31l11 12h-8l-8-9v9z" fill="#111111" />
+    <path d="M36 43l8-24h7l8 24h-6l-1.4-5H44l-1.4 5zm9.3-10h5l-2.5-9z" fill="#111111" />
+</svg>

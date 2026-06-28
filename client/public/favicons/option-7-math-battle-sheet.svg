@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+    <title id="title">KICE Arena math battle sheet favicon option</title>
+    <desc id="desc">Math problem sheet with a highlighted answer race marker.</desc>
+    <rect width="64" height="64" rx="8" fill="#fffef9" />
+    <rect x="8" y="9" width="48" height="46" fill="#ffffff" stroke="#111111" stroke-width="4" />
+    <path d="M16 22h32M16 43h32" stroke="#121212" stroke-width="2.5" stroke-linecap="square" opacity=".45" />
+    <path d="M18 34l7-12h5l-7 12h7l-3 8" fill="none" stroke="#111111" stroke-width="4" stroke-linecap="square" stroke-linejoin="miter" />
+    <path d="M38 24h9M38 32h9" stroke="#111111" stroke-width="4" stroke-linecap="square" />
+    <rect x="36" y="38" width="15" height="10" fill="#e8c93a" stroke="#111111" stroke-width="3" />
+</svg>

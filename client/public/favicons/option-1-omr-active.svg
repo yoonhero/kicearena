@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+    <title id="title">KICE Arena OMR active cell favicon option</title>
+    <desc id="desc">Exam-paper square with four answer bubbles and one active yellow OMR mark.</desc>
+    <rect width="64" height="64" rx="8" fill="#fffef9" />
+    <rect x="8" y="8" width="48" height="48" rx="4" fill="none" stroke="#111111" stroke-width="4" />
+    <path d="M18 18h28M18 46h28" stroke="#121212" stroke-width="2.5" stroke-linecap="square" opacity=".42" />
+    <circle cx="24" cy="28" r="6" fill="none" stroke="#111111" stroke-width="4" />
+    <circle cx="40" cy="28" r="6" fill="#e8c93a" stroke="#111111" stroke-width="4" />
+    <circle cx="24" cy="40" r="6" fill="none" stroke="#111111" stroke-width="4" />
+    <circle cx="40" cy="40" r="6" fill="none" stroke="#111111" stroke-width="4" />
+</svg>

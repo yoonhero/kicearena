@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+    <title id="title">KICE Arena coordinate duel favicon option</title>
+    <desc id="desc">A solver racing across coordinate axes against a rising parabola.</desc>
+    <rect width="64" height="64" rx="8" fill="#fffef9" />
+    <rect x="8" y="8" width="48" height="48" fill="#ffffff" stroke="#111111" stroke-width="3.5" />
+    <path d="M15 46h36M20 51V16" stroke="#111111" stroke-width="3.5" stroke-linecap="square" />
+    <path d="M22 44c7-23 17-23 26 0" fill="none" stroke="#111111" stroke-width="4" stroke-linecap="square" />
+    <circle cx="31" cy="34" r="5" fill="#e8c93a" stroke="#111111" stroke-width="3" />
+    <path d="M31 39l-8 8M31 39l10 7M29 38l10-10M27 35l-9 2" stroke="#111111" stroke-width="3.2" stroke-linecap="square" />
+    <path d="M42 18l5 5M47 18l-5 5" stroke="#e00012" stroke-width="3.2" stroke-linecap="square" />
+</svg>

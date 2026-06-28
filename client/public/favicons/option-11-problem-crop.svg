@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+    <title id="title">KICE Arena problem crop favicon option</title>
+    <desc id="desc">Captured math problem rectangle with crop corners and active answer marker.</desc>
+    <rect width="64" height="64" rx="8" fill="#fffef9" />
+    <path d="M12 22v-9h9M43 13h9v9M52 42v9h-9M21 51h-9v-9" fill="none" stroke="#111111" stroke-width="4" stroke-linecap="square" />
+    <rect x="16" y="17" width="32" height="30" fill="#ffffff" stroke="#111111" stroke-width="3" />
+    <path d="M22 28h20M22 36h11" stroke="#121212" stroke-width="3" stroke-linecap="square" opacity=".55" />
+    <path d="M33 35l4-9h4l-4 9h6" fill="none" stroke="#111111" stroke-width="3" stroke-linecap="square" />
+    <circle cx="42" cy="43" r="6" fill="#e8c93a" stroke="#111111" stroke-width="3" />
+</svg>

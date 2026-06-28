@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+    <title id="title">KICE Arena sequence ladder favicon option</title>
+    <desc id="desc">A solver climbing a simple sequence ladder toward a large sigma gate.</desc>
+    <rect width="64" height="64" rx="8" fill="#fffef9" />
+    <rect x="8" y="8" width="48" height="48" fill="#ffffff" stroke="#111111" stroke-width="3.5" />
+    <path d="M31 50V20M49 50V20M31 27h18M31 36h18M31 45h18" stroke="#111111" stroke-width="3.5" stroke-linecap="square" />
+    <path d="M55 13H40l10 10-10 10h15" fill="none" stroke="#111111" stroke-width="5.5" stroke-linecap="square" stroke-linejoin="miter" />
+    <circle cx="17" cy="39" r="5" fill="#e8c93a" stroke="#111111" stroke-width="3" />
+    <path d="M17 44v11M17 48l9-6M17 55l-6 5M18 55l7 5" stroke="#111111" stroke-width="4" stroke-linecap="square" />
+    <path d="M25 38l8-6" stroke="#e8c93a" stroke-width="5" stroke-linecap="square" />
+</svg>
