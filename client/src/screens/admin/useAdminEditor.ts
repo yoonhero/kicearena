@@ -1,12 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { DragEvent } from "react";
-import { isProblemBody, type ProblemManifest, type ProblemPublic } from "../../../../shared/game";
+import { useEffect, useMemo, useState } from "react";
+import type { ProblemManifest } from "../../../../shared/game";
 import {
-    adminAssetSrc,
     appendDefaultChoiceMarkup,
-    bodyForAdminPreview,
-    insertMarkupAtRange,
-    makeDefaultChoices,
     parseProblemMarkup,
     removeChoiceMarkup,
 } from "../adminProblemMarkup";
@@ -14,7 +9,6 @@ import {
     ADMIN_TOKEN_KEY,
     dateTimeLocalToIso,
     examSettingsCheck,
-    isSvgFile,
     makeEmptyNewExamForm,
     makeExamSettingsForm,
     makeForm,
@@ -22,20 +16,24 @@ import {
     normalizedBody,
     pointValueCheck,
     problemSourceMetaCheck,
-    uploadHeaderFileName,
 } from "./adminFormUtils";
-import type {
-    AdminAssetUpload,
-    AdminExam,
-    ExamSettingsForm,
-    NewExamForm,
-    ProblemForm,
-} from "./adminTypes";
-
-const sortExams = (exams: AdminExam[]) =>
-    exams.sort(
-        (left, right) => left.title.localeCompare(right.title) || left.id.localeCompare(right.id),
-    );
+import {
+    createAdminExam,
+    endAdminEvent,
+    fetchAdminExams,
+    saveAdminExamSettings,
+} from "./adminEditorApi";
+import type { AdminExam, ExamSettingsForm, NewExamForm, ProblemForm } from "./adminTypes";
+import {
+    canSaveProblem,
+    choicesForAnswer,
+    filterProblems,
+    makeBodyCheck,
+    makePreviewProblem,
+    sortExams,
+} from "./adminEditorDerived";
+import { useAdminBodyMarkup } from "./useAdminBodyMarkup";
+import { useAdminProblemActions } from "./useAdminProblemActions";
 
 export function useAdminEditor() {
     const [token, setToken] = useState(() => window.localStorage.getItem(ADMIN_TOKEN_KEY) ?? "");
@@ -51,9 +49,21 @@ export function useAdminEditor() {
     const [newExam, setNewExam] = useState<NewExamForm>(() => makeEmptyNewExamForm());
     const [newExamOpen, setNewExamOpen] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
-    const [assetDragging, setAssetDragging] = useState(false);
-    const [uploadingAsset, setUploadingAsset] = useState(false);
-    const bodyEditorRef = useRef<HTMLTextAreaElement | null>(null);
+    const {
+        assetDragging,
+        uploadingAsset,
+        bodyEditorRef,
+        setAssetDragging,
+        insertBodyMarkup,
+        handleBodyDrop,
+        handleBodyDragOver,
+    } = useAdminBodyMarkup({
+        token,
+        selectedExamId,
+        setForm,
+        setError,
+        setStatus,
+    });
 
     const selectedExam = useMemo(
         () => exams.find((exam) => exam.id === selectedExamId) ?? exams[0],
@@ -70,50 +80,16 @@ export function useAdminEditor() {
             selectedExam?.problems.findIndex((problem) => problem.id === selectedProblem?.id) ?? -1,
         [selectedExam, selectedProblem],
     );
-    const filteredProblems = useMemo(() => {
-        if (!selectedExam) return [];
-        const query = problemQuery.trim().toLowerCase();
-        if (!query) return selectedExam.problems;
-        return selectedExam.problems.filter((problem) =>
-            [
-                String(problem.number),
-                problem.id,
-                problem.title,
-                problem.answer,
-                problem.answerKind,
-                String(problem.difficulty),
-                String(problem.pointValue ?? ""),
-            ].some((value) => value.toLowerCase().includes(query)),
-        );
-    }, [problemQuery, selectedExam]);
+    const filteredProblems = useMemo(
+        () => filterProblems(selectedExam, problemQuery),
+        [problemQuery, selectedExam],
+    );
     const parsedBody = useMemo(
         () => (form ? normalizedBody(form) : []),
         [form?.answerKind, form?.bodyMarkup],
     );
 
-    const bodyCheck = useMemo(() => {
-        if (!form) return { ok: false as const, body: null, error: "" };
-        if (!isProblemBody(parsedBody))
-            return { ok: false as const, body: null, error: "본문 구조를 확인하세요." };
-        const choices = parsedBody.find((block) => block.kind === "choices")?.choices;
-        if (form.answerKind === "choice" && !choices)
-            return { ok: false as const, body: null, error: "객관식 선택지를 추가하세요." };
-        if (form.answerKind === "choice" && choices?.some((choice) => !choice.trim()))
-            return { ok: false as const, body: null, error: "빈 선택지를 채우거나 지우세요." };
-        const answerIndex = Number(form.answer);
-        if (
-            form.answerKind === "choice" &&
-            choices &&
-            (!Number.isInteger(answerIndex) || answerIndex < 1 || answerIndex > choices.length)
-        ) {
-            return {
-                ok: false as const,
-                body: null,
-                error: "정답 번호가 선택지 범위를 벗어났습니다.",
-            };
-        }
-        return { ok: true as const, body: parsedBody.length ? parsedBody : null, error: "" };
-    }, [form?.answer, form?.answerKind, parsedBody]);
+    const bodyCheck = useMemo(() => makeBodyCheck(form, parsedBody), [form, parsedBody]);
 
     const pointCheck = useMemo(() => pointValueCheck(form), [form?.pointValue]);
     const sourceMetaCheck = useMemo(() => problemSourceMetaCheck(form), [form?.bodyMarkup]);
@@ -132,47 +108,42 @@ export function useAdminEditor() {
         form &&
         JSON.stringify(makeForm(selectedProblem)) !== JSON.stringify(form),
     );
-    const canSave = Boolean(
-        form &&
-        selectedProblem &&
-        bodyCheck.ok &&
-        pointCheck.ok &&
-        sourceMetaCheck.ok &&
-        form.title.trim() &&
-        form.answer.trim() &&
-        Number.isInteger(form.difficulty) &&
-        form.difficulty >= 1 &&
-        form.difficulty <= 5,
+    const canSave = canSaveProblem({
+        form,
+        selectedProblem,
+        bodyCheck,
+        pointCheck,
+        sourceMetaCheck,
+    });
+    const previewProblem = useMemo(
+        () =>
+            makePreviewProblem({
+                selectedExam,
+                selectedProblem,
+                form,
+                bodyCheck,
+                pointCheck,
+                sourceMetaCheck,
+            }),
+        [bodyCheck, form, pointCheck, selectedExam, selectedProblem, sourceMetaCheck],
     );
-    const previewProblem = useMemo<ProblemPublic | null>(() => {
-        if (!selectedExam || !selectedProblem || !form || !bodyCheck.ok || !sourceMetaCheck.ok)
-            return null;
-        return {
-            id: selectedProblem.id,
-            number: selectedProblem.number,
-            title: form.title,
-            answerKind: form.answerKind,
-            difficulty: form.difficulty as ProblemManifest["difficulty"],
-            pointValue: pointCheck.value ?? selectedProblem.pointValue ?? 0,
-            imageUrl: selectedProblem.image
-                ? adminAssetSrc(selectedExam.id, `problems/${selectedProblem.image}`)
-                : undefined,
-            body: bodyCheck.body ? bodyForAdminPreview(selectedExam.id, bodyCheck.body) : undefined,
-            text: selectedProblem.text,
-            sourceNumber: sourceMetaCheck.sourceNumber ?? undefined,
-            sourcePage: sourceMetaCheck.sourcePage ?? undefined,
-            bbox: sourceMetaCheck.bbox ?? undefined,
-            section: sourceMetaCheck.section || undefined,
-            captureQuality: selectedProblem.captureQuality,
-        };
-    }, [bodyCheck, form, pointCheck.value, selectedExam, selectedProblem, sourceMetaCheck]);
-    const choicesForAnswer =
-        form?.answerKind === "choice"
-            ? (parsedBody.find((block) => block.kind === "choices")?.choices ??
-              makeDefaultChoices())
-            : [];
+    const answerChoices = choicesForAnswer(form, parsedBody);
+    const { resetForm, createProblem, selectProblemOffset, saveProblem } = useAdminProblemActions({
+        token,
+        selectedExam,
+        selectedProblem,
+        selectedProblemIndex,
+        form,
+        bodyCheck,
+        pointCheck,
+        sourceMetaCheck,
+        setError,
+        setStatus,
+        setExams,
+        setForm,
+        setSelectedProblemId,
+    });
 
-    const authHeaders = (): Record<string, string> => (token ? { "X-Admin-Token": token } : {});
     const updateForm = <TKey extends keyof ProblemForm>(key: TKey, value: ProblemForm[TKey]) =>
         setForm((current) => (current ? { ...current, [key]: value } : current));
     const updateExamSettings = <TKey extends keyof ExamSettingsForm>(
@@ -187,14 +158,7 @@ export function useAdminEditor() {
         setError("");
         setStatus("");
         try {
-            const response = await fetch("/api/admin/exams", { headers: authHeaders() });
-            if (!response.ok)
-                throw new Error(
-                    response.status === 401 || response.status === 403
-                        ? "관리자 권한을 확인하세요."
-                        : "문제지 목록을 불러오지 못했습니다.",
-                );
-            const data = (await response.json()) as AdminExam[];
+            const data = await fetchAdminExams(token);
             setExams(data);
             setSelectedExamId((current) =>
                 data.some((exam) => exam.id === current) ? current : (data[0]?.id ?? ""),
@@ -266,95 +230,6 @@ export function useAdminEditor() {
         });
     };
 
-    const insertBodyMarkup = (markup: string, textarea = bodyEditorRef.current) => {
-        let nextCaret = -1;
-        setForm((current) => {
-            if (!current) return current;
-            const inserted = insertMarkupAtRange(
-                current.bodyMarkup,
-                markup,
-                textarea?.selectionStart ?? current.bodyMarkup.length,
-                textarea?.selectionEnd ?? textarea?.selectionStart ?? current.bodyMarkup.length,
-            );
-            nextCaret = inserted.caret;
-            return { ...current, bodyMarkup: inserted.value };
-        });
-        window.requestAnimationFrame(() => {
-            if (!bodyEditorRef.current || nextCaret < 0) return;
-            bodyEditorRef.current.focus();
-            bodyEditorRef.current.setSelectionRange(nextCaret, nextCaret);
-        });
-    };
-
-    const uploadSvgAsset = async (file: File) => {
-        if (!selectedExam) throw new Error("문제지를 먼저 선택하세요.");
-        const response = await fetch(
-            `/api/admin/exams/${encodeURIComponent(selectedExam.id)}/assets`,
-            {
-                method: "POST",
-                headers: {
-                    "Content-Type": "image/svg+xml",
-                    "X-File-Name": uploadHeaderFileName(file.name),
-                    ...authHeaders(),
-                },
-                body: file,
-            },
-        );
-        if (!response.ok)
-            throw new Error(
-                response.status === 401 || response.status === 403
-                    ? "관리자 권한을 확인하세요."
-                    : "SVG 업로드 실패",
-            );
-        return (await response.json()) as AdminAssetUpload;
-    };
-
-    const handleBodyDrop = async (event: DragEvent<HTMLTextAreaElement>) => {
-        const files = [...event.dataTransfer.files];
-        const file = files.find(isSvgFile);
-        if (!file) {
-            if (files.length > 0) {
-                event.preventDefault();
-                setAssetDragging(false);
-                setError("SVG 파일만 업로드할 수 있습니다.");
-            }
-            return;
-        }
-        event.preventDefault();
-        setAssetDragging(false);
-        setUploadingAsset(true);
-        setError("");
-        setStatus("");
-        try {
-            const uploaded = await uploadSvgAsset(file);
-            const label =
-                file.name
-                    .replace(/\.svg$/i, "")
-                    .replace(/[-_]+/g, " ")
-                    .trim() || "도표";
-            insertBodyMarkup(`::svg ${uploaded.path} | ${label}`, event.currentTarget);
-            setStatus(`${file.name} 업로드됨`);
-        } catch (nextError) {
-            setError(nextError instanceof Error ? nextError.message : "SVG 업로드 실패");
-        } finally {
-            setUploadingAsset(false);
-        }
-    };
-
-    const handleBodyDragOver = (event: DragEvent<HTMLTextAreaElement>) => {
-        if (![...event.dataTransfer.items].some((item) => item.kind === "file")) return;
-        event.preventDefault();
-        event.dataTransfer.dropEffect = "copy";
-        setAssetDragging(true);
-    };
-
-    const resetForm = () => {
-        if (!selectedProblem) return;
-        setForm(makeForm(selectedProblem));
-        setError("");
-        setStatus("");
-    };
-
     const createExam = async () => {
         setError("");
         setStatus("");
@@ -362,10 +237,9 @@ export function useAdminEditor() {
             setError(createExamCheck.error);
             return;
         }
-        const response = await fetch("/api/admin/exams", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", ...authHeaders() },
-            body: JSON.stringify({
+        let created: AdminExam;
+        try {
+            created = await createAdminExam(token, {
                 id: newExam.id.trim(),
                 title: newExam.title.trim(),
                 subtitle: newExam.subtitle.trim(),
@@ -373,19 +247,11 @@ export function useAdminEditor() {
                 freezeBeforeSec: createExamCheck.freezeBeforeSec,
                 active: newExam.active,
                 releaseAt: dateTimeLocalToIso(newExam.releaseAt),
-            }),
-        });
-        if (!response.ok) {
-            setError(
-                response.status === 409
-                    ? "이미 존재하는 문제지 id입니다."
-                    : response.status === 401 || response.status === 403
-                      ? "관리자 권한을 확인하세요."
-                      : "문제지 생성 실패",
-            );
+            });
+        } catch (nextError) {
+            setError(nextError instanceof Error ? nextError.message : "문제지 생성 실패");
             return;
         }
-        const created = (await response.json()) as AdminExam;
         setExams((current) =>
             sortExams([...current.filter((exam) => exam.id !== created.id), created]),
         );
@@ -413,27 +279,20 @@ export function useAdminEditor() {
             setError("공개 시작 시각 형식을 확인하세요.");
             return;
         }
-        const response = await fetch(`/api/admin/exams/${encodeURIComponent(selectedExam.id)}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json", ...authHeaders() },
-            body: JSON.stringify({
+        let updated: AdminExam;
+        try {
+            updated = await saveAdminExamSettings(token, selectedExam.id, {
                 title: nextSettings.title.trim(),
                 subtitle: nextSettings.subtitle.trim(),
                 timeLimitSec: nextSettingsCheck.timeLimitSec,
                 freezeBeforeSec: nextSettingsCheck.freezeBeforeSec,
                 active: nextSettings.active,
                 releaseAt: dateTimeLocalToIso(nextSettings.releaseAt),
-            }),
-        });
-        if (!response.ok) {
-            setError(
-                response.status === 401 || response.status === 403
-                    ? "관리자 권한을 확인하세요."
-                    : "문제지 설정 저장 실패",
-            );
+            });
+        } catch (nextError) {
+            setError(nextError instanceof Error ? nextError.message : "문제지 설정 저장 실패");
             return;
         }
-        const updated = (await response.json()) as AdminExam;
         setExams((current) =>
             sortExams(current.map((exam) => (exam.id === updated.id ? updated : exam))),
         );
@@ -447,136 +306,14 @@ export function useAdminEditor() {
         if (!window.confirm(`${selectedExam.title} 대회를 종료할까요?`)) return;
         setError("");
         setStatus("");
-        const response = await fetch(
-            `/api/admin/events/${encodeURIComponent(selectedExam.id)}/end`,
-            {
-                method: "POST",
-                headers: authHeaders(),
-            },
-        );
-        if (!response.ok) {
-            setError(
-                response.status === 401 || response.status === 403
-                    ? "관리자 권한을 확인하세요."
-                    : "대회 종료 실패",
-            );
+        let result: { endedRooms: number };
+        try {
+            result = await endAdminEvent(token, selectedExam.id);
+        } catch (nextError) {
+            setError(nextError instanceof Error ? nextError.message : "대회 종료 실패");
             return;
         }
-        const result = (await response.json()) as { endedRooms: number };
         setStatus(`${selectedExam.title} 종료 처리됨 · ${result.endedRooms}개 방`);
-    };
-
-    const createProblem = async () => {
-        if (!selectedExam) return;
-        setError("");
-        setStatus("");
-        const response = await fetch(
-            `/api/admin/exams/${encodeURIComponent(selectedExam.id)}/problems`,
-            {
-                method: "POST",
-                headers: { "Content-Type": "application/json", ...authHeaders() },
-                body: JSON.stringify({
-                    title: "새 문항",
-                    answerKind: "short",
-                    answer: "1",
-                    difficulty: 1,
-                    pointValue: null,
-                    body: [{ kind: "paragraph", text: "" }],
-                }),
-            },
-        );
-        if (!response.ok) {
-            setError(
-                response.status === 401 || response.status === 403
-                    ? "관리자 권한을 확인하세요."
-                    : "문항 추가 실패",
-            );
-            return;
-        }
-        const created = (await response.json()) as ProblemManifest;
-        setExams((current) =>
-            current.map((exam) =>
-                exam.id === selectedExam.id
-                    ? {
-                          ...exam,
-                          problems: [
-                              ...exam.problems.filter((problem) => problem.id !== created.id),
-                              created,
-                          ].sort((left, right) => left.number - right.number),
-                      }
-                    : exam,
-            ),
-        );
-        setSelectedProblemId(created.id);
-        setStatus(`${created.number}번 문항 추가됨`);
-    };
-
-    const selectProblemOffset = (offset: number) => {
-        if (!selectedExam || selectedProblemIndex < 0) return;
-        const nextIndex = Math.max(
-            0,
-            Math.min(selectedExam.problems.length - 1, selectedProblemIndex + offset),
-        );
-        setSelectedProblemId(selectedExam.problems[nextIndex]?.id ?? "");
-    };
-
-    const saveProblem = async () => {
-        if (!selectedExam || !selectedProblem || !form) return;
-        setError("");
-        setStatus("");
-        if (!bodyCheck.ok) return setError(bodyCheck.error);
-        if (!pointCheck.ok) return setError(pointCheck.error);
-        if (!sourceMetaCheck.ok) return setError(sourceMetaCheck.error);
-        if (
-            !form.title.trim() ||
-            !form.answer.trim() ||
-            !Number.isInteger(form.difficulty) ||
-            form.difficulty < 1 ||
-            form.difficulty > 5
-        )
-            return setError("제목, 정답, 난도를 확인하세요.");
-        const response = await fetch(
-            `/api/admin/exams/${encodeURIComponent(selectedExam.id)}/problems/${encodeURIComponent(selectedProblem.id)}`,
-            {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json", ...authHeaders() },
-                body: JSON.stringify({
-                    title: form.title,
-                    answerKind: form.answerKind,
-                    answer: form.answer,
-                    difficulty: form.difficulty,
-                    pointValue: pointCheck.value,
-                    sourceNumber: sourceMetaCheck.sourceNumber,
-                    sourcePage: sourceMetaCheck.sourcePage,
-                    bbox: sourceMetaCheck.bbox,
-                    section: sourceMetaCheck.section || null,
-                    body: bodyCheck.body,
-                }),
-            },
-        );
-        if (!response.ok) {
-            setError(
-                response.status === 401 || response.status === 403
-                    ? "관리자 권한을 확인하세요."
-                    : "문제 저장 실패",
-            );
-            return;
-        }
-        const updated = (await response.json()) as ProblemManifest;
-        setExams((current) =>
-            current.map((exam) =>
-                exam.id === selectedExam.id
-                    ? {
-                          ...exam,
-                          problems: exam.problems.map((problem) =>
-                              problem.id === updated.id ? updated : problem,
-                          ),
-                      }
-                    : exam,
-            ),
-        );
-        setForm(makeForm(updated));
-        setStatus(`${updated.number}번 저장됨`);
     };
 
     const toggleSelectedExamActive = () => {
@@ -614,7 +351,7 @@ export function useAdminEditor() {
             isDirty,
             canSave,
             previewProblem,
-            choicesForAnswer,
+            choicesForAnswer: answerChoices,
             bodyEditorRef,
         },
         setters: {

@@ -1,0 +1,48 @@
+export const examCatalogSchemaStatements = [
+    `CREATE TABLE IF NOT EXISTS exams (
+    id text PRIMARY KEY,
+    title text NOT NULL,
+    subtitle text NOT NULL,
+    time_limit_sec integer NOT NULL CHECK (time_limit_sec > 0),
+    freeze_before_sec integer NOT NULL DEFAULT 600 CHECK (freeze_before_sec >= 0),
+    release_at timestamptz,
+    capture_summary jsonb,
+    active boolean NOT NULL DEFAULT false,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now()
+  )`,
+    `CREATE TABLE IF NOT EXISTS problems (
+    exam_id text NOT NULL REFERENCES exams(id) ON DELETE CASCADE,
+    id text NOT NULL,
+    number integer NOT NULL CHECK (number > 0),
+    title text NOT NULL,
+    answer_kind text NOT NULL CHECK (answer_kind IN ('choice', 'short')),
+    answer text NOT NULL,
+    difficulty integer NOT NULL CHECK (difficulty BETWEEN 1 AND 5),
+    point_value integer CHECK (point_value IS NULL OR point_value > 0),
+    image text,
+    body jsonb,
+    text text,
+    source_number integer,
+    source_page integer,
+    bbox jsonb,
+    section text,
+    capture_quality jsonb,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (exam_id, id),
+    UNIQUE (exam_id, number)
+  )`,
+    `CREATE INDEX IF NOT EXISTS problems_exam_number_idx ON problems(exam_id, number)`,
+    `CREATE INDEX IF NOT EXISTS exams_active_title_idx ON exams(active, title)`,
+    `ALTER TABLE exams ADD COLUMN IF NOT EXISTS freeze_before_sec integer NOT NULL DEFAULT 600 CHECK (freeze_before_sec >= 0)`,
+    `CREATE TABLE IF NOT EXISTS exam_assets (
+    exam_id text NOT NULL REFERENCES exams(id) ON DELETE CASCADE,
+    path text NOT NULL,
+    content_type text NOT NULL,
+    body bytea NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (exam_id, path)
+  )`,
+];

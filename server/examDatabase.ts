@@ -1,183 +1,36 @@
-import { Pool, type QueryResult } from "pg";
-import type {
-    CaptureQuality,
-    CaptureSummary,
-    ExamManifest,
-    ProblemBodyBlock,
-    ProblemManifest,
-} from "../shared/game.js";
+import type { ExamManifest, ProblemManifest } from "../shared/game.js";
 import { examFreezeBeforeSec } from "../shared/game.js";
+import { examCatalogSchemaStatements } from "./examDatabaseSchema.js";
+import { jsonParam, optionalJson, toReleaseAt } from "./examDatabaseUtils.js";
+import type {
+    AdminExamManifest,
+    AdminExamRow,
+    ExamAssetInput,
+    ExamCatalogDatabase,
+    ExamCreateInput,
+    ExamRow,
+    ExamSettingsUpdateInput,
+    ProblemCreateInput,
+    ProblemRow,
+    ProblemUpdateInput,
+} from "./examDatabaseTypes.js";
 import { ACTIVE_EXAM_IDS } from "./exams.js";
 
-export interface ExamCatalogDatabase {
-    query<T extends object = Record<string, unknown>>(
-        text: string,
-        values?: unknown[],
-    ): Promise<QueryResult<T>>;
-}
+export type {
+    AdminExamManifest,
+    ExamAsset,
+    ExamAssetInput,
+    ExamCatalogDatabase,
+    ExamCreateInput,
+    ExamSettingsUpdateInput,
+    ProblemCreateInput,
+    ProblemUpdateInput,
+} from "./examDatabaseTypes.js";
 
-type ExamRow = {
-    id: string;
-    title: string;
-    subtitle: string;
-    time_limit_sec: number;
-    freeze_before_sec: number | null;
-    release_at: Date | string | null;
-    capture_summary: CaptureSummary | null;
-};
-
-type AdminExamRow = ExamRow & {
-    active: boolean;
-};
-
-type ProblemRow = {
-    exam_id: string;
-    id: string;
-    number: number;
-    title: string;
-    answer_kind: ProblemManifest["answerKind"];
-    answer: string;
-    difficulty: ProblemManifest["difficulty"];
-    point_value: number | null;
-    image: string | null;
-    body: ProblemBodyBlock[] | null;
-    text: string | null;
-    source_number: number | null;
-    source_page: number | null;
-    bbox: [number, number, number, number] | null;
-    section: string | null;
-    capture_quality: CaptureQuality | null;
-};
-
-export type ExamAssetInput = {
-    examId: string;
-    path: string;
-    contentType: string;
-    body: Buffer;
-};
-
-export type ExamAsset = ExamAssetInput & {
-    updatedAt: Date;
-};
-
-export type AdminExamManifest = ExamManifest & {
-    active: boolean;
-};
-
-export type ProblemUpdateInput = {
-    title: string;
-    answerKind: ProblemManifest["answerKind"];
-    answer: string;
-    difficulty: ProblemManifest["difficulty"];
-    pointValue: number | null;
-    body: ProblemBodyBlock[] | null;
-    sourceNumber: number | null;
-    sourcePage: number | null;
-    bbox: [number, number, number, number] | null;
-    section: string | null;
-};
-
-export type ProblemCreateInput = {
-    title: string;
-    answerKind: ProblemManifest["answerKind"];
-    answer: string;
-    difficulty: ProblemManifest["difficulty"];
-    pointValue: number | null;
-    body: ProblemBodyBlock[] | null;
-    sourceNumber?: number | null;
-    sourcePage?: number | null;
-    bbox?: [number, number, number, number] | null;
-    section?: string | null;
-};
-
-export type ExamCreateInput = {
-    id: string;
-    title: string;
-    subtitle: string;
-    timeLimitSec: number;
-    freezeBeforeSec: number;
-    active: boolean;
-    releaseAt: string | null;
-};
-
-export type ExamSettingsUpdateInput = {
-    title: string;
-    subtitle: string;
-    timeLimitSec: number;
-    freezeBeforeSec: number;
-    active: boolean;
-    releaseAt: string | null;
-};
-
-const schemaStatements = [
-    `CREATE TABLE IF NOT EXISTS exams (
-    id text PRIMARY KEY,
-    title text NOT NULL,
-    subtitle text NOT NULL,
-    time_limit_sec integer NOT NULL CHECK (time_limit_sec > 0),
-    freeze_before_sec integer NOT NULL DEFAULT 600 CHECK (freeze_before_sec >= 0),
-    release_at timestamptz,
-    capture_summary jsonb,
-    active boolean NOT NULL DEFAULT false,
-    created_at timestamptz NOT NULL DEFAULT now(),
-    updated_at timestamptz NOT NULL DEFAULT now()
-  )`,
-    `CREATE TABLE IF NOT EXISTS problems (
-    exam_id text NOT NULL REFERENCES exams(id) ON DELETE CASCADE,
-    id text NOT NULL,
-    number integer NOT NULL CHECK (number > 0),
-    title text NOT NULL,
-    answer_kind text NOT NULL CHECK (answer_kind IN ('choice', 'short')),
-    answer text NOT NULL,
-    difficulty integer NOT NULL CHECK (difficulty BETWEEN 1 AND 5),
-    point_value integer CHECK (point_value IS NULL OR point_value > 0),
-    image text,
-    body jsonb,
-    text text,
-    source_number integer,
-    source_page integer,
-    bbox jsonb,
-    section text,
-    capture_quality jsonb,
-    created_at timestamptz NOT NULL DEFAULT now(),
-    updated_at timestamptz NOT NULL DEFAULT now(),
-    PRIMARY KEY (exam_id, id),
-    UNIQUE (exam_id, number)
-  )`,
-    `CREATE INDEX IF NOT EXISTS problems_exam_number_idx ON problems(exam_id, number)`,
-    `CREATE INDEX IF NOT EXISTS exams_active_title_idx ON exams(active, title)`,
-    `ALTER TABLE exams ADD COLUMN IF NOT EXISTS freeze_before_sec integer NOT NULL DEFAULT 600 CHECK (freeze_before_sec >= 0)`,
-    `CREATE TABLE IF NOT EXISTS exam_assets (
-    exam_id text NOT NULL REFERENCES exams(id) ON DELETE CASCADE,
-    path text NOT NULL,
-    content_type text NOT NULL,
-    body bytea NOT NULL,
-    created_at timestamptz NOT NULL DEFAULT now(),
-    updated_at timestamptz NOT NULL DEFAULT now(),
-    PRIMARY KEY (exam_id, path)
-  )`,
-];
-
-const toReleaseAt = (value: Date | string | null) => {
-    if (value === null) return undefined;
-    if (value instanceof Date) return value.toISOString();
-    return value;
-};
-
-const optionalJson = <T>(value: T | null) => value ?? undefined;
-const jsonParam = (value: unknown) =>
-    value === undefined || value === null ? null : JSON.stringify(value);
-
-export const createExamCatalogPool = (connectionString: string) =>
-    new Pool({
-        connectionString,
-        max: 10,
-        idleTimeoutMillis: 30_000,
-        connectionTimeoutMillis: 5_000,
-    });
+export { createExamCatalogPool } from "./examDatabaseUtils.js";
 
 export const migrateExamCatalog = async (db: ExamCatalogDatabase) => {
-    for (const statement of schemaStatements) {
+    for (const statement of examCatalogSchemaStatements) {
         await db.query(statement);
     }
 };
@@ -486,39 +339,6 @@ export const createProblemInDatabase = async (
     return manifest?.problems[0] ?? null;
 };
 
-export const saveExamAssetInDatabase = async (
-    db: ExamCatalogDatabase,
-    asset: ExamAssetInput,
-): Promise<ExamAsset | null> => {
-    const result = await db.query<{
-        exam_id: string;
-        path: string;
-        content_type: string;
-        body: Buffer;
-        updated_at: Date;
-    }>(
-        `INSERT INTO exam_assets (exam_id, path, content_type, body, updated_at)
-     SELECT $1, $2, $3, $4, now()
-     WHERE EXISTS (SELECT 1 FROM exams WHERE id = $1)
-     ON CONFLICT (exam_id, path) DO UPDATE SET
-       content_type = EXCLUDED.content_type,
-       body = EXCLUDED.body,
-       updated_at = now()
-     RETURNING exam_id, path, content_type, body, updated_at`,
-        [asset.examId, asset.path, asset.contentType, asset.body],
-    );
-    const row = result.rows[0];
-    return row
-        ? {
-              examId: row.exam_id,
-              path: row.path,
-              contentType: row.content_type,
-              body: row.body,
-              updatedAt: row.updated_at,
-          }
-        : null;
-};
-
 export const updateProblemInDatabase = async (
     db: ExamCatalogDatabase,
     examId: string,
@@ -573,33 +393,4 @@ export const updateProblemInDatabase = async (
     return manifest?.problems[0] ?? null;
 };
 
-export const readExamAssetFromDatabase = async (
-    db: ExamCatalogDatabase,
-    examId: string,
-    assetPath: string,
-    requireActive = true,
-): Promise<ExamAsset | null> => {
-    const result = await db.query<{
-        exam_id: string;
-        path: string;
-        content_type: string;
-        body: Buffer;
-        updated_at: Date;
-    }>(
-        `SELECT asset.exam_id, asset.path, asset.content_type, asset.body, asset.updated_at
-     FROM exam_assets asset
-     JOIN exams exam ON exam.id = asset.exam_id
-     WHERE asset.exam_id = $1 AND asset.path = $2 AND ($3::boolean = false OR exam.active = true)`,
-        [examId, assetPath, requireActive],
-    );
-    const row = result.rows[0];
-    return row
-        ? {
-              examId: row.exam_id,
-              path: row.path,
-              contentType: row.content_type,
-              body: row.body,
-              updatedAt: row.updated_at,
-          }
-        : null;
-};
+export { readExamAssetFromDatabase, saveExamAssetInDatabase } from "./examAssetDatabase.js";
