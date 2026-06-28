@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+    <title id="title">KICE Arena integral area favicon option</title>
+    <desc id="desc">A solver battling a shaded integral area under a thick curve.</desc>
+    <rect width="64" height="64" rx="8" fill="#fffef9" />
+    <rect x="8" y="8" width="48" height="48" fill="#ffffff" stroke="#111111" stroke-width="3.5" />
+    <path d="M29 49h24M33 52V16" stroke="#111111" stroke-width="3" stroke-linecap="square" />
+    <path d="M31 47c6-22 15-19 22-5v7H31z" fill="#fbefb2" stroke="#111111" stroke-width="3.5" stroke-linejoin="round" />
+    <path d="M39 14c-7 0-8 6-6 14l2 8c2 8 0 13-7 13" fill="none" stroke="#111111" stroke-width="5.5" stroke-linecap="square" />
+    <circle cx="17" cy="35" r="5" fill="#e8c93a" stroke="#111111" stroke-width="3" />
+    <path d="M17 40v12M17 44l8-4M17 52l-6 5M18 52l7 5" stroke="#111111" stroke-width="4" stroke-linecap="square" />
+</svg>

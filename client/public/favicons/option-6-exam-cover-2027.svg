@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+    <title id="title">KICE Arena exam cover favicon option</title>
+    <desc id="desc">Korean mock-exam cover motif with 2027 label, ruled fields, and yellow administration bar.</desc>
+    <rect width="64" height="64" rx="6" fill="#fffef9" />
+    <rect x="10" y="7" width="44" height="50" fill="#ffffff" stroke="#111111" stroke-width="4" />
+    <path d="M10 18h44" stroke="#111111" stroke-width="4" />
+    <path d="M15 24h34M15 42h34M15 49h22" stroke="#121212" stroke-width="2.5" stroke-linecap="square" opacity=".55" />
+    <rect x="15" y="29" width="34" height="8" fill="#e8c93a" stroke="#111111" stroke-width="2" />
+    <path d="M17 14h5M25 14h5M33 14h5M41 14h5" stroke="#111111" stroke-width="2.5" stroke-linecap="square" />
+    <path d="M20 37h24" stroke="#6d5800" stroke-width="3" stroke-linecap="square" />
+</svg>

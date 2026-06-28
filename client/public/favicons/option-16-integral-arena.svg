@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+    <title id="title">KICE Arena integral arena favicon option</title>
+    <desc id="desc">A compact solver facing a large integral symbol in a square arena sheet.</desc>
+    <rect width="64" height="64" rx="8" fill="#fffef9" />
+    <rect x="8" y="8" width="48" height="48" fill="#ffffff" stroke="#111111" stroke-width="3.5" />
+    <circle cx="19" cy="39" r="5" fill="#e8c93a" stroke="#111111" stroke-width="3" />
+    <path d="M19 44v8M19 47l-8 4M20 47l9-5M19 52l-6 5M20 52l7 5" stroke="#111111" stroke-width="3.2" stroke-linecap="square" />
+    <path d="M40 12c-8 0-9 6-6 16l2 7c3 10 1 16-8 16" fill="none" stroke="#111111" stroke-width="6" stroke-linecap="square" />
+    <path d="M30 35h13M45 28l5 5-5 5" fill="none" stroke="#e00012" stroke-width="3.2" stroke-linecap="square" stroke-linejoin="miter" />
+    <path d="M16 17h10M16 24h8" stroke="#121212" stroke-width="2.5" stroke-linecap="square" opacity=".45" />
+</svg>

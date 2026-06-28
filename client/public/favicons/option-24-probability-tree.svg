@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+    <title id="title">KICE Arena probability tree favicon option</title>
+    <desc id="desc">A solver facing a die and branching probability outcomes.</desc>
+    <rect width="64" height="64" rx="8" fill="#fffef9" />
+    <rect x="8" y="8" width="48" height="48" fill="#ffffff" stroke="#111111" stroke-width="3.5" />
+    <rect x="33" y="14" width="21" height="21" fill="#ffffff" stroke="#111111" stroke-width="3.5" />
+    <circle cx="39" cy="20" r="2.2" fill="#111111" />
+    <circle cx="48" cy="20" r="2.2" fill="#111111" />
+    <circle cx="43.5" cy="29" r="2.2" fill="#111111" />
+    <circle cx="35" cy="50" r="5" fill="#ffffff" stroke="#111111" stroke-width="3" />
+    <circle cx="50" cy="50" r="5" fill="#fbefb2" stroke="#111111" stroke-width="3" />
+    <path d="M40 37l-5 9M47 37l3 9" stroke="#111111" stroke-width="3.5" stroke-linecap="square" />
+    <circle cx="17" cy="36" r="5" fill="#e8c93a" stroke="#111111" stroke-width="3" />
+    <path d="M17 41v11M17 45l8-4M17 52l-6 5M18 52l7 5" stroke="#111111" stroke-width="4" stroke-linecap="square" />
+</svg>

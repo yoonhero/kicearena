@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+    <title id="title">KICE Arena folded exam sheet K favicon option</title>
+    <desc id="desc">Folded exam sheet with a strong K mark and ruled administration lines.</desc>
+    <rect width="64" height="64" rx="8" fill="#fffef9" />
+    <path d="M14 8h28l10 10v38H14z" fill="#ffffff" stroke="#111111" stroke-width="4" stroke-linejoin="round" />
+    <path d="M42 8v12h10" fill="#f4f1e9" stroke="#111111" stroke-width="4" stroke-linejoin="round" />
+    <path d="M20 25h18M20 34h24M20 43h20" stroke="#121212" stroke-width="2.5" stroke-linecap="square" opacity=".5" />
+    <path d="M22 54V20h8v13l12-13h10L38 35l15 19H43L30 38v16z" fill="#e8c93a" stroke="#111111" stroke-width="2" stroke-linejoin="round" />
+</svg>

@@ -1,0 +1,43 @@
+name: Free PR Review
+
+on:
+    pull_request:
+        types:
+            - opened
+            - reopened
+            - synchronize
+            - ready_for_review
+
+permissions:
+    contents: read
+    pull-requests: write
+    issues: write
+
+jobs:
+    review:
+        name: Deterministic PR review
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+
+        steps:
+            - name: Check out pull request head
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+                  ref: ${{ github.event.pull_request.head.sha }}
+
+            - name: Set up Bun
+              uses: oven-sh/setup-bun@v2
+              with:
+                  bun-version: 1.3.7
+
+            - name: Generate review report
+              env:
+                  PR_REVIEW_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+                  PR_REVIEW_OUTPUT: pr-review.md
+              run: bun scripts/pr_review.mjs
+
+            - name: Post sticky PR comment
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: bun scripts/post_pr_review_comment.mjs pr-review.md

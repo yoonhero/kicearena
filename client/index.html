@@ -18,6 +18,29 @@
         <meta name="googlebot" content="index, follow" />
         <meta name="NaverBot" content="index, follow" />
         <meta name="Yeti" content="index, follow" />
+        <link
+            id="kice-favicon"
+            rel="icon"
+            type="image/svg+xml"
+            href="/favicons/option-19-quadratic-boss.svg"
+        />
+        <script>
+            (() => {
+                const faviconSeries = [
+                    "/favicons/option-19-quadratic-boss.svg",
+                    "/favicons/option-20-trig-orbit.svg",
+                    "/favicons/option-21-log-exponent-tower.svg",
+                    "/favicons/option-22-derivative-tangent.svg",
+                    "/favicons/option-23-integral-area.svg",
+                    "/favicons/option-24-probability-tree.svg",
+                    "/favicons/option-25-vector-duel.svg",
+                    "/favicons/option-26-sequence-ladder.svg",
+                ];
+                const favicon = document.getElementById("kice-favicon");
+                const randomIndex = Math.floor(Math.random() * faviconSeries.length);
+                favicon?.setAttribute("href", faviconSeries[randomIndex]);
+            })();
+        </script>
         <link rel="manifest" href="/site.webmanifest" />
         <meta property="og:locale" content="ko_KR" />
         <meta property="og:type" content="website" />
